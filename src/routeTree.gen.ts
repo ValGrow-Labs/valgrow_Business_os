@@ -16,6 +16,7 @@ import { Route as BranchesRouteImport } from './routes/branches'
 import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as FilesRouteImport } from './routes/files'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OrganizationRouteImport } from './routes/organization'
@@ -27,7 +28,13 @@ import { Route as RolesRouteImport } from './routes/roles'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as TeamsRouteImport } from './routes/teams'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as SettingsSecurityRouteImport } from './routes/settings/security'
 import { Route as SettingsSystemRouteImport } from './routes/settings/system'
+import { Route as SettingsThemeRouteImport } from './routes/settings/theme'
+import { Route as StatesEmptyRouteImport } from './routes/states/empty'
+import { Route as StatesErrorRouteImport } from './routes/states/error'
+import { Route as StatesLoadingRouteImport } from './routes/states/loading'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -62,6 +69,11 @@ const FilesRoute = FilesRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -119,9 +131,39 @@ const UsersRoute = UsersRouteImport.update({
   path: '/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
+  id: '/settings/appearance',
+  path: '/settings/appearance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsSecurityRoute = SettingsSecurityRouteImport.update({
+  id: '/settings/security',
+  path: '/settings/security',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsSystemRoute = SettingsSystemRouteImport.update({
   id: '/settings/system',
   path: '/settings/system',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsThemeRoute = SettingsThemeRouteImport.update({
+  id: '/settings/theme',
+  path: '/settings/theme',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatesEmptyRoute = StatesEmptyRouteImport.update({
+  id: '/states/empty',
+  path: '/states/empty',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatesErrorRoute = StatesErrorRouteImport.update({
+  id: '/states/error',
+  path: '/states/error',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatesLoadingRoute = StatesLoadingRouteImport.update({
+  id: '/states/loading',
+  path: '/states/loading',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -133,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/organization': typeof OrganizationRoute
@@ -144,7 +187,13 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/teams': typeof TeamsRoute
   '/users': typeof UsersRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/security': typeof SettingsSecurityRoute
   '/settings/system': typeof SettingsSystemRoute
+  '/settings/theme': typeof SettingsThemeRoute
+  '/states/empty': typeof StatesEmptyRoute
+  '/states/error': typeof StatesErrorRoute
+  '/states/loading': typeof StatesLoadingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -154,6 +203,7 @@ export interface FileRoutesByTo {
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/organization': typeof OrganizationRoute
@@ -165,7 +215,13 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/teams': typeof TeamsRoute
   '/users': typeof UsersRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/security': typeof SettingsSecurityRoute
   '/settings/system': typeof SettingsSystemRoute
+  '/settings/theme': typeof SettingsThemeRoute
+  '/states/empty': typeof StatesEmptyRoute
+  '/states/error': typeof StatesErrorRoute
+  '/states/loading': typeof StatesLoadingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -176,6 +232,7 @@ export interface FileRoutesById {
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/organization': typeof OrganizationRoute
@@ -187,7 +244,13 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/teams': typeof TeamsRoute
   '/users': typeof UsersRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/security': typeof SettingsSecurityRoute
   '/settings/system': typeof SettingsSystemRoute
+  '/settings/theme': typeof SettingsThemeRoute
+  '/states/empty': typeof StatesEmptyRoute
+  '/states/error': typeof StatesErrorRoute
+  '/states/loading': typeof StatesLoadingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -199,6 +262,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/files'
     | '/forgot-password'
+    | '/help'
     | '/login'
     | '/notifications'
     | '/organization'
@@ -210,7 +274,13 @@ export interface FileRouteTypes {
     | '/search'
     | '/teams'
     | '/users'
+    | '/settings/appearance'
+    | '/settings/security'
     | '/settings/system'
+    | '/settings/theme'
+    | '/states/empty'
+    | '/states/error'
+    | '/states/loading'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -220,6 +290,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/files'
     | '/forgot-password'
+    | '/help'
     | '/login'
     | '/notifications'
     | '/organization'
@@ -231,7 +302,13 @@ export interface FileRouteTypes {
     | '/search'
     | '/teams'
     | '/users'
+    | '/settings/appearance'
+    | '/settings/security'
     | '/settings/system'
+    | '/settings/theme'
+    | '/states/empty'
+    | '/states/error'
+    | '/states/loading'
   id:
     | '__root__'
     | '/'
@@ -241,6 +318,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/files'
     | '/forgot-password'
+    | '/help'
     | '/login'
     | '/notifications'
     | '/organization'
@@ -252,7 +330,13 @@ export interface FileRouteTypes {
     | '/search'
     | '/teams'
     | '/users'
+    | '/settings/appearance'
+    | '/settings/security'
     | '/settings/system'
+    | '/settings/theme'
+    | '/states/empty'
+    | '/states/error'
+    | '/states/loading'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -263,6 +347,7 @@ export interface RootRouteChildren {
   DepartmentsRoute: typeof DepartmentsRoute
   FilesRoute: typeof FilesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  HelpRoute: typeof HelpRoute
   LoginRoute: typeof LoginRoute
   NotificationsRoute: typeof NotificationsRoute
   OrganizationRoute: typeof OrganizationRoute
@@ -274,7 +359,13 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   TeamsRoute: typeof TeamsRoute
   UsersRoute: typeof UsersRoute
+  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsSecurityRoute: typeof SettingsSecurityRoute
   SettingsSystemRoute: typeof SettingsSystemRoute
+  SettingsThemeRoute: typeof SettingsThemeRoute
+  StatesEmptyRoute: typeof StatesEmptyRoute
+  StatesErrorRoute: typeof StatesErrorRoute
+  StatesLoadingRoute: typeof StatesLoadingRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -326,6 +417,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -405,11 +503,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/appearance': {
+      id: '/settings/appearance'
+      path: '/settings/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof SettingsAppearanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/security': {
+      id: '/settings/security'
+      path: '/settings/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof SettingsSecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/system': {
       id: '/settings/system'
       path: '/settings/system'
       fullPath: '/settings/system'
       preLoaderRoute: typeof SettingsSystemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/theme': {
+      id: '/settings/theme'
+      path: '/settings/theme'
+      fullPath: '/settings/theme'
+      preLoaderRoute: typeof SettingsThemeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/states/empty': {
+      id: '/states/empty'
+      path: '/states/empty'
+      fullPath: '/states/empty'
+      preLoaderRoute: typeof StatesEmptyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/states/error': {
+      id: '/states/error'
+      path: '/states/error'
+      fullPath: '/states/error'
+      preLoaderRoute: typeof StatesErrorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/states/loading': {
+      id: '/states/loading'
+      path: '/states/loading'
+      fullPath: '/states/loading'
+      preLoaderRoute: typeof StatesLoadingRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -423,6 +563,7 @@ const rootRouteChildren: RootRouteChildren = {
   DepartmentsRoute: DepartmentsRoute,
   FilesRoute: FilesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  HelpRoute: HelpRoute,
   LoginRoute: LoginRoute,
   NotificationsRoute: NotificationsRoute,
   OrganizationRoute: OrganizationRoute,
@@ -434,7 +575,13 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   TeamsRoute: TeamsRoute,
   UsersRoute: UsersRoute,
+  SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsSecurityRoute: SettingsSecurityRoute,
   SettingsSystemRoute: SettingsSystemRoute,
+  SettingsThemeRoute: SettingsThemeRoute,
+  StatesEmptyRoute: StatesEmptyRoute,
+  StatesErrorRoute: StatesErrorRoute,
+  StatesLoadingRoute: StatesLoadingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
