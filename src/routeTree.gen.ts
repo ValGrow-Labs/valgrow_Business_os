@@ -16,6 +16,7 @@ import { Route as BranchesRouteImport } from './routes/branches'
 import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as FilesRouteImport } from './routes/files'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as GradientBlurDemoRouteImport } from './routes/gradient-blur-demo'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotificationsRouteImport } from './routes/notifications'
@@ -69,6 +70,11 @@ const FilesRoute = FilesRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GradientBlurDemoRoute = GradientBlurDemoRouteImport.update({
+  id: '/gradient-blur-demo',
+  path: '/gradient-blur-demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HelpRoute = HelpRouteImport.update({
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/files'
     | '/forgot-password'
+    | '/gradient-blur-demo'
     | '/help'
     | '/login'
     | '/notifications'
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/files'
     | '/forgot-password'
+    | '/gradient-blur-demo'
     | '/help'
     | '/login'
     | '/notifications'
@@ -318,6 +329,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/files'
     | '/forgot-password'
+    | '/gradient-blur-demo'
     | '/help'
     | '/login'
     | '/notifications'
@@ -347,6 +359,7 @@ export interface RootRouteChildren {
   DepartmentsRoute: typeof DepartmentsRoute
   FilesRoute: typeof FilesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  GradientBlurDemoRoute: typeof GradientBlurDemoRoute
   HelpRoute: typeof HelpRoute
   LoginRoute: typeof LoginRoute
   NotificationsRoute: typeof NotificationsRoute
@@ -417,6 +430,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gradient-blur-demo': {
+      id: '/gradient-blur-demo'
+      path: '/gradient-blur-demo'
+      fullPath: '/gradient-blur-demo'
+      preLoaderRoute: typeof GradientBlurDemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/help': {
@@ -563,6 +583,7 @@ const rootRouteChildren: RootRouteChildren = {
   DepartmentsRoute: DepartmentsRoute,
   FilesRoute: FilesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  GradientBlurDemoRoute: GradientBlurDemoRoute,
   HelpRoute: HelpRoute,
   LoginRoute: LoginRoute,
   NotificationsRoute: NotificationsRoute,
@@ -586,3 +607,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

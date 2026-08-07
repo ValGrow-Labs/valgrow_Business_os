@@ -96,13 +96,15 @@ export const navGroups: NavGroup[] = [
   {
     label: "Business modules",
     items: [
-      { title: "POS", url: "/", icon: ShoppingCart, soon: true },
-      { title: "Inventory", url: "/", icon: Boxes, soon: true },
-      { title: "CRM", url: "/", icon: Contact, soon: true },
-      { title: "Accounting", url: "/", icon: Calculator, soon: true },
-      { title: "HR & Payroll", url: "/", icon: BriefcaseBusiness, soon: true },
+      { title: "Projects", url: "/", icon: Boxes, soon: true },
+      { title: "Clients", url: "/", icon: Contact, soon: true },
+      { title: "Finance", url: "/", icon: Calculator, soon: true },
+      { title: "Sales", url: "/", icon: ShoppingCart, soon: true },
+      { title: "Operations", url: "/", icon: BriefcaseBusiness, soon: true },
+      { title: "AI Workspace", url: "/", icon: Sparkles, soon: true },
       { title: "Analytics", url: "/", icon: BarChart3, soon: true },
-      { title: "AI Assistant", url: "/", icon: Sparkles, soon: true },
+      { title: "Automation", url: "/", icon: Cpu, soon: true },
+      { title: "Reports", url: "/", icon: ScrollText, soon: true },
     ],
   },
   {
@@ -149,6 +151,13 @@ export const notifications = [
     unread: false,
     kind: "warning" as const,
   },
+];
+
+export const primaryNav: { title: string; url: string; soon?: boolean }[] = [
+  { title: "Dashboard", url: "/" },
+  { title: "Organization", url: "/organization" },
+  { title: "Analytics", url: "/", soon: true },
+  { title: "Reports", url: "/", soon: true },
 ];
 
 export const searchTargets = navGroups

@@ -116,6 +116,7 @@
   --sidebar-ring: oklch(0.55 0.24 296);
   --gradient-brand: linear-gradient(135deg, var(--brand), var(--brand-glow));
   --shadow-panel: 0 24px 60px -30px oklch(0.2 0.06 296 / 0.35);
+  --shadow-card: 0 1px 2px oklch(0.2 0.02 296 / 0.04), 0 14px 32px -22px oklch(0.2 0.06 296 / 0.28);
 }
 
 .dark {
@@ -158,6 +159,7 @@
   --sidebar-accent-foreground: oklch(0.97 0.01 300);
   --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.62 0.24 297);
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.2), 0 16px 36px -20px oklch(0 0 0 / 0.55);
 }
 
 @layer base {
@@ -184,6 +186,7 @@
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
 }
 
 @utility gradient-brand {
@@ -195,4 +198,39 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+@keyframes hero-glow-drift-a {
+  0%,
+  100% {
+    transform: translate(0, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-20px, calc(-50% + 16px)) scale(1.08);
+  }
+}
+
+@keyframes hero-glow-drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(18px, -14px) scale(0.94);
+  }
+}
+
+@utility animate-hero-drift-a {
+  animation: hero-glow-drift-a 26s ease-in-out infinite;
+}
+
+@utility animate-hero-drift-b {
+  animation: hero-glow-drift-b 31s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-drift-a,
+  .animate-hero-drift-b {
+    animation: none;
+  }
 }

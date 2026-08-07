@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ComponentType, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
   Building2,
   Check,
   ChevronsUpDown,
+  CircleHelp,
   GitBranch,
   LogOut,
   Menu,
@@ -12,6 +13,7 @@ import {
   PanelLeftClose,
   Search,
   Settings,
+  Sparkles,
   Sun,
   UserRound,
 } from "lucide-react";
@@ -30,18 +32,28 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { NotificationItem } from "@/components/foundation/notification-item";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { useTheme } from "@/components/theme-provider";
-import { branches, navGroups, notifications, organizations } from "@/lib/nav";
+import { branches, navGroups, notifications, organizations, primaryNav } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import valgrowLogo from "@/assets/valgrow-logo.png";
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link to="/" className="flex items-center gap-2.5 px-1">
-      <span className="gradient-brand flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold text-primary-foreground">
-        V
+    <Link to="/" className={cn("flex items-center px-1", compact ? "justify-center" : "gap-3.5")}>
+      <span
+        className={cn(
+          "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-black/5",
+          compact ? "h-9 w-9" : "h-[50px] w-[50px]",
+        )}
+      >
+        <img
+          src={valgrowLogo}
+          alt="ValGrow"
+          className={cn("object-contain", compact ? "h-[24px] w-[24px]" : "h-[34px] w-[34px]")}
+        />
       </span>
       {!compact ? (
         <span className="leading-tight">
@@ -52,6 +64,63 @@ function Brand({ compact = false }: { compact?: boolean }) {
         </span>
       ) : null}
     </Link>
+  );
+}
+
+function PrimaryNavLinks() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  return (
+    <nav className="hidden items-center gap-1 lg:flex">
+      {primaryNav.map((item) => {
+        const active = !item.soon && pathname === item.url;
+        const base = cn(
+          "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+          active
+            ? "bg-accent text-accent-foreground"
+            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+        );
+
+        if (item.soon) {
+          return (
+            <TooltipProvider key={item.title} delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span aria-disabled className={cn(base, "cursor-not-allowed opacity-50")}>
+                    {item.title}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{item.title} — coming soon</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        }
+
+        return (
+          <Link key={item.title} to={item.url} className={base}>
+            {item.title}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function HeaderIconLink({
+  to,
+  label,
+  icon: Icon,
+}: {
+  to: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+}) {
+  return (
+    <Button asChild variant="ghost" size="icon" aria-label={label}>
+      <Link to={to}>
+        <Icon className="h-4 w-4" />
+      </Link>
+    </Button>
   );
 }
 
@@ -93,17 +162,19 @@ function SidebarNav({ compact, onNavigate }: { compact: boolean; onNavigate?: ()
 
               if (item.soon) {
                 return (
-                  <Tooltip key={item.title}>
-                    <TooltipTrigger asChild>
-                      <div
-                        aria-disabled
-                        className={cn(base, "cursor-not-allowed opacity-50 hover:bg-transparent")}
-                      >
-                        {content}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">{item.title} — coming soon</TooltipContent>
-                  </Tooltip>
+                  <TooltipProvider key={item.title} delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          aria-disabled
+                          className={cn(base, "cursor-not-allowed opacity-50 hover:bg-transparent")}
+                        >
+                          {content}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{item.title} — coming soon</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 );
               }
 
@@ -229,8 +300,8 @@ function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-9 gap-2 px-1.5">
-          <Avatar className="h-7 w-7">
+        <Button variant="ghost" className="h-10 gap-2 px-2.5">
+          <Avatar className="h-10 w-10">
             <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
               AV
             </AvatarFallback>
@@ -265,115 +336,142 @@ function UserMenu() {
   );
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  rightPanel,
+}: {
+  children: ReactNode;
+  rightPanel?: ReactNode;
+}) {
   const [compact, setCompact] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
-      <aside
-        className={cn(
-          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 lg:flex",
-          compact ? "w-[68px]" : "w-64",
-        )}
-      >
-        <div className="flex h-16 items-center justify-between px-3">
-          <Brand compact={compact} />
-          {!compact ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCompact(true)}
-              aria-label="Collapse sidebar"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </Button>
-          ) : null}
-        </div>
-        <div className="min-h-0 flex-1">
-          <SidebarNav compact={compact} />
-        </div>
-        {compact ? (
-          <div className="p-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-full"
-              onClick={() => setCompact(false)}
-              aria-label="Expand sidebar"
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : (
-          <div className="m-3 rounded-xl border border-sidebar-border bg-surface-2/60 p-3">
-            <p className="text-xs font-semibold">Foundation UI</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Shared layout and components for every future ValGrow module.
-            </p>
-          </div>
-        )}
-      </aside>
+    <div className="relative isolate min-h-screen w-full overflow-hidden bg-background p-2 sm:p-4 lg:p-6">
+      <div className="gradient-brand pointer-events-none fixed -left-24 -top-24 -z-10 h-96 w-96 rounded-full opacity-20 blur-[110px]" />
+      <div className="pointer-events-none fixed -right-20 top-1/3 -z-10 h-80 w-80 rounded-full bg-warning/20 opacity-25 blur-[110px]" />
+      <div className="pointer-events-none fixed bottom-0 left-1/2 -z-10 h-72 w-72 -translate-x-1/2 rounded-full bg-info/20 opacity-20 blur-[110px]" />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-background/85 px-3 backdrop-blur sm:px-5">
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
-                <Menu className="h-4 w-4" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 bg-sidebar p-0">
-              <SheetTitle className="px-4 pt-4">
-                <Brand />
-              </SheetTitle>
-              <div className="h-[calc(100vh-5rem)]">
-                <SidebarNav compact={false} onNavigate={() => setMobileOpen(false)} />
-              </div>
-            </SheetContent>
-          </Sheet>
-
-          <div className="lg:hidden">
-            <Brand compact />
-          </div>
-
-          <div className="hidden items-center gap-2 md:flex">
-            <OrgSwitcher />
-            <BranchSwitcher />
-          </div>
-
-          <button
-            onClick={() => setPaletteOpen(true)}
-            className="ml-auto flex h-9 max-w-md flex-1 items-center gap-2 rounded-lg border border-input bg-surface-2/60 px-3 text-sm text-muted-foreground transition-colors hover:border-primary/40"
+      <div className="mx-auto flex h-[calc(100vh-1rem)] w-full max-w-[1680px] overflow-hidden rounded-3xl border border-border bg-background shadow-[var(--shadow-panel)] sm:h-[calc(100vh-2rem)] lg:h-[calc(100vh-3rem)]">
+        <aside
+          className={cn(
+            "hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 lg:flex",
+            compact ? "w-[68px]" : "w-64",
+          )}
+        >
+          <div
+            className={cn(
+              "flex h-16 items-center gap-3 px-3 border-b border-sidebar-border",
+              compact ? "justify-end" : "justify-between",
+            )}
           >
-            <Search className="h-4 w-4" />
-            <span className="hidden sm:inline">Search anything…</span>
-            <kbd className="ml-auto hidden rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold sm:inline">
-              ⌘K
-            </kbd>
-          </button>
-
-          <div className="ml-auto flex items-center gap-1">
-            <ThemeSwitcher />
-            <NotificationBell />
-            <UserMenu />
+            {!compact ? <Brand /> : <Brand compact />}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCompact((c) => !c)}
+              aria-label={compact ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {compact ? <Menu className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </Button>
           </div>
-        </header>
-
-        <main className="min-w-0 flex-1 px-3 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-7xl space-y-6">{children}</div>
-        </main>
-
-        <footer className="border-t border-border px-4 py-4 text-xs text-muted-foreground sm:px-6">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
-            <span>ValGrow Business OS — Foundation UI</span>
-            <span>Placeholder content only · v0.1.0</span>
+          <div className="min-h-0 flex-1">
+            <SidebarNav compact={compact} />
           </div>
-        </footer>
+          <div className="p-3">
+            {compact ? (
+              <div className="gradient-brand flex items-center justify-center rounded-xl p-2.5">
+                <Sparkles className="h-4 w-4 text-primary-foreground" />
+              </div>
+            ) : (
+              <div className="gradient-brand relative overflow-hidden rounded-2xl p-4 shadow-[var(--shadow-panel)]">
+                <Sparkles className="h-5 w-5 text-primary-foreground" />
+                <p className="mt-2 text-sm font-semibold text-primary-foreground">AI Assistant</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-primary-foreground/85">
+                  Ask questions across every module, in plain language.
+                </p>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="mt-3 w-full bg-white/15 text-primary-foreground hover:bg-white/25"
+                  onClick={() => setPaletteOpen(true)}
+                >
+                  Open assistant
+                </Button>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface/70 px-4 backdrop-blur sm:px-6">
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
+                  <Menu className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 bg-sidebar p-0">
+                <SheetTitle className="px-4 pt-4">
+                  <Brand />
+                </SheetTitle>
+                <div className="h-[calc(100vh-5rem)]">
+                  <SidebarNav compact={false} onNavigate={() => setMobileOpen(false)} />
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <div className="hidden items-center gap-6 lg:flex">
+              <PrimaryNavLinks />
+            </div>
+
+            <button
+              onClick={() => setPaletteOpen(true)}
+              className="mx-auto flex h-10 w-full max-w-2xl items-center gap-3 rounded-xl border border-input bg-surface-2/60 px-4 text-sm text-muted-foreground transition-colors hover:border-primary/40"
+            >
+              <Search className="h-4 w-4 shrink-0" />
+              <span className="grow truncate whitespace-nowrap text-sm text-muted-foreground">
+                Search modules, people, reports...
+              </span>
+            </button>
+
+            <div className="flex items-center gap-2 md:gap-3">
+              <HeaderIconLink to="/help" label="Help" icon={CircleHelp} />
+              <HeaderIconLink to="/settings/system" label="Settings" icon={Settings} />
+              <ThemeSwitcher />
+              <NotificationBell />
+              <Separator orientation="vertical" className="mx-1 hidden h-6 md:block" />
+              <div className="hidden items-center gap-2 md:flex">
+                <OrgSwitcher />
+                <BranchSwitcher />
+              </div>
+              <UserMenu />
+            </div>
+          </header>
+
+          <main className="min-w-0 flex-1 overflow-y-auto px-3 py-6 sm:px-6 lg:px-8">
+            <div
+              className={cn(
+                "mx-auto w-full",
+                rightPanel ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]" : "max-w-7xl",
+              )}
+            >
+              <div className="min-w-0 space-y-6">{children}</div>
+              {rightPanel ? <div className="space-y-4">{rightPanel}</div> : null}
+            </div>
+          </main>
+
+          <footer className="shrink-0 border-t border-border px-4 py-3 text-xs text-muted-foreground sm:px-6">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>ValGrow Business OS</span>
+              <span>Placeholder content only · v0.1.0</span>
+            </div>
+          </footer>
+        </div>
+
+        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       </div>
-
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   );
 }

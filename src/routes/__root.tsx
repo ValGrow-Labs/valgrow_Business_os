@@ -7,10 +7,23 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
+import { ThemeProvider } from "../components/theme-provider";
+
+const noFlashThemeScript = `
+(function () {
+  try {
+    var stored = localStorage.getItem("valgrow-theme");
+    var theme = stored === "light" || stored === "dark" ? stored : "dark";
+    if (theme === "system") {
+      theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  } catch (e) {}
+})();
+`;
 
 function NotFoundComponent() {
   return (
@@ -37,9 +50,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -77,21 +87,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "ValGrow Business OS" },
+      {
+        name: "description",
+        content:
+          "ValGrow Business OS — a unified dashboard for organization, people, finance and operations.",
+      },
+      { name: "author", content: "ValGrow" },
+      { property: "og:title", content: "ValGrow Business OS" },
+      {
+        property: "og:description",
+        content:
+          "ValGrow Business OS — a unified dashboard for organization, people, finance and operations.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
   shellComponent: RootShell,
@@ -102,9 +118,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: noFlashThemeScript }} />
       </head>
       <body>
         {children}
@@ -119,8 +136,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <ThemeProvider>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
