@@ -14,6 +14,7 @@ import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as AuditLogsRouteImport } from './routes/audit-logs'
 import { Route as BranchesRouteImport } from './routes/branches'
 import { Route as DepartmentsRouteImport } from './routes/departments'
+import { Route as FilesRouteImport } from './routes/files'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotificationsRouteImport } from './routes/notifications'
@@ -50,6 +51,11 @@ const BranchesRoute = BranchesRouteImport.update({
 const DepartmentsRoute = DepartmentsRouteImport.update({
   id: '/departments',
   path: '/departments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FilesRoute = FilesRouteImport.update({
+  id: '/files',
+  path: '/files',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/audit-logs': typeof AuditLogsRoute
   '/branches': typeof BranchesRoute
   '/departments': typeof DepartmentsRoute
+  '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/audit-logs': typeof AuditLogsRoute
   '/branches': typeof BranchesRoute
   '/departments': typeof DepartmentsRoute
+  '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
@@ -158,6 +166,7 @@ export interface FileRoutesById {
   '/audit-logs': typeof AuditLogsRoute
   '/branches': typeof BranchesRoute
   '/departments': typeof DepartmentsRoute
+  '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/branches'
     | '/departments'
+    | '/files'
     | '/forgot-password'
     | '/login'
     | '/notifications'
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/branches'
     | '/departments'
+    | '/files'
     | '/forgot-password'
     | '/login'
     | '/notifications'
@@ -217,6 +228,7 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/branches'
     | '/departments'
+    | '/files'
     | '/forgot-password'
     | '/login'
     | '/notifications'
@@ -237,6 +249,7 @@ export interface RootRouteChildren {
   AuditLogsRoute: typeof AuditLogsRoute
   BranchesRoute: typeof BranchesRoute
   DepartmentsRoute: typeof DepartmentsRoute
+  FilesRoute: typeof FilesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   NotificationsRoute: typeof NotificationsRoute
@@ -286,6 +299,13 @@ declare module '@tanstack/react-router' {
       path: '/departments'
       fullPath: '/departments'
       preLoaderRoute: typeof DepartmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/files': {
+      id: '/files'
+      path: '/files'
+      fullPath: '/files'
+      preLoaderRoute: typeof FilesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -381,6 +401,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuditLogsRoute: AuditLogsRoute,
   BranchesRoute: BranchesRoute,
   DepartmentsRoute: DepartmentsRoute,
+  FilesRoute: FilesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   NotificationsRoute: NotificationsRoute,
@@ -397,3 +418,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
