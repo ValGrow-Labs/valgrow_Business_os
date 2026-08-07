@@ -27,6 +27,7 @@ import { Route as RolesRouteImport } from './routes/roles'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as TeamsRouteImport } from './routes/teams'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as SettingsSystemRouteImport } from './routes/settings/system'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -118,6 +119,11 @@ const UsersRoute = UsersRouteImport.update({
   path: '/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsSystemRoute = SettingsSystemRouteImport.update({
+  id: '/settings/system',
+  path: '/settings/system',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/teams': typeof TeamsRoute
   '/users': typeof UsersRoute
+  '/settings/system': typeof SettingsSystemRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/teams': typeof TeamsRoute
   '/users': typeof UsersRoute
+  '/settings/system': typeof SettingsSystemRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/teams': typeof TeamsRoute
   '/users': typeof UsersRoute
+  '/settings/system': typeof SettingsSystemRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/teams'
     | '/users'
+    | '/settings/system'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/teams'
     | '/users'
+    | '/settings/system'
   id:
     | '__root__'
     | '/'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/teams'
     | '/users'
+    | '/settings/system'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -262,6 +274,7 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   TeamsRoute: typeof TeamsRoute
   UsersRoute: typeof UsersRoute
+  SettingsSystemRoute: typeof SettingsSystemRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -392,6 +405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/system': {
+      id: '/settings/system'
+      path: '/settings/system'
+      fullPath: '/settings/system'
+      preLoaderRoute: typeof SettingsSystemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -414,17 +434,8 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   TeamsRoute: TeamsRoute,
   UsersRoute: UsersRoute,
+  SettingsSystemRoute: SettingsSystemRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
