@@ -46,17 +46,17 @@ function Brand({ compact = false }: { compact?: boolean }) {
       <span
         className={cn(
           "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-black/5",
-          compact ? "h-9 w-9" : "h-[50px] w-[50px]",
+          compact ? "h-[42px] w-[42px]" : "h-[50px] w-[50px]",
         )}
       >
         <img
           src={valgrowLogo}
           alt="ValGrow"
-          className={cn("object-contain", compact ? "h-[24px] w-[24px]" : "h-[34px] w-[34px]")}
+          className={cn("object-contain shrink-0", compact ? "h-7 w-7" : "h-[34px] w-[34px]")}
         />
       </span>
       {!compact ? (
-        <span className="leading-tight">
+        <span className="leading-tight truncate">
           <span className="block text-sm font-bold">ValGrow</span>
           <span className="block text-[11px] uppercase tracking-widest text-muted-foreground">
             Business OS
@@ -197,10 +197,10 @@ function OrgSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="h-9 justify-between gap-2 px-2.5 sm:min-w-48">
-          <Building2 className="h-4 w-4 text-primary" />
-          <span className="hidden truncate sm:inline">{current.name}</span>
-          <ChevronsUpDown className="h-3.5 w-3.5 opacity-60" />
+        <Button variant="outline" className="h-9 justify-between gap-2 px-2.5 shrink-0">
+          <Building2 className="h-4 w-4 text-primary shrink-0" />
+          <span className="truncate text-sm font-medium">{current.name}</span>
+          <ChevronsUpDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
@@ -228,10 +228,10 @@ function BranchSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-9 justify-between gap-2 px-2.5 sm:min-w-40">
-          <GitBranch className="h-4 w-4 text-primary" />
-          <span className="hidden truncate sm:inline">{current.name}</span>
-          <ChevronsUpDown className="h-3.5 w-3.5 opacity-60" />
+        <Button variant="ghost" className="h-9 justify-between gap-2 px-2.5 shrink-0">
+          <GitBranch className="h-4 w-4 text-primary shrink-0" />
+          <span className="truncate text-sm font-medium">{current.name}</span>
+          <ChevronsUpDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-60">
@@ -258,7 +258,7 @@ function NotificationBell() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+        <Button variant="ghost" size="icon" className="relative shrink-0" aria-label="Notifications">
           <Bell className="h-4 w-4" />
           {unread > 0 ? (
             <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
@@ -290,7 +290,7 @@ function NotificationBell() {
 function ThemeSwitcher() {
   const { resolved, toggle } = useTheme();
   return (
-    <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
+    <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme" className="shrink-0">
       {resolved === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </Button>
   );
@@ -300,14 +300,17 @@ function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-10 gap-2 px-2.5">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
-              AV
-            </AvatarFallback>
-          </Avatar>
-          <span className="hidden text-sm font-medium md:inline">Alex Verma</span>
-        </Button>
+        <button
+          type="button"
+          className="flex items-center gap-2.5 shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-opacity hover:opacity-90 cursor-pointer"
+        >
+          <div className="h-10 w-10 rounded-full bg-purple-950 text-white flex items-center justify-center shrink-0">
+            <span className="text-sm font-semibold">AV</span>
+          </div>
+          <span className="text-sm font-medium text-foreground whitespace-nowrap">
+            Alex Verma
+          </span>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal">
@@ -357,25 +360,36 @@ export function AppShell({
         <aside
           className={cn(
             "hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 lg:flex",
-            compact ? "w-[68px]" : "w-64",
+            compact ? "w-[116px]" : "w-64",
           )}
         >
-          <div
-            className={cn(
-              "flex h-16 items-center gap-3 px-3 border-b border-sidebar-border",
-              compact ? "justify-end" : "justify-between",
-            )}
-          >
-            {!compact ? <Brand /> : <Brand compact />}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCompact((c) => !c)}
-              aria-label={compact ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {compact ? <Menu className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            </Button>
-          </div>
+          {compact ? (
+            <div className="relative flex h-[72px] w-full items-center px-3 border-b border-sidebar-border">
+              <Brand compact />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setCompact((c) => !c)}
+                aria-label="Expand sidebar"
+                className="absolute right-2 top-1/2 h-9 w-9 -translate-y-1/2 shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex h-16 w-full items-center justify-between px-3 border-b border-sidebar-border">
+              <Brand />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setCompact((c) => !c)}
+                aria-label="Collapse sidebar"
+                className="shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           <div className="min-h-0 flex-1">
             <SidebarNav compact={compact} />
           </div>
@@ -405,48 +419,52 @@ export function AppShell({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface/70 px-4 backdrop-blur sm:px-6">
-            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
-                  <Menu className="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-72 bg-sidebar p-0">
-                <SheetTitle className="px-4 pt-4">
-                  <Brand />
-                </SheetTitle>
-                <div className="h-[calc(100vh-5rem)]">
-                  <SidebarNav compact={false} onNavigate={() => setMobileOpen(false)} />
-                </div>
-              </SheetContent>
-            </Sheet>
+          <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface/70 px-4 backdrop-blur sm:px-6">
+            <div className="flex flex-1 min-w-0 items-center gap-3 sm:gap-4">
+              <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="lg:hidden shrink-0" aria-label="Open menu">
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-72 bg-sidebar p-0">
+                  <SheetTitle className="px-4 pt-4">
+                    <Brand />
+                  </SheetTitle>
+                  <div className="h-[calc(100vh-5rem)]">
+                    <SidebarNav compact={false} onNavigate={() => setMobileOpen(false)} />
+                  </div>
+                </SheetContent>
+              </Sheet>
 
-            <div className="hidden items-center gap-6 lg:flex">
-              <PrimaryNavLinks />
+              <div className="hidden items-center gap-6 lg:flex shrink-0">
+                <PrimaryNavLinks />
+              </div>
+
+              <button
+                onClick={() => setPaletteOpen(true)}
+                className="flex h-10 flex-1 min-w-0 max-w-xl items-center gap-3 rounded-xl border border-input bg-surface-2/60 px-4 text-sm text-muted-foreground transition-colors hover:border-primary/40"
+              >
+                <Search className="h-4 w-4 shrink-0" />
+                <span className="truncate text-sm text-muted-foreground text-left">
+                  Search modules, people, reports...
+                </span>
+              </button>
             </div>
 
-            <button
-              onClick={() => setPaletteOpen(true)}
-              className="mx-auto flex h-10 w-full max-w-2xl items-center gap-3 rounded-xl border border-input bg-surface-2/60 px-4 text-sm text-muted-foreground transition-colors hover:border-primary/40"
-            >
-              <Search className="h-4 w-4 shrink-0" />
-              <span className="grow truncate whitespace-nowrap text-sm text-muted-foreground">
-                Search modules, people, reports...
-              </span>
-            </button>
-
-            <div className="flex items-center gap-2 md:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <HeaderIconLink to="/help" label="Help" icon={CircleHelp} />
               <HeaderIconLink to="/settings/system" label="Settings" icon={Settings} />
               <ThemeSwitcher />
               <NotificationBell />
-              <Separator orientation="vertical" className="mx-1 hidden h-6 md:block" />
-              <div className="hidden items-center gap-2 md:flex">
+              <Separator orientation="vertical" className="mx-1 hidden h-6 md:block shrink-0" />
+              <div className="hidden items-center gap-2 md:flex shrink-0">
                 <OrgSwitcher />
                 <BranchSwitcher />
               </div>
-              <UserMenu />
+              <div className="ml-3 sm:ml-4 flex items-center shrink-0">
+                <UserMenu />
+              </div>
             </div>
           </header>
 
