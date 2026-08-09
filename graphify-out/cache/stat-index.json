@@ -1,0 +1,964 @@
+{
+  "README.md": {
+    "size": 4236,
+    "mtime_ns": 1786189560060050300,
+    "word_count": 452
+  },
+  "apps/api/nest-cli.json": {
+    "size": 171,
+    "mtime_ns": 1786212062209925000,
+    "word_count": 13,
+    "hashes": {
+      "apps/api/nest-cli.json": "a49e30734c73ae521ae8e571d8da4655aed315654e6bb079661a30baa37b054d"
+    }
+  },
+  "apps/api/package.json": {
+    "size": 1613,
+    "mtime_ns": 1786214021653718900,
+    "word_count": 121,
+    "hashes": {
+      "apps/api/package.json": "1fc47925ea4bec0fa2f4f302742b51023e967c7eeb7fc0d0b68597156252d7bc"
+    }
+  },
+  "apps/api/src/app.controller.ts": {
+    "size": 260,
+    "mtime_ns": 1786212080533337100,
+    "word_count": 30
+  },
+  "apps/api/src/app.module.ts": {
+    "size": 1913,
+    "mtime_ns": 1786213525407259500,
+    "word_count": 167
+  },
+  "apps/api/src/common/decorators/current-member.decorator.ts": {
+    "size": 327,
+    "mtime_ns": 1786213065756515500,
+    "word_count": 36
+  },
+  "apps/api/src/common/decorators/current-org.decorator.ts": {
+    "size": 321,
+    "mtime_ns": 1786213057295179000,
+    "word_count": 36
+  },
+  "apps/api/src/common/decorators/current-user.decorator.ts": {
+    "size": 311,
+    "mtime_ns": 1786213048914366000,
+    "word_count": 36
+  },
+  "apps/api/src/common/decorators/public.decorator.ts": {
+    "size": 150,
+    "mtime_ns": 1786213041345900600,
+    "word_count": 19
+  },
+  "apps/api/src/common/decorators/require-permissions.decorator.ts": {
+    "size": 202,
+    "mtime_ns": 1786213255709652300,
+    "word_count": 20
+  },
+  "apps/api/src/common/guards/jwt-auth.guard.ts": {
+    "size": 624,
+    "mtime_ns": 1786213117920740400,
+    "word_count": 59
+  },
+  "apps/api/src/common/guards/permissions.guard.ts": {
+    "size": 1715,
+    "mtime_ns": 1786213261943675400,
+    "word_count": 149
+  },
+  "apps/api/src/main.ts": {
+    "size": 716,
+    "mtime_ns": 1786212470834391800,
+    "word_count": 71
+  },
+  "apps/api/src/modules/activity-logs/activity-logs.controller.ts": {
+    "size": 486,
+    "mtime_ns": 1786213476978950000,
+    "word_count": 39
+  },
+  "apps/api/src/modules/activity-logs/activity-logs.module.ts": {
+    "size": 333,
+    "mtime_ns": 1786213485432317000,
+    "word_count": 30
+  },
+  "apps/api/src/modules/activity-logs/activity-logs.service.ts": {
+    "size": 1234,
+    "mtime_ns": 1786213471660909200,
+    "word_count": 121
+  },
+  "apps/api/src/modules/auth/auth.controller.ts": {
+    "size": 2015,
+    "mtime_ns": 1786213177571650600,
+    "word_count": 184
+  },
+  "apps/api/src/modules/auth/auth.module.ts": {
+    "size": 1014,
+    "mtime_ns": 1786213182070682100,
+    "word_count": 90
+  },
+  "apps/api/src/modules/auth/auth.service.ts": {
+    "size": 10892,
+    "mtime_ns": 1786213128961782800,
+    "word_count": 1066
+  },
+  "apps/api/src/modules/auth/dto/forgot-password.dto.ts": {
+    "size": 137,
+    "mtime_ns": 1786213090079504700,
+    "word_count": 16
+  },
+  "apps/api/src/modules/auth/dto/login.dto.ts": {
+    "size": 189,
+    "mtime_ns": 1786213082202038700,
+    "word_count": 21
+  },
+  "apps/api/src/modules/auth/dto/register.dto.ts": {
+    "size": 437,
+    "mtime_ns": 1786213074024290200,
+    "word_count": 39
+  },
+  "apps/api/src/modules/auth/dto/reset-password.dto.ts": {
+    "size": 203,
+    "mtime_ns": 1786213097943274000,
+    "word_count": 21
+  },
+  "apps/api/src/modules/auth/strategies/jwt.strategy.ts": {
+    "size": 2656,
+    "mtime_ns": 1786213106475432100,
+    "word_count": 262
+  },
+  "apps/api/src/modules/branches/branches.controller.ts": {
+    "size": 1434,
+    "mtime_ns": 1786213339201813500,
+    "word_count": 111
+  },
+  "apps/api/src/modules/branches/branches.module.ts": {
+    "size": 299,
+    "mtime_ns": 1786213344134419600,
+    "word_count": 30
+  },
+  "apps/api/src/modules/branches/branches.service.ts": {
+    "size": 2100,
+    "mtime_ns": 1786213334044013900,
+    "word_count": 204
+  },
+  "apps/api/src/modules/departments/departments.controller.ts": {
+    "size": 1089,
+    "mtime_ns": 1786213406530083000,
+    "word_count": 83
+  },
+  "apps/api/src/modules/departments/departments.module.ts": {
+    "size": 323,
+    "mtime_ns": 1786213411848481800,
+    "word_count": 30
+  },
+  "apps/api/src/modules/departments/departments.service.ts": {
+    "size": 1447,
+    "mtime_ns": 1786213400772690700,
+    "word_count": 147
+  },
+  "apps/api/src/modules/files/files.controller.ts": {
+    "size": 1099,
+    "mtime_ns": 1786213497455529300,
+    "word_count": 89
+  },
+  "apps/api/src/modules/files/files.module.ts": {
+    "size": 275,
+    "mtime_ns": 1786213502852209900,
+    "word_count": 30
+  },
+  "apps/api/src/modules/files/files.service.ts": {
+    "size": 1241,
+    "mtime_ns": 1786213491991132500,
+    "word_count": 130
+  },
+  "apps/api/src/modules/notifications/notifications.controller.ts": {
+    "size": 811,
+    "mtime_ns": 1786213460174329900,
+    "word_count": 63
+  },
+  "apps/api/src/modules/notifications/notifications.module.ts": {
+    "size": 339,
+    "mtime_ns": 1786213465305664000,
+    "word_count": 30
+  },
+  "apps/api/src/modules/notifications/notifications.service.ts": {
+    "size": 976,
+    "mtime_ns": 1786213454869568600,
+    "word_count": 102
+  },
+  "apps/api/src/modules/organizations/organizations.controller.ts": {
+    "size": 1124,
+    "mtime_ns": 1786213323591421900,
+    "word_count": 87
+  },
+  "apps/api/src/modules/organizations/organizations.module.ts": {
+    "size": 339,
+    "mtime_ns": 1786213328664597600,
+    "word_count": 30
+  },
+  "apps/api/src/modules/organizations/organizations.service.ts": {
+    "size": 1669,
+    "mtime_ns": 1786213315802869500,
+    "word_count": 154
+  },
+  "apps/api/src/modules/permissions/permissions.controller.ts": {
+    "size": 345,
+    "mtime_ns": 1786213389440223700,
+    "word_count": 31
+  },
+  "apps/api/src/modules/permissions/permissions.module.ts": {
+    "size": 323,
+    "mtime_ns": 1786213394713660400,
+    "word_count": 30
+  },
+  "apps/api/src/modules/permissions/permissions.service.ts": {
+    "size": 353,
+    "mtime_ns": 1786213383800992200,
+    "word_count": 39
+  },
+  "apps/api/src/modules/roles/roles.controller.ts": {
+    "size": 987,
+    "mtime_ns": 1786213372799206900,
+    "word_count": 83
+  },
+  "apps/api/src/modules/roles/roles.module.ts": {
+    "size": 275,
+    "mtime_ns": 1786213378231158400,
+    "word_count": 30
+  },
+  "apps/api/src/modules/roles/roles.service.ts": {
+    "size": 2514,
+    "mtime_ns": 1786213367262729800,
+    "word_count": 240
+  },
+  "apps/api/src/modules/sessions/sessions.controller.ts": {
+    "size": 619,
+    "mtime_ns": 1786213513877603500,
+    "word_count": 54
+  },
+  "apps/api/src/modules/sessions/sessions.module.ts": {
+    "size": 299,
+    "mtime_ns": 1786213519791355400,
+    "word_count": 30
+  },
+  "apps/api/src/modules/sessions/sessions.service.ts": {
+    "size": 875,
+    "mtime_ns": 1786213508103346700,
+    "word_count": 93
+  },
+  "apps/api/src/modules/settings/settings.controller.ts": {
+    "size": 1351,
+    "mtime_ns": 1786213441142400100,
+    "word_count": 109
+  },
+  "apps/api/src/modules/settings/settings.module.ts": {
+    "size": 299,
+    "mtime_ns": 1786213446882911900,
+    "word_count": 30
+  },
+  "apps/api/src/modules/settings/settings.service.ts": {
+    "size": 1605,
+    "mtime_ns": 1786213435390348400,
+    "word_count": 165
+  },
+  "apps/api/src/modules/teams/teams.controller.ts": {
+    "size": 987,
+    "mtime_ns": 1786213424974392000,
+    "word_count": 83
+  },
+  "apps/api/src/modules/teams/teams.module.ts": {
+    "size": 275,
+    "mtime_ns": 1786213429967564500,
+    "word_count": 30
+  },
+  "apps/api/src/modules/teams/teams.service.ts": {
+    "size": 1306,
+    "mtime_ns": 1786213419814706100,
+    "word_count": 135
+  },
+  "apps/api/src/modules/users/users.controller.ts": {
+    "size": 998,
+    "mtime_ns": 1786213355737012800,
+    "word_count": 83
+  },
+  "apps/api/src/modules/users/users.module.ts": {
+    "size": 275,
+    "mtime_ns": 1786213361121627900,
+    "word_count": 30
+  },
+  "apps/api/src/modules/users/users.service.ts": {
+    "size": 3866,
+    "mtime_ns": 1786213350348106100,
+    "word_count": 348
+  },
+  "apps/api/src/prisma/prisma.module.ts": {
+    "size": 210,
+    "mtime_ns": 1786213031632066100,
+    "word_count": 24
+  },
+  "apps/api/src/prisma/prisma.service.ts": {
+    "size": 350,
+    "mtime_ns": 1786213022178536900,
+    "word_count": 37
+  },
+  "apps/api/src/seed/seed.ts": {
+    "size": 10426,
+    "mtime_ns": 1786213533925091200,
+    "word_count": 1087
+  },
+  "apps/api/test/foundation-e2e.spec.ts": {
+    "size": 11450,
+    "mtime_ns": 1786214140217514500,
+    "word_count": 942
+  },
+  "apps/api/test/jest-e2e.json": {
+    "size": 179,
+    "mtime_ns": 1786214010315655600,
+    "word_count": 17,
+    "hashes": {
+      "apps/api/test/jest-e2e.json": "402d08c415bf1cc4fb0f970db517e7f3a5f5291cdbfbf3dcd102130186bb1e8f"
+    }
+  },
+  "apps/api/tsconfig.json": {
+    "size": 586,
+    "mtime_ns": 1786212054922173200,
+    "word_count": 44,
+    "hashes": {
+      "apps/api/tsconfig.json": "67b0b35fb74615423cfa7a612179746cd363cfb662862f81666bcf88dea9bfd9"
+    }
+  },
+  "apps/web/components.json": {
+    "size": 465,
+    "mtime_ns": 1786113254613622900,
+    "word_count": 40,
+    "hashes": {
+      "apps/web/components.json": "8914ea2e247f2a8fb3536434bad526f001e9d39ae37091366083643fc2f7909e"
+    }
+  },
+  "apps/web/eslint.config.js": {
+    "size": 1290,
+    "mtime_ns": 1786113254614690200,
+    "word_count": 101
+  },
+  "apps/web/package.json": {
+    "size": 2875,
+    "mtime_ns": 1786211804317885900,
+    "word_count": 179,
+    "hashes": {
+      "apps/web/package.json": "fc52af4dcdaf2577c6cf2556b479300cc2c6c51c457face31ca57c9317d6f9e9"
+    }
+  },
+  "apps/web/public/robots.txt": {
+    "size": 174,
+    "mtime_ns": 1786113254617447700,
+    "word_count": 20
+  },
+  "apps/web/src/assets/valgrow-logo.png": {
+    "size": 9103,
+    "mtime_ns": 1786189560065892800,
+    "word_count": 304
+  },
+  "apps/web/src/components/dashboard/hero-card.tsx": {
+    "size": 6337,
+    "mtime_ns": 1786189560069905700,
+    "word_count": 519
+  },
+  "apps/web/src/components/dashboard/module-card.tsx": {
+    "size": 10647,
+    "mtime_ns": 1786189560070915800,
+    "word_count": 930
+  },
+  "apps/web/src/components/dashboard/right-panel.tsx": {
+    "size": 5022,
+    "mtime_ns": 1786189560072921600,
+    "word_count": 345
+  },
+  "apps/web/src/components/foundation/data-table.tsx": {
+    "size": 2914,
+    "mtime_ns": 1786113254619082900,
+    "word_count": 215
+  },
+  "apps/web/src/components/foundation/list-page.tsx": {
+    "size": 3068,
+    "mtime_ns": 1786113254620181700,
+    "word_count": 285
+  },
+  "apps/web/src/components/foundation/notification-item.tsx": {
+    "size": 1453,
+    "mtime_ns": 1786113254621312700,
+    "word_count": 141
+  },
+  "apps/web/src/components/foundation/page-header.tsx": {
+    "size": 1046,
+    "mtime_ns": 1786113254622419200,
+    "word_count": 92
+  },
+  "apps/web/src/components/foundation/stat-card.tsx": {
+    "size": 1837,
+    "mtime_ns": 1786113254622966100,
+    "word_count": 176
+  },
+  "apps/web/src/components/foundation/states.tsx": {
+    "size": 3103,
+    "mtime_ns": 1786113254624117000,
+    "word_count": 304
+  },
+  "apps/web/src/components/foundation/upload-zone.tsx": {
+    "size": 2509,
+    "mtime_ns": 1786113254624524400,
+    "word_count": 225
+  },
+  "apps/web/src/components/layout/app-shell.tsx": {
+    "size": 21391,
+    "mtime_ns": 1786213820671481000,
+    "word_count": 1620
+  },
+  "apps/web/src/components/layout/auth-layout.tsx": {
+    "size": 3407,
+    "mtime_ns": 1786113254626547500,
+    "word_count": 285
+  },
+  "apps/web/src/components/layout/breadcrumbs.tsx": {
+    "size": 1095,
+    "mtime_ns": 1786113254627522500,
+    "word_count": 100
+  },
+  "apps/web/src/components/layout/command-palette.tsx": {
+    "size": 2049,
+    "mtime_ns": 1786113254629029700,
+    "word_count": 163
+  },
+  "apps/web/src/components/theme-provider.tsx": {
+    "size": 1579,
+    "mtime_ns": 1786113254630037000,
+    "word_count": 180
+  },
+  "apps/web/src/components/ui/accordion.tsx": {
+    "size": 2066,
+    "mtime_ns": 1786113254631037000,
+    "word_count": 145
+  },
+  "apps/web/src/components/ui/alert-dialog.tsx": {
+    "size": 4298,
+    "mtime_ns": 1786113254632041800,
+    "word_count": 289
+  },
+  "apps/web/src/components/ui/alert.tsx": {
+    "size": 1638,
+    "mtime_ns": 1786113254632549000,
+    "word_count": 145
+  },
+  "apps/web/src/components/ui/aspect-ratio.tsx": {
+    "size": 148,
+    "mtime_ns": 1786113254632549000,
+    "word_count": 14
+  },
+  "apps/web/src/components/ui/avatar.tsx": {
+    "size": 1460,
+    "mtime_ns": 1786113254633556000,
+    "word_count": 117
+  },
+  "apps/web/src/components/ui/badge.tsx": {
+    "size": 1155,
+    "mtime_ns": 1786113254634748200,
+    "word_count": 100
+  },
+  "apps/web/src/components/ui/breadcrumb.tsx": {
+    "size": 2850,
+    "mtime_ns": 1786113254634748200,
+    "word_count": 244
+  },
+  "apps/web/src/components/ui/button.tsx": {
+    "size": 1943,
+    "mtime_ns": 1786113254635748100,
+    "word_count": 171
+  },
+  "apps/web/src/components/ui/calendar.tsx": {
+    "size": 7403,
+    "mtime_ns": 1786113254636746700,
+    "word_count": 462
+  },
+  "apps/web/src/components/ui/card.tsx": {
+    "size": 1872,
+    "mtime_ns": 1786113254636746700,
+    "word_count": 173
+  },
+  "apps/web/src/components/ui/carousel.tsx": {
+    "size": 6440,
+    "mtime_ns": 1786113254637746300,
+    "word_count": 557
+  },
+  "apps/web/src/components/ui/chart.tsx": {
+    "size": 10901,
+    "mtime_ns": 1786113254638747100,
+    "word_count": 895
+  },
+  "apps/web/src/components/ui/checkbox.tsx": {
+    "size": 1069,
+    "mtime_ns": 1786113254638747100,
+    "word_count": 82
+  },
+  "apps/web/src/components/ui/collapsible.tsx": {
+    "size": 346,
+    "mtime_ns": 1786113254639746800,
+    "word_count": 26
+  },
+  "apps/web/src/components/ui/command.tsx": {
+    "size": 5019,
+    "mtime_ns": 1786113254639746800,
+    "word_count": 355
+  },
+  "apps/web/src/components/ui/context-menu.tsx": {
+    "size": 7546,
+    "mtime_ns": 1786113254641350800,
+    "word_count": 479
+  },
+  "apps/web/src/components/ui/dialog.tsx": {
+    "size": 3752,
+    "mtime_ns": 1786113254641350800,
+    "word_count": 268
+  },
+  "apps/web/src/components/ui/drawer.tsx": {
+    "size": 3071,
+    "mtime_ns": 1786113254642875200,
+    "word_count": 246
+  },
+  "apps/web/src/components/ui/dropdown-menu.tsx": {
+    "size": 7752,
+    "mtime_ns": 1786113254643987700,
+    "word_count": 490
+  },
+  "apps/web/src/components/ui/form.tsx": {
+    "size": 4372,
+    "mtime_ns": 1786113254644410100,
+    "word_count": 404
+  },
+  "apps/web/src/components/ui/gradient-blur.tsx": {
+    "size": 6298,
+    "mtime_ns": 1786189560074941600,
+    "word_count": 602
+  },
+  "apps/web/src/components/ui/hover-card.tsx": {
+    "size": 1273,
+    "mtime_ns": 1786113254645426500,
+    "word_count": 86
+  },
+  "apps/web/src/components/ui/input-otp.tsx": {
+    "size": 2305,
+    "mtime_ns": 1786113254645426500,
+    "word_count": 207
+  },
+  "apps/web/src/components/ui/input.tsx": {
+    "size": 798,
+    "mtime_ns": 1786113254646417700,
+    "word_count": 69
+  },
+  "apps/web/src/components/ui/label.tsx": {
+    "size": 737,
+    "mtime_ns": 1786113254647413400,
+    "word_count": 70
+  },
+  "apps/web/src/components/ui/menubar.tsx": {
+    "size": 8743,
+    "mtime_ns": 1786113254647413400,
+    "word_count": 600
+  },
+  "apps/web/src/components/ui/navigation-menu.tsx": {
+    "size": 5272,
+    "mtime_ns": 1786113254648927300,
+    "word_count": 326
+  },
+  "apps/web/src/components/ui/pagination.tsx": {
+    "size": 2837,
+    "mtime_ns": 1786113254649945800,
+    "word_count": 254
+  },
+  "apps/web/src/components/ui/popover.tsx": {
+    "size": 1383,
+    "mtime_ns": 1786113254649945800,
+    "word_count": 93
+  },
+  "apps/web/src/components/ui/progress.tsx": {
+    "size": 806,
+    "mtime_ns": 1786113254650937000,
+    "word_count": 71
+  },
+  "apps/web/src/components/ui/radio-group.tsx": {
+    "size": 1441,
+    "mtime_ns": 1786113254650937000,
+    "word_count": 110
+  },
+  "apps/web/src/components/ui/resizable.tsx": {
+    "size": 1589,
+    "mtime_ns": 1786113254652486900,
+    "word_count": 117
+  },
+  "apps/web/src/components/ui/scroll-area.tsx": {
+    "size": 1679,
+    "mtime_ns": 1786113254652486900,
+    "word_count": 120
+  },
+  "apps/web/src/components/ui/select.tsx": {
+    "size": 5901,
+    "mtime_ns": 1786113254654065900,
+    "word_count": 379
+  },
+  "apps/web/src/components/ui/separator.tsx": {
+    "size": 747,
+    "mtime_ns": 1786113254655068500,
+    "word_count": 67
+  },
+  "apps/web/src/components/ui/sheet.tsx": {
+    "size": 4370,
+    "mtime_ns": 1786113254655068500,
+    "word_count": 322
+  },
+  "apps/web/src/components/ui/sidebar.tsx": {
+    "size": 24719,
+    "mtime_ns": 1786113254657065500,
+    "word_count": 1868
+  },
+  "apps/web/src/components/ui/skeleton.tsx": {
+    "size": 246,
+    "mtime_ns": 1786113254657065500,
+    "word_count": 26
+  },
+  "apps/web/src/components/ui/slider.tsx": {
+    "size": 1048,
+    "mtime_ns": 1786113254658066400,
+    "word_count": 83
+  },
+  "apps/web/src/components/ui/sonner.tsx": {
+    "size": 757,
+    "mtime_ns": 1786113254659079200,
+    "word_count": 55
+  },
+  "apps/web/src/components/ui/switch.tsx": {
+    "size": 1183,
+    "mtime_ns": 1786113254660077100,
+    "word_count": 85
+  },
+  "apps/web/src/components/ui/table.tsx": {
+    "size": 2914,
+    "mtime_ns": 1786113254661083100,
+    "word_count": 238
+  },
+  "apps/web/src/components/ui/tabs.tsx": {
+    "size": 1987,
+    "mtime_ns": 1786113254661083100,
+    "word_count": 143
+  },
+  "apps/web/src/components/ui/textarea.tsx": {
+    "size": 698,
+    "mtime_ns": 1786113254662591000,
+    "word_count": 61
+  },
+  "apps/web/src/components/ui/toggle-group.tsx": {
+    "size": 1809,
+    "mtime_ns": 1786113254663603300,
+    "word_count": 139
+  },
+  "apps/web/src/components/ui/toggle.tsx": {
+    "size": 1576,
+    "mtime_ns": 1786113254663603300,
+    "word_count": 130
+  },
+  "apps/web/src/components/ui/tooltip.tsx": {
+    "size": 1310,
+    "mtime_ns": 1786113254664411600,
+    "word_count": 90
+  },
+  "apps/web/src/hooks/queries/useActivityLogs.ts": {
+    "size": 464,
+    "mtime_ns": 1786213696116529900,
+    "word_count": 47
+  },
+  "apps/web/src/hooks/queries/useAuthMutations.ts": {
+    "size": 1471,
+    "mtime_ns": 1786213702878841600,
+    "word_count": 131
+  },
+  "apps/web/src/hooks/queries/useBranches.ts": {
+    "size": 948,
+    "mtime_ns": 1786213656099469000,
+    "word_count": 102
+  },
+  "apps/web/src/hooks/queries/useCurrentUser.ts": {
+    "size": 1252,
+    "mtime_ns": 1786213645034115100,
+    "word_count": 142
+  },
+  "apps/web/src/hooks/queries/useDepartments.ts": {
+    "size": 965,
+    "mtime_ns": 1786213679409800700,
+    "word_count": 104
+  },
+  "apps/web/src/hooks/queries/useNotifications.ts": {
+    "size": 1122,
+    "mtime_ns": 1786213690771546200,
+    "word_count": 110
+  },
+  "apps/web/src/hooks/queries/useOrganizations.ts": {
+    "size": 539,
+    "mtime_ns": 1786213650360896300,
+    "word_count": 61
+  },
+  "apps/web/src/hooks/queries/usePermissions.ts": {
+    "size": 438,
+    "mtime_ns": 1786213673949887100,
+    "word_count": 49
+  },
+  "apps/web/src/hooks/queries/useRoles.ts": {
+    "size": 869,
+    "mtime_ns": 1786213668912026000,
+    "word_count": 90
+  },
+  "apps/web/src/hooks/queries/useTeams.ts": {
+    "size": 850,
+    "mtime_ns": 1786213684971898700,
+    "word_count": 95
+  },
+  "apps/web/src/hooks/queries/useUsers.ts": {
+    "size": 971,
+    "mtime_ns": 1786213662055393900,
+    "word_count": 106
+  },
+  "apps/web/src/hooks/use-mobile.tsx": {
+    "size": 595,
+    "mtime_ns": 1786113254665987200,
+    "word_count": 56
+  },
+  "apps/web/src/lib/api-client.ts": {
+    "size": 1672,
+    "mtime_ns": 1786213638884036200,
+    "word_count": 193
+  },
+  "apps/web/src/lib/dashboard-data.ts": {
+    "size": 7319,
+    "mtime_ns": 1786189560076405100,
+    "word_count": 933
+  },
+  "apps/web/src/lib/error-capture.ts": {
+    "size": 2979,
+    "mtime_ns": 1786113254666989800,
+    "word_count": 358
+  },
+  "apps/web/src/lib/error-page.ts": {
+    "size": 1401,
+    "mtime_ns": 1786113254667992100,
+    "word_count": 159
+  },
+  "apps/web/src/lib/nav.ts": {
+    "size": 4671,
+    "mtime_ns": 1786189560077982800,
+    "word_count": 601
+  },
+  "apps/web/src/lib/utils.ts": {
+    "size": 175,
+    "mtime_ns": 1786113254670036100,
+    "word_count": 22
+  },
+  "apps/web/src/routeTree.gen.ts": {
+    "size": 19673,
+    "mtime_ns": 1786189800886009800,
+    "word_count": 1719
+  },
+  "apps/web/src/router.tsx": {
+    "size": 410,
+    "mtime_ns": 1786113254670992600,
+    "word_count": 47
+  },
+  "apps/web/src/routes/README.md": {
+    "size": 856,
+    "mtime_ns": 1786113254673520500,
+    "word_count": 127
+  },
+  "apps/web/src/routes/__root.tsx": {
+    "size": 4737,
+    "mtime_ns": 1786189560081081500,
+    "word_count": 446
+  },
+  "apps/web/src/routes/activity.tsx": {
+    "size": 1835,
+    "mtime_ns": 1786213903935359100,
+    "word_count": 214
+  },
+  "apps/web/src/routes/audit-logs.tsx": {
+    "size": 1830,
+    "mtime_ns": 1786113254675810100,
+    "word_count": 217
+  },
+  "apps/web/src/routes/branches.tsx": {
+    "size": 1971,
+    "mtime_ns": 1786213844312423600,
+    "word_count": 230
+  },
+  "apps/web/src/routes/departments.tsx": {
+    "size": 1955,
+    "mtime_ns": 1786213868997006200,
+    "word_count": 216
+  },
+  "apps/web/src/routes/files.tsx": {
+    "size": 3496,
+    "mtime_ns": 1786113254677824400,
+    "word_count": 307
+  },
+  "apps/web/src/routes/forgot-password.tsx": {
+    "size": 2079,
+    "mtime_ns": 1786113254678821700,
+    "word_count": 199
+  },
+  "apps/web/src/routes/gradient-blur-demo.tsx": {
+    "size": 646,
+    "mtime_ns": 1786189560081997100,
+    "word_count": 65
+  },
+  "apps/web/src/routes/help.tsx": {
+    "size": 2976,
+    "mtime_ns": 1786113254678821700,
+    "word_count": 289
+  },
+  "apps/web/src/routes/index.tsx": {
+    "size": 3778,
+    "mtime_ns": 1786189560082997800,
+    "word_count": 306
+  },
+  "apps/web/src/routes/login.tsx": {
+    "size": 3882,
+    "mtime_ns": 1786213915350811700,
+    "word_count": 338
+  },
+  "apps/web/src/routes/notifications.tsx": {
+    "size": 3363,
+    "mtime_ns": 1786213888395510600,
+    "word_count": 304
+  },
+  "apps/web/src/routes/organization.tsx": {
+    "size": 1961,
+    "mtime_ns": 1786113254682814800,
+    "word_count": 236
+  },
+  "apps/web/src/routes/permissions.tsx": {
+    "size": 1905,
+    "mtime_ns": 1786213861508786100,
+    "word_count": 215
+  },
+  "apps/web/src/routes/preferences.tsx": {
+    "size": 4241,
+    "mtime_ns": 1786113254684403900,
+    "word_count": 316
+  },
+  "apps/web/src/routes/profile.tsx": {
+    "size": 4920,
+    "mtime_ns": 1786113254685397400,
+    "word_count": 336
+  },
+  "apps/web/src/routes/reset-password.tsx": {
+    "size": 2022,
+    "mtime_ns": 1786113254686405300,
+    "word_count": 188
+  },
+  "apps/web/src/routes/roles.tsx": {
+    "size": 1778,
+    "mtime_ns": 1786213853972308500,
+    "word_count": 212
+  },
+  "apps/web/src/routes/search.tsx": {
+    "size": 2562,
+    "mtime_ns": 1786113254687404700,
+    "word_count": 218
+  },
+  "apps/web/src/routes/settings/appearance.tsx": {
+    "size": 2778,
+    "mtime_ns": 1786113254688914100,
+    "word_count": 232
+  },
+  "apps/web/src/routes/settings/security.tsx": {
+    "size": 3842,
+    "mtime_ns": 1786113254688914100,
+    "word_count": 324
+  },
+  "apps/web/src/routes/settings/system.tsx": {
+    "size": 3460,
+    "mtime_ns": 1786113254690455900,
+    "word_count": 291
+  },
+  "apps/web/src/routes/settings/theme.tsx": {
+    "size": 2899,
+    "mtime_ns": 1786113254691473100,
+    "word_count": 274
+  },
+  "apps/web/src/routes/states/empty.tsx": {
+    "size": 2484,
+    "mtime_ns": 1786113254692466400,
+    "word_count": 223
+  },
+  "apps/web/src/routes/states/error.tsx": {
+    "size": 2108,
+    "mtime_ns": 1786113254694742600,
+    "word_count": 188
+  },
+  "apps/web/src/routes/states/loading.tsx": {
+    "size": 1833,
+    "mtime_ns": 1786113254695734200,
+    "word_count": 169
+  },
+  "apps/web/src/routes/teams.tsx": {
+    "size": 1877,
+    "mtime_ns": 1786213876993758600,
+    "word_count": 217
+  },
+  "apps/web/src/routes/users.tsx": {
+    "size": 2040,
+    "mtime_ns": 1786213836102176400,
+    "word_count": 245
+  },
+  "apps/web/src/server.ts": {
+    "size": 2109,
+    "mtime_ns": 1786113254698740900,
+    "word_count": 214
+  },
+  "apps/web/src/start.ts": {
+    "size": 973,
+    "mtime_ns": 1786113254699733600,
+    "word_count": 115
+  },
+  "apps/web/tsconfig.json": {
+    "size": 850,
+    "mtime_ns": 1786113254701755900,
+    "word_count": 57,
+    "hashes": {
+      "apps/web/tsconfig.json": "919c0158fe52f581991c8446310b0653a873d5c338bdbc36b9aeebf1515e341a"
+    }
+  },
+  "apps/web/vite.config.ts": {
+    "size": 2152,
+    "mtime_ns": 1786211833621429700,
+    "word_count": 201
+  },
+  "docker-compose.yml": {
+    "size": 462,
+    "mtime_ns": 1786212610055763900,
+    "word_count": 37
+  },
+  "implementation_plan.md": {
+    "size": 17472,
+    "mtime_ns": 1786211249086847500,
+    "word_count": 2435
+  },
+  "package.json": {
+    "size": 582,
+    "mtime_ns": 1786213544522489500,
+    "word_count": 58,
+    "hashes": {
+      "package.json": "52a76dbecfedec4c19844635dd6920982dd4e5abd1802ae0e58b54846d75d0be"
+    }
+  },
+  "prisma/migrations/20260808181604_init_foundation/migration.sql": {
+    "size": 14683,
+    "mtime_ns": 1786212964577994800,
+    "word_count": 1537,
+    "hashes": {
+      "prisma/migrations/20260808181604_init_foundation/migration.sql": "c655a49183459bb58a16d6cb126cb4c6e69bfad39c3d92983d02744a77d19e7c"
+    }
+  }
+}
