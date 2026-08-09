@@ -350,10 +350,10 @@ function UserMenu() {
   const logoutMutation = useLogoutMutation();
 
   const user = userMe?.user;
-  const fullName = user ? `${user.firstName} ${user.lastName}` : "Alex Verma";
+  const fullName = user ? `${user.firstName} ${user.lastName}` : "Jaasir";
   const initials = user
     ? `${user.firstName[0] || ""}${user.lastName[0] || ""}`.toUpperCase()
-    : "AV";
+    : "J";
   const roleName = userMe?.role?.name || "Workspace owner";
 
   const handleLogout = () => {

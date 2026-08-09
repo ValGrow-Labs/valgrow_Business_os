@@ -64,7 +64,7 @@ export function HeroCard() {
           </div>
 
           <h2 className="text-3xl font-bold leading-tight sm:text-4xl">
-            Good to see you, <span className="text-gradient-brand">Alex</span>. Here&apos;s how
+            Good to see you, <span className="text-gradient-brand">Jaasir</span>. Here&apos;s how
             ValGrow is performing.
           </h2>
           <p className="max-w-xl text-sm text-muted-foreground">
