@@ -32,6 +32,22 @@ import { InventoryModule } from "./modules/inventory/inventory.module";
 import { InventoryTransfersModule } from "./modules/inventory-transfers/inventory-transfers.module";
 import { InventoryAdjustmentsModule } from "./modules/inventory-adjustments/inventory-adjustments.module";
 import { InventoryReservationsModule } from "./modules/inventory-reservations/inventory-reservations.module";
+import { SuppliersModule } from "./modules/suppliers/suppliers.module";
+import { PurchaseRequestsModule } from "./modules/purchase-requests/purchase-requests.module";
+import { PurchaseOrdersModule } from "./modules/purchase-orders/purchase-orders.module";
+import { GoodsReceiptsModule } from "./modules/goods-receipts/goods-receipts.module";
+import { LandedCostsModule } from "./modules/landed-costs/landed-costs.module";
+import { SupplierInvoicesModule } from "./modules/supplier-invoices/supplier-invoices.module";
+import { SupplierPaymentsModule } from "./modules/supplier-payments/supplier-payments.module";
+import { CustomersModule } from "./modules/customers/customers.module";
+import { QuotationsModule } from "./modules/quotations/quotations.module";
+import { SalesOrdersModule } from "./modules/sales-orders/sales-orders.module";
+import { DeliveryNotesModule } from "./modules/delivery-notes/delivery-notes.module";
+import { SalesInvoicesModule } from "./modules/sales-invoices/sales-invoices.module";
+import { CustomerPaymentsModule } from "./modules/customer-payments/customer-payments.module";
+import { SalesReturnsModule } from "./modules/sales-returns/sales-returns.module";
+import { SalesCreditNotesModule } from "./modules/sales-credit-notes/sales-credit-notes.module";
+import { PosModule } from "./modules/pos/pos.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
@@ -71,6 +87,22 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     InventoryTransfersModule,
     InventoryAdjustmentsModule,
     InventoryReservationsModule,
+    SuppliersModule,
+    PurchaseRequestsModule,
+    PurchaseOrdersModule,
+    GoodsReceiptsModule,
+    LandedCostsModule,
+    SupplierInvoicesModule,
+    SupplierPaymentsModule,
+    CustomersModule,
+    QuotationsModule,
+    SalesOrdersModule,
+    DeliveryNotesModule,
+    SalesInvoicesModule,
+    CustomerPaymentsModule,
+    SalesReturnsModule,
+    SalesCreditNotesModule,
+    PosModule,
   ],
   controllers: [AppController],
   providers: [

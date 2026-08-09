@@ -17,26 +17,44 @@ import { Route as BatchesRouteImport } from './routes/batches'
 import { Route as BranchesRouteImport } from './routes/branches'
 import { Route as BrandsRouteImport } from './routes/brands'
 import { Route as CategoriesRouteImport } from './routes/categories'
+import { Route as CustomerPaymentsRouteImport } from './routes/customer-payments'
+import { Route as CustomersRouteImport } from './routes/customers'
+import { Route as DeliveryNotesRouteImport } from './routes/delivery-notes'
 import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as FilesRouteImport } from './routes/files'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as GoodsReceiptsRouteImport } from './routes/goods-receipts'
 import { Route as GradientBlurDemoRouteImport } from './routes/gradient-blur-demo'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as LandedCostsRouteImport } from './routes/landed-costs'
 import { Route as LocationsRouteImport } from './routes/locations'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MovementsRouteImport } from './routes/movements'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OrganizationRouteImport } from './routes/organization'
 import { Route as PermissionsRouteImport } from './routes/permissions'
+import { Route as PosRouteImport } from './routes/pos'
 import { Route as PreferencesRouteImport } from './routes/preferences'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PurchaseOrdersRouteImport } from './routes/purchase-orders'
+import { Route as PurchaseRequestsRouteImport } from './routes/purchase-requests'
+import { Route as PurchasingRouteImport } from './routes/purchasing'
+import { Route as QuotationsRouteImport } from './routes/quotations'
 import { Route as ReservationsRouteImport } from './routes/reservations'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RolesRouteImport } from './routes/roles'
+import { Route as SalesRouteImport } from './routes/sales'
+import { Route as SalesCreditNotesRouteImport } from './routes/sales-credit-notes'
+import { Route as SalesInvoicesRouteImport } from './routes/sales-invoices'
+import { Route as SalesOrdersRouteImport } from './routes/sales-orders'
+import { Route as SalesReturnsRouteImport } from './routes/sales-returns'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SerialNumbersRouteImport } from './routes/serial-numbers'
+import { Route as SupplierInvoicesRouteImport } from './routes/supplier-invoices'
+import { Route as SupplierPaymentsRouteImport } from './routes/supplier-payments'
+import { Route as SuppliersRouteImport } from './routes/suppliers'
 import { Route as TaxesRouteImport } from './routes/taxes'
 import { Route as TeamsRouteImport } from './routes/teams'
 import { Route as TransfersRouteImport } from './routes/transfers'
@@ -91,6 +109,21 @@ const CategoriesRoute = CategoriesRouteImport.update({
   path: '/categories',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CustomerPaymentsRoute = CustomerPaymentsRouteImport.update({
+  id: '/customer-payments',
+  path: '/customer-payments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomersRoute = CustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeliveryNotesRoute = DeliveryNotesRouteImport.update({
+  id: '/delivery-notes',
+  path: '/delivery-notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DepartmentsRoute = DepartmentsRouteImport.update({
   id: '/departments',
   path: '/departments',
@@ -106,6 +139,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GoodsReceiptsRoute = GoodsReceiptsRouteImport.update({
+  id: '/goods-receipts',
+  path: '/goods-receipts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GradientBlurDemoRoute = GradientBlurDemoRouteImport.update({
   id: '/gradient-blur-demo',
   path: '/gradient-blur-demo',
@@ -119,6 +157,11 @@ const HelpRoute = HelpRouteImport.update({
 const InventoryRoute = InventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LandedCostsRoute = LandedCostsRouteImport.update({
+  id: '/landed-costs',
+  path: '/landed-costs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LocationsRoute = LocationsRouteImport.update({
@@ -151,6 +194,11 @@ const PermissionsRoute = PermissionsRouteImport.update({
   path: '/permissions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PosRoute = PosRouteImport.update({
+  id: '/pos',
+  path: '/pos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PreferencesRoute = PreferencesRouteImport.update({
   id: '/preferences',
   path: '/preferences',
@@ -164,6 +212,26 @@ const ProductsRoute = ProductsRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PurchaseOrdersRoute = PurchaseOrdersRouteImport.update({
+  id: '/purchase-orders',
+  path: '/purchase-orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PurchaseRequestsRoute = PurchaseRequestsRouteImport.update({
+  id: '/purchase-requests',
+  path: '/purchase-requests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PurchasingRoute = PurchasingRouteImport.update({
+  id: '/purchasing',
+  path: '/purchasing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuotationsRoute = QuotationsRouteImport.update({
+  id: '/quotations',
+  path: '/quotations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReservationsRoute = ReservationsRouteImport.update({
@@ -181,6 +249,31 @@ const RolesRoute = RolesRouteImport.update({
   path: '/roles',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SalesRoute = SalesRouteImport.update({
+  id: '/sales',
+  path: '/sales',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalesCreditNotesRoute = SalesCreditNotesRouteImport.update({
+  id: '/sales-credit-notes',
+  path: '/sales-credit-notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalesInvoicesRoute = SalesInvoicesRouteImport.update({
+  id: '/sales-invoices',
+  path: '/sales-invoices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalesOrdersRoute = SalesOrdersRouteImport.update({
+  id: '/sales-orders',
+  path: '/sales-orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalesReturnsRoute = SalesReturnsRouteImport.update({
+  id: '/sales-returns',
+  path: '/sales-returns',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
@@ -189,6 +282,21 @@ const SearchRoute = SearchRouteImport.update({
 const SerialNumbersRoute = SerialNumbersRouteImport.update({
   id: '/serial-numbers',
   path: '/serial-numbers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupplierInvoicesRoute = SupplierInvoicesRouteImport.update({
+  id: '/supplier-invoices',
+  path: '/supplier-invoices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupplierPaymentsRoute = SupplierPaymentsRouteImport.update({
+  id: '/supplier-payments',
+  path: '/supplier-payments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuppliersRoute = SuppliersRouteImport.update({
+  id: '/suppliers',
+  path: '/suppliers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TaxesRoute = TaxesRouteImport.update({
@@ -266,26 +374,44 @@ export interface FileRoutesByFullPath {
   '/branches': typeof BranchesRoute
   '/brands': typeof BrandsRoute
   '/categories': typeof CategoriesRoute
+  '/customer-payments': typeof CustomerPaymentsRoute
+  '/customers': typeof CustomersRoute
+  '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/goods-receipts': typeof GoodsReceiptsRoute
   '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/inventory': typeof InventoryRoute
+  '/landed-costs': typeof LandedCostsRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
   '/movements': typeof MovementsRoute
   '/notifications': typeof NotificationsRoute
   '/organization': typeof OrganizationRoute
   '/permissions': typeof PermissionsRoute
+  '/pos': typeof PosRoute
   '/preferences': typeof PreferencesRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
+  '/purchase-orders': typeof PurchaseOrdersRoute
+  '/purchase-requests': typeof PurchaseRequestsRoute
+  '/purchasing': typeof PurchasingRoute
+  '/quotations': typeof QuotationsRoute
   '/reservations': typeof ReservationsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/roles': typeof RolesRoute
+  '/sales': typeof SalesRoute
+  '/sales-credit-notes': typeof SalesCreditNotesRoute
+  '/sales-invoices': typeof SalesInvoicesRoute
+  '/sales-orders': typeof SalesOrdersRoute
+  '/sales-returns': typeof SalesReturnsRoute
   '/search': typeof SearchRoute
   '/serial-numbers': typeof SerialNumbersRoute
+  '/supplier-invoices': typeof SupplierInvoicesRoute
+  '/supplier-payments': typeof SupplierPaymentsRoute
+  '/suppliers': typeof SuppliersRoute
   '/taxes': typeof TaxesRoute
   '/teams': typeof TeamsRoute
   '/transfers': typeof TransfersRoute
@@ -309,26 +435,44 @@ export interface FileRoutesByTo {
   '/branches': typeof BranchesRoute
   '/brands': typeof BrandsRoute
   '/categories': typeof CategoriesRoute
+  '/customer-payments': typeof CustomerPaymentsRoute
+  '/customers': typeof CustomersRoute
+  '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/goods-receipts': typeof GoodsReceiptsRoute
   '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/inventory': typeof InventoryRoute
+  '/landed-costs': typeof LandedCostsRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
   '/movements': typeof MovementsRoute
   '/notifications': typeof NotificationsRoute
   '/organization': typeof OrganizationRoute
   '/permissions': typeof PermissionsRoute
+  '/pos': typeof PosRoute
   '/preferences': typeof PreferencesRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
+  '/purchase-orders': typeof PurchaseOrdersRoute
+  '/purchase-requests': typeof PurchaseRequestsRoute
+  '/purchasing': typeof PurchasingRoute
+  '/quotations': typeof QuotationsRoute
   '/reservations': typeof ReservationsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/roles': typeof RolesRoute
+  '/sales': typeof SalesRoute
+  '/sales-credit-notes': typeof SalesCreditNotesRoute
+  '/sales-invoices': typeof SalesInvoicesRoute
+  '/sales-orders': typeof SalesOrdersRoute
+  '/sales-returns': typeof SalesReturnsRoute
   '/search': typeof SearchRoute
   '/serial-numbers': typeof SerialNumbersRoute
+  '/supplier-invoices': typeof SupplierInvoicesRoute
+  '/supplier-payments': typeof SupplierPaymentsRoute
+  '/suppliers': typeof SuppliersRoute
   '/taxes': typeof TaxesRoute
   '/teams': typeof TeamsRoute
   '/transfers': typeof TransfersRoute
@@ -353,26 +497,44 @@ export interface FileRoutesById {
   '/branches': typeof BranchesRoute
   '/brands': typeof BrandsRoute
   '/categories': typeof CategoriesRoute
+  '/customer-payments': typeof CustomerPaymentsRoute
+  '/customers': typeof CustomersRoute
+  '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/goods-receipts': typeof GoodsReceiptsRoute
   '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/inventory': typeof InventoryRoute
+  '/landed-costs': typeof LandedCostsRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
   '/movements': typeof MovementsRoute
   '/notifications': typeof NotificationsRoute
   '/organization': typeof OrganizationRoute
   '/permissions': typeof PermissionsRoute
+  '/pos': typeof PosRoute
   '/preferences': typeof PreferencesRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
+  '/purchase-orders': typeof PurchaseOrdersRoute
+  '/purchase-requests': typeof PurchaseRequestsRoute
+  '/purchasing': typeof PurchasingRoute
+  '/quotations': typeof QuotationsRoute
   '/reservations': typeof ReservationsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/roles': typeof RolesRoute
+  '/sales': typeof SalesRoute
+  '/sales-credit-notes': typeof SalesCreditNotesRoute
+  '/sales-invoices': typeof SalesInvoicesRoute
+  '/sales-orders': typeof SalesOrdersRoute
+  '/sales-returns': typeof SalesReturnsRoute
   '/search': typeof SearchRoute
   '/serial-numbers': typeof SerialNumbersRoute
+  '/supplier-invoices': typeof SupplierInvoicesRoute
+  '/supplier-payments': typeof SupplierPaymentsRoute
+  '/suppliers': typeof SuppliersRoute
   '/taxes': typeof TaxesRoute
   '/teams': typeof TeamsRoute
   '/transfers': typeof TransfersRoute
@@ -398,26 +560,44 @@ export interface FileRouteTypes {
     | '/branches'
     | '/brands'
     | '/categories'
+    | '/customer-payments'
+    | '/customers'
+    | '/delivery-notes'
     | '/departments'
     | '/files'
     | '/forgot-password'
+    | '/goods-receipts'
     | '/gradient-blur-demo'
     | '/help'
     | '/inventory'
+    | '/landed-costs'
     | '/locations'
     | '/login'
     | '/movements'
     | '/notifications'
     | '/organization'
     | '/permissions'
+    | '/pos'
     | '/preferences'
     | '/products'
     | '/profile'
+    | '/purchase-orders'
+    | '/purchase-requests'
+    | '/purchasing'
+    | '/quotations'
     | '/reservations'
     | '/reset-password'
     | '/roles'
+    | '/sales'
+    | '/sales-credit-notes'
+    | '/sales-invoices'
+    | '/sales-orders'
+    | '/sales-returns'
     | '/search'
     | '/serial-numbers'
+    | '/supplier-invoices'
+    | '/supplier-payments'
+    | '/suppliers'
     | '/taxes'
     | '/teams'
     | '/transfers'
@@ -441,26 +621,44 @@ export interface FileRouteTypes {
     | '/branches'
     | '/brands'
     | '/categories'
+    | '/customer-payments'
+    | '/customers'
+    | '/delivery-notes'
     | '/departments'
     | '/files'
     | '/forgot-password'
+    | '/goods-receipts'
     | '/gradient-blur-demo'
     | '/help'
     | '/inventory'
+    | '/landed-costs'
     | '/locations'
     | '/login'
     | '/movements'
     | '/notifications'
     | '/organization'
     | '/permissions'
+    | '/pos'
     | '/preferences'
     | '/products'
     | '/profile'
+    | '/purchase-orders'
+    | '/purchase-requests'
+    | '/purchasing'
+    | '/quotations'
     | '/reservations'
     | '/reset-password'
     | '/roles'
+    | '/sales'
+    | '/sales-credit-notes'
+    | '/sales-invoices'
+    | '/sales-orders'
+    | '/sales-returns'
     | '/search'
     | '/serial-numbers'
+    | '/supplier-invoices'
+    | '/supplier-payments'
+    | '/suppliers'
     | '/taxes'
     | '/teams'
     | '/transfers'
@@ -484,26 +682,44 @@ export interface FileRouteTypes {
     | '/branches'
     | '/brands'
     | '/categories'
+    | '/customer-payments'
+    | '/customers'
+    | '/delivery-notes'
     | '/departments'
     | '/files'
     | '/forgot-password'
+    | '/goods-receipts'
     | '/gradient-blur-demo'
     | '/help'
     | '/inventory'
+    | '/landed-costs'
     | '/locations'
     | '/login'
     | '/movements'
     | '/notifications'
     | '/organization'
     | '/permissions'
+    | '/pos'
     | '/preferences'
     | '/products'
     | '/profile'
+    | '/purchase-orders'
+    | '/purchase-requests'
+    | '/purchasing'
+    | '/quotations'
     | '/reservations'
     | '/reset-password'
     | '/roles'
+    | '/sales'
+    | '/sales-credit-notes'
+    | '/sales-invoices'
+    | '/sales-orders'
+    | '/sales-returns'
     | '/search'
     | '/serial-numbers'
+    | '/supplier-invoices'
+    | '/supplier-payments'
+    | '/suppliers'
     | '/taxes'
     | '/teams'
     | '/transfers'
@@ -528,26 +744,44 @@ export interface RootRouteChildren {
   BranchesRoute: typeof BranchesRoute
   BrandsRoute: typeof BrandsRoute
   CategoriesRoute: typeof CategoriesRoute
+  CustomerPaymentsRoute: typeof CustomerPaymentsRoute
+  CustomersRoute: typeof CustomersRoute
+  DeliveryNotesRoute: typeof DeliveryNotesRoute
   DepartmentsRoute: typeof DepartmentsRoute
   FilesRoute: typeof FilesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  GoodsReceiptsRoute: typeof GoodsReceiptsRoute
   GradientBlurDemoRoute: typeof GradientBlurDemoRoute
   HelpRoute: typeof HelpRoute
   InventoryRoute: typeof InventoryRoute
+  LandedCostsRoute: typeof LandedCostsRoute
   LocationsRoute: typeof LocationsRoute
   LoginRoute: typeof LoginRoute
   MovementsRoute: typeof MovementsRoute
   NotificationsRoute: typeof NotificationsRoute
   OrganizationRoute: typeof OrganizationRoute
   PermissionsRoute: typeof PermissionsRoute
+  PosRoute: typeof PosRoute
   PreferencesRoute: typeof PreferencesRoute
   ProductsRoute: typeof ProductsRoute
   ProfileRoute: typeof ProfileRoute
+  PurchaseOrdersRoute: typeof PurchaseOrdersRoute
+  PurchaseRequestsRoute: typeof PurchaseRequestsRoute
+  PurchasingRoute: typeof PurchasingRoute
+  QuotationsRoute: typeof QuotationsRoute
   ReservationsRoute: typeof ReservationsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RolesRoute: typeof RolesRoute
+  SalesRoute: typeof SalesRoute
+  SalesCreditNotesRoute: typeof SalesCreditNotesRoute
+  SalesInvoicesRoute: typeof SalesInvoicesRoute
+  SalesOrdersRoute: typeof SalesOrdersRoute
+  SalesReturnsRoute: typeof SalesReturnsRoute
   SearchRoute: typeof SearchRoute
   SerialNumbersRoute: typeof SerialNumbersRoute
+  SupplierInvoicesRoute: typeof SupplierInvoicesRoute
+  SupplierPaymentsRoute: typeof SupplierPaymentsRoute
+  SuppliersRoute: typeof SuppliersRoute
   TaxesRoute: typeof TaxesRoute
   TeamsRoute: typeof TeamsRoute
   TransfersRoute: typeof TransfersRoute
@@ -621,6 +855,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CategoriesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/customer-payments': {
+      id: '/customer-payments'
+      path: '/customer-payments'
+      fullPath: '/customer-payments'
+      preLoaderRoute: typeof CustomerPaymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customers': {
+      id: '/customers'
+      path: '/customers'
+      fullPath: '/customers'
+      preLoaderRoute: typeof CustomersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/delivery-notes': {
+      id: '/delivery-notes'
+      path: '/delivery-notes'
+      fullPath: '/delivery-notes'
+      preLoaderRoute: typeof DeliveryNotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/departments': {
       id: '/departments'
       path: '/departments'
@@ -642,6 +897,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/goods-receipts': {
+      id: '/goods-receipts'
+      path: '/goods-receipts'
+      fullPath: '/goods-receipts'
+      preLoaderRoute: typeof GoodsReceiptsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/gradient-blur-demo': {
       id: '/gradient-blur-demo'
       path: '/gradient-blur-demo'
@@ -661,6 +923,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/landed-costs': {
+      id: '/landed-costs'
+      path: '/landed-costs'
+      fullPath: '/landed-costs'
+      preLoaderRoute: typeof LandedCostsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/locations': {
@@ -705,6 +974,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PermissionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pos': {
+      id: '/pos'
+      path: '/pos'
+      fullPath: '/pos'
+      preLoaderRoute: typeof PosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/preferences': {
       id: '/preferences'
       path: '/preferences'
@@ -724,6 +1000,34 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/purchase-orders': {
+      id: '/purchase-orders'
+      path: '/purchase-orders'
+      fullPath: '/purchase-orders'
+      preLoaderRoute: typeof PurchaseOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/purchase-requests': {
+      id: '/purchase-requests'
+      path: '/purchase-requests'
+      fullPath: '/purchase-requests'
+      preLoaderRoute: typeof PurchaseRequestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/purchasing': {
+      id: '/purchasing'
+      path: '/purchasing'
+      fullPath: '/purchasing'
+      preLoaderRoute: typeof PurchasingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quotations': {
+      id: '/quotations'
+      path: '/quotations'
+      fullPath: '/quotations'
+      preLoaderRoute: typeof QuotationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reservations': {
@@ -747,6 +1051,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RolesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sales': {
+      id: '/sales'
+      path: '/sales'
+      fullPath: '/sales'
+      preLoaderRoute: typeof SalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sales-credit-notes': {
+      id: '/sales-credit-notes'
+      path: '/sales-credit-notes'
+      fullPath: '/sales-credit-notes'
+      preLoaderRoute: typeof SalesCreditNotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sales-invoices': {
+      id: '/sales-invoices'
+      path: '/sales-invoices'
+      fullPath: '/sales-invoices'
+      preLoaderRoute: typeof SalesInvoicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sales-orders': {
+      id: '/sales-orders'
+      path: '/sales-orders'
+      fullPath: '/sales-orders'
+      preLoaderRoute: typeof SalesOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sales-returns': {
+      id: '/sales-returns'
+      path: '/sales-returns'
+      fullPath: '/sales-returns'
+      preLoaderRoute: typeof SalesReturnsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/search': {
       id: '/search'
       path: '/search'
@@ -759,6 +1098,27 @@ declare module '@tanstack/react-router' {
       path: '/serial-numbers'
       fullPath: '/serial-numbers'
       preLoaderRoute: typeof SerialNumbersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/supplier-invoices': {
+      id: '/supplier-invoices'
+      path: '/supplier-invoices'
+      fullPath: '/supplier-invoices'
+      preLoaderRoute: typeof SupplierInvoicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/supplier-payments': {
+      id: '/supplier-payments'
+      path: '/supplier-payments'
+      fullPath: '/supplier-payments'
+      preLoaderRoute: typeof SupplierPaymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/suppliers': {
+      id: '/suppliers'
+      path: '/suppliers'
+      fullPath: '/suppliers'
+      preLoaderRoute: typeof SuppliersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/taxes': {
@@ -864,26 +1224,44 @@ const rootRouteChildren: RootRouteChildren = {
   BranchesRoute: BranchesRoute,
   BrandsRoute: BrandsRoute,
   CategoriesRoute: CategoriesRoute,
+  CustomerPaymentsRoute: CustomerPaymentsRoute,
+  CustomersRoute: CustomersRoute,
+  DeliveryNotesRoute: DeliveryNotesRoute,
   DepartmentsRoute: DepartmentsRoute,
   FilesRoute: FilesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  GoodsReceiptsRoute: GoodsReceiptsRoute,
   GradientBlurDemoRoute: GradientBlurDemoRoute,
   HelpRoute: HelpRoute,
   InventoryRoute: InventoryRoute,
+  LandedCostsRoute: LandedCostsRoute,
   LocationsRoute: LocationsRoute,
   LoginRoute: LoginRoute,
   MovementsRoute: MovementsRoute,
   NotificationsRoute: NotificationsRoute,
   OrganizationRoute: OrganizationRoute,
   PermissionsRoute: PermissionsRoute,
+  PosRoute: PosRoute,
   PreferencesRoute: PreferencesRoute,
   ProductsRoute: ProductsRoute,
   ProfileRoute: ProfileRoute,
+  PurchaseOrdersRoute: PurchaseOrdersRoute,
+  PurchaseRequestsRoute: PurchaseRequestsRoute,
+  PurchasingRoute: PurchasingRoute,
+  QuotationsRoute: QuotationsRoute,
   ReservationsRoute: ReservationsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RolesRoute: RolesRoute,
+  SalesRoute: SalesRoute,
+  SalesCreditNotesRoute: SalesCreditNotesRoute,
+  SalesInvoicesRoute: SalesInvoicesRoute,
+  SalesOrdersRoute: SalesOrdersRoute,
+  SalesReturnsRoute: SalesReturnsRoute,
   SearchRoute: SearchRoute,
   SerialNumbersRoute: SerialNumbersRoute,
+  SupplierInvoicesRoute: SupplierInvoicesRoute,
+  SupplierPaymentsRoute: SupplierPaymentsRoute,
+  SuppliersRoute: SuppliersRoute,
   TaxesRoute: TaxesRoute,
   TeamsRoute: TeamsRoute,
   TransfersRoute: TransfersRoute,

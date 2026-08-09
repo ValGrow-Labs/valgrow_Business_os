@@ -38,6 +38,9 @@ import {
   ArrowRightLeft,
   Sliders,
   BookmarkCheck,
+  ShoppingBag,
+  PackageCheck,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -104,6 +107,34 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: "Purchasing",
+    items: [
+      { title: "Purchasing Dashboard", url: "/purchasing", icon: ShoppingCart },
+      { title: "Suppliers", url: "/suppliers", icon: Contact },
+      { title: "Purchase Requests", url: "/purchase-requests", icon: ScrollText },
+      { title: "Purchase Orders", url: "/purchase-orders", icon: ShoppingBag },
+      { title: "Goods Receipts", url: "/goods-receipts", icon: PackageCheck },
+      { title: "Landed Costs", url: "/landed-costs", icon: Calculator },
+      { title: "Supplier Invoices", url: "/supplier-invoices", icon: Receipt },
+      { title: "Supplier Payments", url: "/supplier-payments", icon: CreditCard },
+    ],
+  },
+  {
+    label: "Sales",
+    items: [
+      { title: "POS Register", url: "/pos", icon: Calculator },
+      { title: "Sales Dashboard", url: "/sales", icon: ShoppingCart },
+      { title: "Customers", url: "/customers", icon: Contact },
+      { title: "Quotations", url: "/quotations", icon: ScrollText },
+      { title: "Sales Orders", url: "/sales-orders", icon: ShoppingBag },
+      { title: "Delivery Notes", url: "/delivery-notes", icon: PackageCheck },
+      { title: "Sales Invoices", url: "/sales-invoices", icon: Receipt },
+      { title: "Customer Payments", url: "/customer-payments", icon: CreditCard },
+      { title: "Sales Returns", url: "/sales-returns", icon: ArrowRightLeft },
+      { title: "Credit Notes", url: "/sales-credit-notes", icon: Calculator },
+    ],
+  },
+  {
     label: "Workspace",
     items: [
       { title: "Notifications", url: "/notifications", icon: Bell },
@@ -134,7 +165,6 @@ export const navGroups: NavGroup[] = [
       { title: "Projects", url: "/", icon: Boxes, soon: true },
       { title: "Clients", url: "/", icon: Contact, soon: true },
       { title: "Finance", url: "/", icon: Calculator, soon: true },
-      { title: "Sales", url: "/", icon: ShoppingCart, soon: true },
       { title: "Operations", url: "/", icon: BriefcaseBusiness, soon: true },
       { title: "AI Workspace", url: "/", icon: Sparkles, soon: true },
       { title: "Analytics", url: "/", icon: BarChart3, soon: true },

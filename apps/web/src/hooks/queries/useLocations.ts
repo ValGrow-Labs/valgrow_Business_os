@@ -17,11 +17,13 @@ export interface LocationItem {
   updatedAt: string;
 }
 
-export function useLocations(warehouseId: string) {
+export function useLocations(warehouseId?: string) {
   return useQuery<LocationItem[]>({
     queryKey: ["locations", warehouseId],
-    queryFn: () => apiClient<LocationItem[]>(`/warehouses/${warehouseId}/locations`),
-    enabled: Boolean(warehouseId),
+    queryFn: () =>
+      apiClient<LocationItem[]>(
+        warehouseId ? `/warehouses/${warehouseId}/locations` : "/locations",
+      ),
   });
 }
 

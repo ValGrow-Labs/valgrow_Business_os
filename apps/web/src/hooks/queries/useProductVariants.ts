@@ -15,11 +15,13 @@ export interface ProductVariantItem {
   priceLevels?: any[];
 }
 
-export function useProductVariants(productId: string) {
+export function useProductVariants(productId?: string) {
   return useQuery<ProductVariantItem[]>({
     queryKey: ["productVariants", productId],
-    queryFn: () => apiClient<ProductVariantItem[]>(`/products/${productId}/variants`),
-    enabled: Boolean(productId),
+    queryFn: () =>
+      apiClient<ProductVariantItem[]>(
+        productId ? `/products/${productId}/variants` : "/product-variants",
+      ),
   });
 }
 
