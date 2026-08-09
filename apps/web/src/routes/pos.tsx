@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { AppShell } from "@/components/layout/app-shell";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import { useBranches, type BranchItem } from "@/hooks/queries/useBranches";
 import { useWarehouses, type WarehouseItem } from "@/hooks/queries/useWarehouses";
@@ -313,744 +314,760 @@ function POSRegisterPage() {
   // If Session Loading
   if (isSessionLoading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
+      <AppShell>
+        <div className="flex h-96 items-center justify-center">
+          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppShell>
     );
   }
 
   // 12. NO ACTIVE SESSION -> OPEN REGISTER SCREEN
   if (!activeSession) {
     return (
-      <div className="mx-auto max-w-xl py-12">
-        <div className="rounded-xl border bg-card p-8 shadow-sm">
-          <div className="mb-6 text-center">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Calculator className="h-7 w-7" />
-            </div>
-            <h1 className="text-2xl font-bold">Open POS Register Session</h1>
-            <p className="text-sm text-muted-foreground">
-              Select your branch, warehouse, and opening cash float to begin selling.
-            </p>
-          </div>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              openSessionMutation.mutate({
-                branchId: openSessionBranchId,
-                warehouseId: openSessionWarehouseId,
-                terminalId: openSessionTerminalId,
-                openingCash: Number(openSessionOpeningCash),
-              });
-            }}
-            className="space-y-4"
-          >
-            <div>
-              <Label>Branch</Label>
-              <Select value={openSessionBranchId} onValueChange={setOpenSessionBranchId} required>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select Branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  {branches.map((b: BranchItem) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name} ({b.city})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Warehouse / Dispatched From</Label>
-              <Select
-                value={openSessionWarehouseId}
-                onValueChange={setOpenSessionWarehouseId}
-                required
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select Warehouse" />
-                </SelectTrigger>
-                <SelectContent>
-                  {warehouses.map((w: WarehouseItem) => (
-                    <SelectItem key={w.id} value={w.id}>
-                      {w.name} ({w.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Terminal / Register ID</Label>
-                <Input
-                  value={openSessionTerminalId}
-                  onChange={(e) => setOpenSessionTerminalId(e.target.value)}
-                  className="mt-1"
-                  required
-                />
+      <AppShell>
+        <div className="mx-auto max-w-xl py-12">
+          <div className="rounded-xl border bg-card p-8 shadow-sm">
+            <div className="mb-6 text-center">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Calculator className="h-7 w-7" />
               </div>
-              <div>
-                <Label>Opening Cash Float (₹)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={openSessionOpeningCash}
-                  onChange={(e) => setOpenSessionOpeningCash(e.target.value)}
-                  className="mt-1"
-                  required
-                />
-              </div>
+              <h1 className="text-2xl font-bold">Open POS Register Session</h1>
+              <p className="text-sm text-muted-foreground">
+                Select your branch, warehouse, and opening cash float to begin selling.
+              </p>
             </div>
 
-            {openSessionMutation.isError && (
-              <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                {(openSessionMutation.error as any)?.message || "Failed to open POS session"}
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={
-                !openSessionBranchId ||
-                !openSessionWarehouseId ||
-                !canOpenSession ||
-                openSessionMutation.isPending
-              }
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                openSessionMutation.mutate({
+                  branchId: openSessionBranchId,
+                  warehouseId: openSessionWarehouseId,
+                  terminalId: openSessionTerminalId,
+                  openingCash: Number(openSessionOpeningCash),
+                });
+              }}
+              className="space-y-4"
             >
-              {openSessionMutation.isPending
-                ? "Opening Register..."
-                : "Open Register & Start Selling"}
-            </Button>
-          </form>
+              <div>
+                <Label>Branch</Label>
+                <Select value={openSessionBranchId} onValueChange={setOpenSessionBranchId} required>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select Branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b: BranchItem) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name} ({b.city})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Warehouse / Dispatched From</Label>
+                <Select
+                  value={openSessionWarehouseId}
+                  onValueChange={setOpenSessionWarehouseId}
+                  required
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select Warehouse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouses.map((w: WarehouseItem) => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {w.name} ({w.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Terminal / Register ID</Label>
+                  <Input
+                    value={openSessionTerminalId}
+                    onChange={(e) => setOpenSessionTerminalId(e.target.value)}
+                    className="mt-1"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Opening Cash Float (₹)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={openSessionOpeningCash}
+                    onChange={(e) => setOpenSessionOpeningCash(e.target.value)}
+                    className="mt-1"
+                    required
+                  />
+                </div>
+              </div>
+
+              {openSessionMutation.isError && (
+                <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                  {(openSessionMutation.error as any)?.message || "Failed to open POS session"}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={
+                  !openSessionBranchId ||
+                  !openSessionWarehouseId ||
+                  !canOpenSession ||
+                  openSessionMutation.isPending
+                }
+              >
+                {openSessionMutation.isPending
+                  ? "Opening Register..."
+                  : "Open Register & Start Selling"}
+              </Button>
+            </form>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   // ACTIVE SESSION UI
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col gap-3 p-4">
-      {/* HEADER BAR */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card px-4 py-2 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 font-semibold">
-            <Calculator className="h-5 w-5 text-primary" />
-            <span>POS Register — {activeSession.terminalId}</span>
-            <Badge
-              variant="outline"
-              className="border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-            >
-              {activeSession.status}
-            </Badge>
-          </div>
-          <div className="hidden text-xs text-muted-foreground md:flex md:items-center md:gap-3">
-            <span className="flex items-center gap-1">
-              <Building2 className="h-3.5 w-3.5" />
-              {activeSession.branch?.name}
-            </span>
-            <span className="flex items-center gap-1">
-              <Warehouse className="h-3.5 w-3.5" />
-              {activeSession.warehouse?.name}
-            </span>
-            <span className="flex items-center gap-1">
-              <User className="h-3.5 w-3.5" />
-              {activeSession.openedBy?.firstName} {activeSession.openedBy?.lastName}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {activeSession.status === "OPEN" ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => suspendSessionMutation.mutate(activeSession.id)}
-              disabled={suspendSessionMutation.isPending}
-            >
-              <PauseCircle className="mr-1.5 h-4 w-4" />
-              Suspend
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => resumeSessionMutation.mutate(activeSession.id)}
-              disabled={resumeSessionMutation.isPending}
-            >
-              <Play className="mr-1.5 h-4 w-4 text-emerald-600" />
-              Resume
-            </Button>
-          )}
-
-          <Button variant="outline" size="sm" onClick={() => setShowHeldModal(true)}>
-            <PauseCircle className="mr-1.5 h-4 w-4" />
-            Held Sales
-          </Button>
-
-          {canRefund && (
-            <Button variant="outline" size="sm" onClick={() => setShowRefundModal(true)}>
-              <RotateCcw className="mr-1.5 h-4 w-4" />
-              Refunds
-            </Button>
-          )}
-
-          {canCloseSession && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                setClosingCash(String(activeSession.openingCash || 0));
-                setShowCloseModal(true);
-              }}
-            >
-              Close Register
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* BARCODE SCANNER INPUT */}
-      <div className="rounded-lg border bg-card p-3 shadow-sm">
-        <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
-          <div className="relative flex-1">
-            <Barcode className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
-            <Input
-              ref={barcodeRef}
-              type="text"
-              placeholder="Scan Barcode or enter SKU / serial number and press Enter..."
-              value={barcodeInput}
-              onChange={(e) => setBarcodeInput(e.target.value)}
-              className="pl-10 font-mono text-base"
-              autoFocus
-            />
-          </div>
-          <Button type="submit" disabled={isSearchingBarcode || !barcodeInput.trim()}>
-            {isSearchingBarcode ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Scan Item"}
-          </Button>
-        </form>
-        {barcodeError && (
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
-            <AlertCircle className="h-3.5 w-3.5" />
-            {barcodeError}
-          </div>
-        )}
-      </div>
-
-      {/* MAIN TWO-COLUMN REGISTER GRID */}
-      <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-12">
-        {/* LEFT CATALOG / SEARCH (7 COLS) */}
-        <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm lg:col-span-7 overflow-hidden">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search product catalog by name or SKU..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
+    <AppShell>
+      <div className="flex h-[calc(100vh-4rem)] flex-col gap-3 p-4">
+        {/* HEADER BAR */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card px-4 py-2 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 font-semibold">
+              <Calculator className="h-5 w-5 text-primary" />
+              <span>POS Register — {activeSession.terminalId}</span>
+              <Badge
+                variant="outline"
+                className="border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+              >
+                {activeSession.status}
+              </Badge>
+            </div>
+            <div className="hidden text-xs text-muted-foreground md:flex md:items-center md:gap-3">
+              <span className="flex items-center gap-1">
+                <Building2 className="h-3.5 w-3.5" />
+                {activeSession.branch?.name}
+              </span>
+              <span className="flex items-center gap-1">
+                <Warehouse className="h-3.5 w-3.5" />
+                {activeSession.warehouse?.name}
+              </span>
+              <span className="flex items-center gap-1">
+                <User className="h-3.5 w-3.5" />
+                {activeSession.openedBy?.firstName} {activeSession.openedBy?.lastName}
+              </span>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto pr-1">
-            {isProductsLoading ? (
-              <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-                Loading products...
-              </div>
-            ) : products.length === 0 ? (
-              <div className="flex h-48 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-                <ShoppingBag className="h-8 w-8 text-muted-foreground/50" />
-                <span>No products found matching "{searchQuery}"</span>
-              </div>
+          <div className="flex items-center gap-2">
+            {activeSession.status === "OPEN" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => suspendSessionMutation.mutate(activeSession.id)}
+                disabled={suspendSessionMutation.isPending}
+              >
+                <PauseCircle className="mr-1.5 h-4 w-4" />
+                Suspend
+              </Button>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {products.map((prod) => (
-                  <button
-                    key={prod.id}
-                    onClick={() => handleAddProductToCart(prod)}
-                    className="flex flex-col justify-between rounded-lg border bg-background p-3 text-left transition-colors hover:border-primary hover:bg-accent/50"
-                  >
-                    <div>
-                      <div className="font-semibold line-clamp-1">{prod.name}</div>
-                      <div className="text-xs text-muted-foreground">SKU: {prod.sku}</div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between border-t pt-2 text-xs">
-                      <span className="font-bold text-primary">
-                        ₹{(prod.retailPrice || prod.costPrice).toFixed(2)}
-                      </span>
-                      <span className="text-muted-foreground">Stk: {prod.availableStock ?? 0}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => resumeSessionMutation.mutate(activeSession.id)}
+                disabled={resumeSessionMutation.isPending}
+              >
+                <Play className="mr-1.5 h-4 w-4 text-emerald-600" />
+                Resume
+              </Button>
+            )}
+
+            <Button variant="outline" size="sm" onClick={() => setShowHeldModal(true)}>
+              <PauseCircle className="mr-1.5 h-4 w-4" />
+              Held Sales
+            </Button>
+
+            {canRefund && (
+              <Button variant="outline" size="sm" onClick={() => setShowRefundModal(true)}>
+                <RotateCcw className="mr-1.5 h-4 w-4" />
+                Refunds
+              </Button>
+            )}
+
+            {canCloseSession && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  setClosingCash(String(activeSession.openingCash || 0));
+                  setShowCloseModal(true);
+                }}
+              >
+                Close Register
+              </Button>
             )}
           </div>
         </div>
 
-        {/* RIGHT ACTIVE CART & CHECKOUT PANEL (5 COLS) */}
-        <div className="flex flex-col rounded-lg border bg-card p-4 shadow-sm lg:col-span-5 overflow-hidden">
-          {/* CART HEADER & CUSTOMER SELECTOR */}
-          <div className="mb-3 flex items-center justify-between border-b pb-3">
-            <div className="flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Current Order</span>
-              {activeCart?.items && (
-                <Badge variant="secondary">{activeCart.items.length} items</Badge>
+        {/* BARCODE SCANNER INPUT */}
+        <div className="rounded-lg border bg-card p-3 shadow-sm">
+          <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
+            <div className="relative flex-1">
+              <Barcode className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+              <Input
+                ref={barcodeRef}
+                type="text"
+                placeholder="Scan Barcode or enter SKU / serial number and press Enter..."
+                value={barcodeInput}
+                onChange={(e) => setBarcodeInput(e.target.value)}
+                className="pl-10 font-mono text-base"
+                autoFocus
+              />
+            </div>
+            <Button type="submit" disabled={isSearchingBarcode || !barcodeInput.trim()}>
+              {isSearchingBarcode ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Scan Item"}
+            </Button>
+          </form>
+          {barcodeError && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
+              <AlertCircle className="h-3.5 w-3.5" />
+              {barcodeError}
+            </div>
+          )}
+        </div>
+
+        {/* MAIN TWO-COLUMN REGISTER GRID */}
+        <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-12">
+          {/* LEFT CATALOG / SEARCH (7 COLS) */}
+          <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm lg:col-span-7 overflow-hidden">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search product catalog by name or SKU..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1">
+              {isProductsLoading ? (
+                <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+                  Loading products...
+                </div>
+              ) : products.length === 0 ? (
+                <div className="flex h-48 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+                  <ShoppingBag className="h-8 w-8 text-muted-foreground/50" />
+                  <span>No products found matching "{searchQuery}"</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {products.map((prod) => (
+                    <button
+                      key={prod.id}
+                      onClick={() => handleAddProductToCart(prod)}
+                      className="flex flex-col justify-between rounded-lg border bg-background p-3 text-left transition-colors hover:border-primary hover:bg-accent/50"
+                    >
+                      <div>
+                        <div className="font-semibold line-clamp-1">{prod.name}</div>
+                        <div className="text-xs text-muted-foreground">SKU: {prod.sku}</div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between border-t pt-2 text-xs">
+                        <span className="font-bold text-primary">
+                          ₹{(prod.retailPrice || prod.costPrice).toFixed(2)}
+                        </span>
+                        <span className="text-muted-foreground">
+                          Stk: {prod.availableStock ?? 0}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT ACTIVE CART & CHECKOUT PANEL (5 COLS) */}
+          <div className="flex flex-col rounded-lg border bg-card p-4 shadow-sm lg:col-span-5 overflow-hidden">
+            {/* CART HEADER & CUSTOMER SELECTOR */}
+            <div className="mb-3 flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-primary" />
+                <span className="font-semibold">Current Order</span>
+                {activeCart?.items && (
+                  <Badge variant="secondary">{activeCart.items.length} items</Badge>
+                )}
+              </div>
+
+              <div className="w-44">
+                <Select
+                  value={activeCart?.customerId || "walkin"}
+                  onValueChange={(val) => {
+                    if (activeCartId) {
+                      // Customer select
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Walk-in Customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="walkin">Walk-in Customer</SelectItem>
+                    {customers.map((c: CustomerItem) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.customerCode})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* CART ITEMS LIST */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {!activeCart?.items || activeCart.items.length === 0 ? (
+                <div className="flex h-48 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+                  <ShoppingBag className="h-8 w-8 text-muted-foreground/30" />
+                  <span>Cart is empty. Scan barcode or click items to add.</span>
+                </div>
+              ) : (
+                activeCart.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between rounded-lg border bg-background p-2.5 text-xs"
+                  >
+                    <div className="flex-1 pr-2">
+                      <div className="font-medium">{item.product?.name}</div>
+                      {item.variant && (
+                        <div className="text-muted-foreground">{item.variant.name}</div>
+                      )}
+                      <div className="text-muted-foreground">
+                        ₹{item.unitPrice.toFixed(2)} / unit
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center border rounded-md">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 rounded-none"
+                          onClick={() =>
+                            item.quantity > 1
+                              ? updateItemMutation.mutate({
+                                  cartId: activeCart.id,
+                                  itemId: item.id,
+                                  dto: { quantity: item.quantity - 1 },
+                                })
+                              : removeItemMutation.mutate({
+                                  cartId: activeCart.id,
+                                  itemId: item.id,
+                                })
+                          }
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-8 text-center font-mono font-semibold">
+                          {item.quantity}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 rounded-none"
+                          onClick={() =>
+                            updateItemMutation.mutate({
+                              cartId: activeCart.id,
+                              itemId: item.id,
+                              dto: { quantity: item.quantity + 1 },
+                            })
+                          }
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+
+                      <div className="w-16 text-right font-bold text-foreground">
+                        ₹{item.totalAmount.toFixed(2)}
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                        onClick={() =>
+                          removeItemMutation.mutate({ cartId: activeCart.id, itemId: item.id })
+                        }
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
 
-            <div className="w-44">
-              <Select
-                value={activeCart?.customerId || "walkin"}
-                onValueChange={(val) => {
-                  if (activeCartId) {
-                    // Customer select
-                  }
-                }}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Walk-in Customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="walkin">Walk-in Customer</SelectItem>
-                  {customers.map((c: CustomerItem) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name} ({c.customerCode})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* CART ITEMS LIST */}
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            {!activeCart?.items || activeCart.items.length === 0 ? (
-              <div className="flex h-48 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-                <ShoppingBag className="h-8 w-8 text-muted-foreground/30" />
-                <span>Cart is empty. Scan barcode or click items to add.</span>
+            {/* CART TOTALS & CHECKOUT BUTTON */}
+            <div className="mt-3 border-t pt-3 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-mono">
+                  ₹{activeCart?.subtotalAmount.toFixed(2) || "0.00"}
+                </span>
               </div>
-            ) : (
-              activeCart.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between rounded-lg border bg-background p-2.5 text-xs"
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Discount</span>
+                <span className="font-mono text-destructive">
+                  -₹{activeCart?.discountAmount.toFixed(2) || "0.00"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax</span>
+                <span className="font-mono">₹{activeCart?.taxAmount.toFixed(2) || "0.00"}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 text-base font-bold">
+                <span>Grand Total</span>
+                <span className="text-primary font-mono">
+                  ₹{activeCart?.totalAmount.toFixed(2) || "0.00"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => activeCartId && holdCartMutation.mutate({ cartId: activeCartId })}
+                  disabled={!activeCart?.items.length || holdCartMutation.isPending}
                 >
-                  <div className="flex-1 pr-2">
-                    <div className="font-medium">{item.product?.name}</div>
-                    {item.variant && (
-                      <div className="text-muted-foreground">{item.variant.name}</div>
-                    )}
-                    <div className="text-muted-foreground">₹{item.unitPrice.toFixed(2)} / unit</div>
-                  </div>
+                  Hold
+                </Button>
 
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center border rounded-md">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 rounded-none"
-                        onClick={() =>
-                          item.quantity > 1
-                            ? updateItemMutation.mutate({
-                                cartId: activeCart.id,
-                                itemId: item.id,
-                                dto: { quantity: item.quantity - 1 },
-                              })
-                            : removeItemMutation.mutate({ cartId: activeCart.id, itemId: item.id })
-                        }
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center font-mono font-semibold">
-                        {item.quantity}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 rounded-none"
-                        onClick={() =>
-                          updateItemMutation.mutate({
-                            cartId: activeCart.id,
-                            itemId: item.id,
-                            dto: { quantity: item.quantity + 1 },
-                          })
-                        }
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => activeCartId && clearCartMutation.mutate(activeCartId)}
+                  disabled={!activeCart?.items.length}
+                >
+                  Clear
+                </Button>
 
-                    <div className="w-16 text-right font-bold text-foreground">
-                      ₹{item.totalAmount.toFixed(2)}
-                    </div>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      onClick={() =>
-                        removeItemMutation.mutate({ cartId: activeCart.id, itemId: item.id })
-                      }
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* CART TOTALS & CHECKOUT BUTTON */}
-          <div className="mt-3 border-t pt-3 space-y-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-mono">₹{activeCart?.subtotalAmount.toFixed(2) || "0.00"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Discount</span>
-              <span className="font-mono text-destructive">
-                -₹{activeCart?.discountAmount.toFixed(2) || "0.00"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax</span>
-              <span className="font-mono">₹{activeCart?.taxAmount.toFixed(2) || "0.00"}</span>
-            </div>
-            <div className="flex justify-between border-t pt-2 text-base font-bold">
-              <span>Grand Total</span>
-              <span className="text-primary font-mono">
-                ₹{activeCart?.totalAmount.toFixed(2) || "0.00"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => activeCartId && holdCartMutation.mutate({ cartId: activeCartId })}
-                disabled={!activeCart?.items.length || holdCartMutation.isPending}
-              >
-                Hold
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => activeCartId && clearCartMutation.mutate(activeCartId)}
-                disabled={!activeCart?.items.length}
-              >
-                Clear
-              </Button>
-
-              <Button
-                size="sm"
-                className="col-span-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                onClick={handleOpenCheckout}
-                disabled={!activeCart?.items.length || !canCheckout}
-              >
-                CHECKOUT
-              </Button>
+                <Button
+                  size="sm"
+                  className="col-span-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                  onClick={handleOpenCheckout}
+                  disabled={!activeCart?.items.length || !canCheckout}
+                >
+                  CHECKOUT
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* CHECKOUT MODAL */}
-      <Dialog open={showCheckoutModal} onOpenChange={setShowCheckoutModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Complete Sale & Collect Payment</DialogTitle>
-            <DialogDescription>
-              Collect payment across one or split payment methods.
-            </DialogDescription>
-          </DialogHeader>
+        {/* CHECKOUT MODAL */}
+        <Dialog open={showCheckoutModal} onOpenChange={setShowCheckoutModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Complete Sale & Collect Payment</DialogTitle>
+              <DialogDescription>
+                Collect payment across one or split payment methods.
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="space-y-4 py-2 text-sm">
-            <div className="rounded-lg bg-muted p-3 space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>
-                  ₹{activeCart?.subtotalAmount ? activeCart.subtotalAmount.toFixed(2) : "0.00"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Tax</span>
-                <span>₹{activeCart?.taxAmount ? activeCart.taxAmount.toFixed(2) : "0.00"}</span>
-              </div>
-              <div className="flex justify-between border-t pt-1 font-bold text-sm">
-                <span>Total Amount Due</span>
-                <span className="text-primary font-mono">
-                  ₹{activeCart?.totalAmount ? activeCart.totalAmount.toFixed(2) : "0.00"}
-                </span>
-              </div>
-            </div>
-
-            {/* SPLIT PAYMENT METHOD LIST */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between font-semibold text-xs">
-                <span>Payment Method Breakdown</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs px-2"
-                  onClick={handleAddPaymentRow}
-                >
-                  + Split Payment
-                </Button>
+            <div className="space-y-4 py-2 text-sm">
+              <div className="rounded-lg bg-muted p-3 space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>
+                    ₹{activeCart?.subtotalAmount ? activeCart.subtotalAmount.toFixed(2) : "0.00"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tax</span>
+                  <span>₹{activeCart?.taxAmount ? activeCart.taxAmount.toFixed(2) : "0.00"}</span>
+                </div>
+                <div className="flex justify-between border-t pt-1 font-bold text-sm">
+                  <span>Total Amount Due</span>
+                  <span className="text-primary font-mono">
+                    ₹{activeCart?.totalAmount ? activeCart.totalAmount.toFixed(2) : "0.00"}
+                  </span>
+                </div>
               </div>
 
-              {payments.map((p, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
-                  <Select
-                    value={p.paymentMethod}
-                    onValueChange={(val) => {
-                      setPayments((prev) =>
-                        prev.map((item, i) =>
-                          i === idx
-                            ? { ...item, paymentMethod: val as CustomerPaymentMethod }
-                            : item,
-                        ),
-                      );
-                    }}
+              {/* SPLIT PAYMENT METHOD LIST */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between font-semibold text-xs">
+                  <span>Payment Method Breakdown</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs px-2"
+                    onClick={handleAddPaymentRow}
                   >
-                    <SelectTrigger className="w-36 h-9 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="CASH">CASH</SelectItem>
-                      <SelectItem value="CREDIT_CARD">CARD</SelectItem>
-                      <SelectItem value="UPI">UPI</SelectItem>
-                      <SelectItem value="BANK_TRANSFER">BANK TRANSFER</SelectItem>
-                      <SelectItem value="OTHER">OTHER</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    + Split Payment
+                  </Button>
+                </div>
 
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="Amount"
-                    value={p.amount || ""}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setPayments((prev) =>
-                        prev.map((item, i) =>
-                          i === idx
-                            ? {
-                                ...item,
-                                amount: val,
-                                receivedAmount:
-                                  item.paymentMethod === "CASH" ? val : item.receivedAmount,
-                              }
-                            : item,
-                        ),
-                      );
-                    }}
-                    className="h-9 font-mono"
-                  />
+                {payments.map((p, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <Select
+                      value={p.paymentMethod}
+                      onValueChange={(val) => {
+                        setPayments((prev) =>
+                          prev.map((item, i) =>
+                            i === idx
+                              ? { ...item, paymentMethod: val as CustomerPaymentMethod }
+                              : item,
+                          ),
+                        );
+                      }}
+                    >
+                      <SelectTrigger className="w-36 h-9 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CASH">CASH</SelectItem>
+                        <SelectItem value="CREDIT_CARD">CARD</SelectItem>
+                        <SelectItem value="UPI">UPI</SelectItem>
+                        <SelectItem value="BANK_TRANSFER">BANK TRANSFER</SelectItem>
+                        <SelectItem value="OTHER">OTHER</SelectItem>
+                      </SelectContent>
+                    </Select>
 
-                  {p.paymentMethod === "CASH" && (
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder="Received"
-                      value={p.receivedAmount || ""}
+                      placeholder="Amount"
+                      value={p.amount || ""}
                       onChange={(e) => {
                         const val = Number(e.target.value);
                         setPayments((prev) =>
                           prev.map((item, i) =>
-                            i === idx ? { ...item, receivedAmount: val } : item,
+                            i === idx
+                              ? {
+                                  ...item,
+                                  amount: val,
+                                  receivedAmount:
+                                    item.paymentMethod === "CASH" ? val : item.receivedAmount,
+                                }
+                              : item,
                           ),
                         );
                       }}
-                      className="h-9 font-mono w-28"
+                      className="h-9 font-mono"
                     />
-                  )}
 
-                  {payments.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 text-destructive"
-                      onClick={() => handleRemovePaymentRow(idx)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
+                    {p.paymentMethod === "CASH" && (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Received"
+                        value={p.receivedAmount || ""}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setPayments((prev) =>
+                            prev.map((item, i) =>
+                              i === idx ? { ...item, receivedAmount: val } : item,
+                            ),
+                          );
+                        }}
+                        className="h-9 font-mono w-28"
+                      />
+                    )}
 
-            {/* CASH CHANGE DISPLAY */}
-            {payments.some(
-              (p) => p.paymentMethod === "CASH" && p.receivedAmount && p.receivedAmount > p.amount,
-            ) && (
-              <div className="rounded-lg border bg-emerald-50 border-emerald-200 p-3 text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200">
-                <div className="flex justify-between font-bold text-sm">
-                  <span>Cash Change Due to Customer:</span>
-                  <span className="font-mono">
-                    ₹
-                    {payments
-                      .filter((p) => p.paymentMethod === "CASH")
-                      .reduce((sum, p) => sum + ((p.receivedAmount || p.amount) - p.amount), 0)
-                      .toFixed(2)}
-                  </span>
-                </div>
+                    {payments.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-destructive"
+                        onClick={() => handleRemovePaymentRow(idx)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
-            )}
 
-            {checkoutMutation.isError && (
-              <div className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
-                {(checkoutMutation.error as any)?.message || "Checkout failed"}
+              {/* CASH CHANGE DISPLAY */}
+              {payments.some(
+                (p) =>
+                  p.paymentMethod === "CASH" && p.receivedAmount && p.receivedAmount > p.amount,
+              ) && (
+                <div className="rounded-lg border bg-emerald-50 border-emerald-200 p-3 text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200">
+                  <div className="flex justify-between font-bold text-sm">
+                    <span>Cash Change Due to Customer:</span>
+                    <span className="font-mono">
+                      ₹
+                      {payments
+                        .filter((p) => p.paymentMethod === "CASH")
+                        .reduce((sum, p) => sum + ((p.receivedAmount || p.amount) - p.amount), 0)
+                        .toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {checkoutMutation.isError && (
+                <div className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
+                  {(checkoutMutation.error as any)?.message || "Checkout failed"}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCheckoutModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                onClick={handleConfirmCheckout}
+                disabled={checkoutMutation.isPending}
+              >
+                {checkoutMutation.isPending ? "Processing..." : "Confirm & Complete Checkout"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* POST-CHECKOUT RECEIPT MODAL */}
+        <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <CheckCircle2 className="h-6 w-6" />
               </div>
-            )}
-          </div>
+              <DialogTitle className="text-center">Sale Completed Successfully!</DialogTitle>
+              <DialogDescription className="text-center font-mono text-base font-bold text-primary">
+                Receipt #{completedSale?.sale.receiptNumber}
+              </DialogDescription>
+            </DialogHeader>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCheckoutModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-              onClick={handleConfirmCheckout}
-              disabled={checkoutMutation.isPending}
-            >
-              {checkoutMutation.isPending ? "Processing..." : "Confirm & Complete Checkout"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* POST-CHECKOUT RECEIPT MODAL */}
-      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-              <CheckCircle2 className="h-6 w-6" />
-            </div>
-            <DialogTitle className="text-center">Sale Completed Successfully!</DialogTitle>
-            <DialogDescription className="text-center font-mono text-base font-bold text-primary">
-              Receipt #{completedSale?.sale.receiptNumber}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 py-2 text-xs border-y my-2">
-            <div className="flex justify-between">
-              <span>Total Paid Amount</span>
-              <span className="font-bold font-mono">
-                ₹
-                {completedSale?.sale.totalAmount
-                  ? completedSale.sale.totalAmount.toFixed(2)
-                  : "0.00"}
-              </span>
-            </div>
-
-            {Number(completedSale?.sale.changeAmount || 0) > 0 && (
-              <div className="flex justify-between text-emerald-700 font-bold">
-                <span>Change Returned</span>
-                <span className="font-mono">
+            <div className="space-y-3 py-2 text-xs border-y my-2">
+              <div className="flex justify-between">
+                <span>Total Paid Amount</span>
+                <span className="font-bold font-mono">
                   ₹
-                  {completedSale?.sale.changeAmount
-                    ? completedSale.sale.changeAmount.toFixed(2)
+                  {completedSale?.sale.totalAmount
+                    ? completedSale.sale.totalAmount.toFixed(2)
                     : "0.00"}
                 </span>
               </div>
-            )}
 
-            <div className="mt-2 space-y-1">
-              <span className="font-semibold text-muted-foreground">Payment Methods:</span>
-              {completedSale?.sale.payments.map((p) => (
-                <div key={p.id} className="flex justify-between text-muted-foreground">
-                  <span>{p.paymentMethod}</span>
-                  <span className="font-mono">₹{p.amount.toFixed(2)}</span>
+              {Number(completedSale?.sale.changeAmount || 0) > 0 && (
+                <div className="flex justify-between text-emerald-700 font-bold">
+                  <span>Change Returned</span>
+                  <span className="font-mono">
+                    ₹
+                    {completedSale?.sale.changeAmount
+                      ? completedSale.sale.changeAmount.toFixed(2)
+                      : "0.00"}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
+              )}
 
-          <DialogFooter className="flex-row gap-2 sm:justify-between">
-            <Button variant="outline" className="flex-1" onClick={() => window.print()}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print Receipt
-            </Button>
-
-            <Button
-              className="flex-1"
-              onClick={() => {
-                setShowSuccessModal(false);
-                setCompletedSale(null);
-              }}
-            >
-              New Sale
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* CLOSE REGISTER MODAL */}
-      <Dialog open={showCloseModal} onOpenChange={setShowCloseModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Close Register & Cash Reconciliation</DialogTitle>
-            <DialogDescription>
-              Enter final counted cash to close terminal session.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2 text-sm">
-            <div>
-              <Label>Counted Cash (₹)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={closingCash}
-                onChange={(e) => setClosingCash(e.target.value)}
-                className="mt-1 font-mono"
-              />
+              <div className="mt-2 space-y-1">
+                <span className="font-semibold text-muted-foreground">Payment Methods:</span>
+                {completedSale?.sale.payments.map((p) => (
+                  <div key={p.id} className="flex justify-between text-muted-foreground">
+                    <span>{p.paymentMethod}</span>
+                    <span className="font-mono">₹{p.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div>
-              <Label>Closing Notes</Label>
-              <Input
-                placeholder="End of shift remarks..."
-                value={closeNotes}
-                onChange={(e) => setCloseNotes(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-          </div>
+            <DialogFooter className="flex-row gap-2 sm:justify-between">
+              <Button variant="outline" className="flex-1" onClick={() => window.print()}>
+                <Printer className="mr-2 h-4 w-4" />
+                Print Receipt
+              </Button>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCloseModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (activeSession) {
-                  closeSessionMutation.mutate(
-                    {
-                      id: activeSession.id,
-                      dto: {
-                        closingCash: Number(closingCash),
-                        notes: closeNotes,
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setCompletedSale(null);
+                }}
+              >
+                New Sale
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* CLOSE REGISTER MODAL */}
+        <Dialog open={showCloseModal} onOpenChange={setShowCloseModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Close Register & Cash Reconciliation</DialogTitle>
+              <DialogDescription>
+                Enter final counted cash to close terminal session.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2 text-sm">
+              <div>
+                <Label>Counted Cash (₹)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={closingCash}
+                  onChange={(e) => setClosingCash(e.target.value)}
+                  className="mt-1 font-mono"
+                />
+              </div>
+
+              <div>
+                <Label>Closing Notes</Label>
+                <Input
+                  placeholder="End of shift remarks..."
+                  value={closeNotes}
+                  onChange={(e) => setCloseNotes(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCloseModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (activeSession) {
+                    closeSessionMutation.mutate(
+                      {
+                        id: activeSession.id,
+                        dto: {
+                          closingCash: Number(closingCash),
+                          notes: closeNotes,
+                        },
                       },
-                    },
-                    {
-                      onSuccess: () => setShowCloseModal(false),
-                    },
-                  );
-                }
-              }}
-              disabled={closeSessionMutation.isPending}
-            >
-              {closeSessionMutation.isPending ? "Closing..." : "Close Register"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+                      {
+                        onSuccess: () => setShowCloseModal(false),
+                      },
+                    );
+                  }
+                }}
+                disabled={closeSessionMutation.isPending}
+              >
+                {closeSessionMutation.isPending ? "Closing..." : "Close Register"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </AppShell>
   );
 }

@@ -122,7 +122,6 @@ export const navGroups: NavGroup[] = [
   {
     label: "Sales",
     items: [
-      { title: "POS Register", url: "/pos", icon: Calculator },
       { title: "Sales Dashboard", url: "/sales", icon: ShoppingCart },
       { title: "Customers", url: "/customers", icon: Contact },
       { title: "Quotations", url: "/quotations", icon: ScrollText },
@@ -135,14 +134,18 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Workspace",
-    items: [
-      { title: "Notifications", url: "/notifications", icon: Bell },
-      { title: "Activity Logs", url: "/activity", icon: History },
-      { title: "Audit Logs", url: "/audit-logs", icon: ScrollText },
-      { title: "File Manager", url: "/files", icon: FolderOpen },
-    ],
+    label: "POS",
+    items: [{ title: "POS Register", url: "/pos", icon: Calculator }],
   },
+  {
+  label: "Workspace",
+  items: [
+    { title: "Notifications", url: "/notifications", icon: Bell },
+    { title: "Activity Logs", url: "/activity", icon: History },
+    { title: "Audit Logs", url: "/audit-logs", icon: ScrollText },
+    { title: "File Manager", url: "/files", icon: FolderOpen },
+  ],
+},
   {
     label: "Account",
     items: [
@@ -220,6 +223,7 @@ export const notifications = [
 
 export const primaryNav: { title: string; url: string; soon?: boolean }[] = [
   { title: "Dashboard", url: "/" },
+  { title: "POS", url: "/pos" },
   { title: "Organization", url: "/organization" },
   { title: "Products", url: "/products" },
   { title: "Stock", url: "/inventory" },

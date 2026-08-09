@@ -482,36 +482,34 @@ export function AppShell({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface/70 px-4 backdrop-blur sm:px-6">
-            <div className="flex flex-1 min-w-0 items-center gap-3 sm:gap-4">
-              <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="lg:hidden shrink-0"
-                    aria-label="Open menu"
-                  >
-                    <Menu className="h-4 w-4" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-72 bg-sidebar p-0">
-                  <SheetTitle className="px-4 pt-4">
-                    <Brand />
-                  </SheetTitle>
-                  <div className="h-[calc(100vh-5rem)]">
-                    <SidebarNav compact={false} onNavigate={() => setMobileOpen(false)} />
-                  </div>
-                </SheetContent>
-              </Sheet>
+          <header className="flex h-16 shrink-0 items-center border-b border-border bg-surface/70 px-4 backdrop-blur sm:px-6">
+            {/* Mobile menu trigger */}
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden shrink-0 mr-3"
+                  aria-label="Open menu"
+                >
+                  <Menu className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 bg-sidebar p-0">
+                <SheetTitle className="px-4 pt-4">
+                  <Brand />
+                </SheetTitle>
+                <div className="h-[calc(100vh-5rem)]">
+                  <SidebarNav compact={false} onNavigate={() => setMobileOpen(false)} />
+                </div>
+              </SheetContent>
+            </Sheet>
 
-              <div className="hidden items-center gap-6 lg:flex shrink-0">
-                <PrimaryNavLinks />
-              </div>
-
+            {/* Search — left side, flex-1 so it fills available space */}
+            <div className="flex-1 min-w-0">
               <button
                 onClick={() => setPaletteOpen(true)}
-                className="flex h-10 flex-1 min-w-0 max-w-xl items-center gap-3 rounded-xl border border-input bg-surface-2/60 px-4 text-sm text-muted-foreground transition-colors hover:border-primary/40"
+                className="flex h-[42px] w-full max-w-[450px] items-center gap-3 rounded-xl border border-input bg-surface-2/60 px-4 text-sm text-muted-foreground transition-colors hover:border-primary/40"
               >
                 <Search className="h-4 w-4 shrink-0" />
                 <span className="truncate text-sm text-muted-foreground text-left">
@@ -520,19 +518,17 @@ export function AppShell({
               </button>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <HeaderIconLink to="/help" label="Help" icon={CircleHelp} />
-              <HeaderIconLink to="/settings/system" label="Settings" icon={Settings} />
-              <ThemeSwitcher />
+            {/* Right-side controls — never shrink, never clip */}
+            <div className="ml-auto flex shrink-0 items-center gap-4">
               <NotificationBell />
-              <Separator orientation="vertical" className="mx-1 hidden h-6 md:block shrink-0" />
-              <div className="hidden items-center gap-2 md:flex shrink-0">
-                <OrgSwitcher />
-                <BranchSwitcher />
-              </div>
-              <div className="ml-3 sm:ml-4 flex items-center shrink-0">
-                <UserMenu />
-              </div>
+              <HeaderIconLink to="/settings/system" label="Settings" icon={Settings} />
+
+              {/* Separator between utility controls and org/branch/profile */}
+              <div className="mx-1 h-6 w-px bg-border shrink-0" />
+
+              <OrgSwitcher />
+              <BranchSwitcher />
+              <UserMenu />
             </div>
           </header>
 
