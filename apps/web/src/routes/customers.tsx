@@ -9,6 +9,7 @@ import {
   useDeleteCustomer,
   type CustomerItem,
 } from "@/hooks/queries/useCustomers";
+import { useCustomer360 } from "@/hooks/queries/useCustomer360";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import {
   Dialog,
@@ -386,60 +387,240 @@ function CustomersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Customer View Dialog */}
+      {/* Customer 360 View Dialog */}
       {selectedCustomer && (
-        <Dialog open={Boolean(selectedCustomer)} onOpenChange={() => setSelectedCustomer(null)}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>
-                {selectedCustomer.name} ({selectedCustomer.customerCode})
-              </DialogTitle>
-              <DialogDescription>
-                Customer account details and billing parameters.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="grid gap-3 py-2 text-sm border-y my-2">
-              <div className="grid grid-cols-2">
-                <span className="text-muted-foreground">Email:</span>
-                <span className="font-medium">{selectedCustomer.email || "N/A"}</span>
-              </div>
-              <div className="grid grid-cols-2">
-                <span className="text-muted-foreground">Phone:</span>
-                <span className="font-medium">{selectedCustomer.phone || "N/A"}</span>
-              </div>
-              <div className="grid grid-cols-2">
-                <span className="text-muted-foreground">Credit Limit:</span>
-                <span className="font-medium">
-                  ₹{Number(selectedCustomer.creditLimit).toLocaleString("en-IN")}
-                </span>
-              </div>
-              <div className="grid grid-cols-2">
-                <span className="text-muted-foreground">Payment Terms:</span>
-                <span className="font-medium">{selectedCustomer.paymentTerms || "NET30"}</span>
-              </div>
-              <div className="grid grid-cols-2">
-                <span className="text-muted-foreground">Tax ID / GSTIN:</span>
-                <span className="font-medium">{selectedCustomer.taxNumber || "N/A"}</span>
-              </div>
-              <div className="grid grid-cols-2">
-                <span className="text-muted-foreground">Location:</span>
-                <span className="font-medium">
-                  {[selectedCustomer.city, selectedCustomer.state, selectedCustomer.country]
-                    .filter(Boolean)
-                    .join(", ") || "N/A"}
-                </span>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedCustomer(null)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Customer360Dialog customer={selectedCustomer} onClose={() => setSelectedCustomer(null)} />
       )}
     </>
+  );
+}
+
+function Customer360Dialog({ customer, onClose }: { customer: CustomerItem; onClose: () => void }) {
+  const { data: c360, isLoading } = useCustomer360(customer.id);
+  const [activeTab, setActiveTab] = useState<"TIMELINE" | "METRICS" | "CONTACTS" | "SALES" | "CRM">(
+    "TIMELINE",
+  );
+
+  return (
+    <Dialog open={Boolean(customer)} onOpenChange={() => onClose()}>
+      <DialogContent className="sm:max-w-[750px] max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <div className="flex items-center justify-between pr-6">
+            <div>
+              <DialogTitle className="text-lg font-bold">
+                {customer.name} ({customer.customerCode})
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Customer 360° Relationship View & Interaction History
+              </DialogDescription>
+            </div>
+            <div className="flex gap-1.5">
+              {c360?.tags.map((t) => (
+                <span
+                  key={t.id}
+                  className="px-2 py-0.5 rounded-full text-[10px] text-white font-medium"
+                  style={{ backgroundColor: t.color || "#3B82F6" }}
+                >
+                  {t.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Tab Navigation */}
+        <div className="flex border-b border-border text-xs font-medium space-x-4 pt-2">
+          {[
+            { id: "TIMELINE", label: "Unified Timeline" },
+            { id: "METRICS", label: "Financial Metrics" },
+            { id: "CONTACTS", label: `Contacts (${c360?.contacts.length || 0})` },
+            {
+              id: "SALES",
+              label: `Sales & POS (${(c360?.salesHistory.salesOrders.length || 0) + (c360?.posHistory.length || 0)})`,
+            },
+            { id: "CRM", label: `CRM Deals & Tasks (${c360?.opportunities.length || 0})` },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`pb-2 border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? "border-primary text-primary font-semibold"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Body */}
+        <div className="flex-1 overflow-y-auto py-3 text-xs space-y-3 pr-1">
+          {isLoading ? (
+            <div className="p-8 text-center text-muted-foreground">
+              Loading Customer 360° Data...
+            </div>
+          ) : (
+            <>
+              {/* TIMELINE TAB */}
+              {activeTab === "TIMELINE" && (
+                <div className="space-y-2">
+                  {c360?.timeline.length === 0 ? (
+                    <p className="text-muted-foreground">No chronological history recorded yet.</p>
+                  ) : (
+                    c360?.timeline.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-2.5 rounded-md border border-border bg-card flex flex-col gap-1"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-foreground">{item.title}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(item.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        {item.description && (
+                          <p className="text-muted-foreground">{item.description}</p>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* METRICS TAB */}
+              {activeTab === "METRICS" && c360 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-md border border-border bg-muted/20">
+                    <p className="text-muted-foreground">Total Revenue / Purchases</p>
+                    <p className="text-base font-bold text-foreground">
+                      ₹{c360.metrics.totalPurchases.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-md border border-border bg-muted/20">
+                    <p className="text-muted-foreground">Outstanding Balance</p>
+                    <p className="text-base font-bold text-destructive">
+                      ₹{c360.metrics.outstandingBalance.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-md border border-border bg-muted/20">
+                    <p className="text-muted-foreground">Won Opportunities Value</p>
+                    <p className="text-base font-bold text-emerald-600">
+                      ₹{c360.metrics.wonOpportunitiesValue.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-md border border-border bg-muted/20">
+                    <p className="text-muted-foreground">Total Orders & Invoices</p>
+                    <p className="text-base font-bold text-foreground">
+                      {c360.metrics.totalOrders} Orders • {c360.metrics.totalInvoices} Invoices
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* CONTACTS TAB */}
+              {activeTab === "CONTACTS" && (
+                <div className="space-y-2">
+                  {c360?.contacts.length === 0 ? (
+                    <p className="text-muted-foreground">No secondary contacts registered.</p>
+                  ) : (
+                    c360?.contacts.map((c) => (
+                      <div
+                        key={c.id}
+                        className="p-2.5 rounded-md border border-border flex items-center justify-between"
+                      >
+                        <div>
+                          <p className="font-semibold text-foreground">
+                            {c.name}{" "}
+                            {c.isPrimary && <span className="text-amber-600">(Primary)</span>}
+                          </p>
+                          <p className="text-muted-foreground">{c.role || "Role unassigned"}</p>
+                        </div>
+                        <div className="text-right text-muted-foreground">
+                          <p>{c.email || "-"}</p>
+                          <p>{c.phone || "-"}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* SALES & POS TAB */}
+              {activeTab === "SALES" && (
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-semibold text-foreground mb-1">
+                      Sales Orders ({c360?.salesHistory.salesOrders.length})
+                    </p>
+                    {c360?.salesHistory.salesOrders.map((so: any) => (
+                      <div key={so.id} className="p-2 border-b border-border flex justify-between">
+                        <span>{so.orderNumber}</span>
+                        <span>
+                          ₹{Number(so.totalAmount).toLocaleString("en-IN")} ({so.status})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground mb-1">
+                      POS Sales ({c360?.posHistory.length})
+                    </p>
+                    {c360?.posHistory.map((pos: any) => (
+                      <div key={pos.id} className="p-2 border-b border-border flex justify-between">
+                        <span>Receipt #{pos.receiptNumber}</span>
+                        <span>₹{Number(pos.totalAmount).toLocaleString("en-IN")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* CRM DEALS & TASKS TAB */}
+              {activeTab === "CRM" && (
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-semibold text-foreground mb-1">
+                      Opportunities ({c360?.opportunities.length})
+                    </p>
+                    {c360?.opportunities.map((opp) => (
+                      <div key={opp.id} className="p-2 border-b border-border flex justify-between">
+                        <span>
+                          {opp.opportunityNumber} - {opp.name}
+                        </span>
+                        <span className="font-medium">
+                          ₹{Number(opp.estimatedValue).toLocaleString("en-IN")} ({opp.status})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground mb-1">
+                      Activities ({c360?.activities.length})
+                    </p>
+                    {c360?.activities.map((act) => (
+                      <div key={act.id} className="p-2 border-b border-border flex justify-between">
+                        <span>
+                          {act.type}: {act.subject}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {new Date(act.activityDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <DialogFooter className="pt-2 border-t border-border">
+          <Button variant="outline" onClick={onClose}>
+            Close 360° View
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

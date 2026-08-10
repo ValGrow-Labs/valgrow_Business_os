@@ -10,30 +10,49 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountingRouteImport } from './routes/accounting'
+import { Route as AccountsRouteImport } from './routes/accounts'
+import { Route as AccountsPayableRouteImport } from './routes/accounts-payable'
+import { Route as AccountsReceivableRouteImport } from './routes/accounts-receivable'
+import { Route as ActivitiesRouteImport } from './routes/activities'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as AdjustmentsRouteImport } from './routes/adjustments'
 import { Route as AuditLogsRouteImport } from './routes/audit-logs'
+import { Route as BankAccountsRouteImport } from './routes/bank-accounts'
 import { Route as BatchesRouteImport } from './routes/batches'
 import { Route as BranchesRouteImport } from './routes/branches'
 import { Route as BrandsRouteImport } from './routes/brands'
 import { Route as CategoriesRouteImport } from './routes/categories'
+import { Route as ContactsRouteImport } from './routes/contacts'
+import { Route as CostCentersRouteImport } from './routes/cost-centers'
+import { Route as CrmRouteImport } from './routes/crm'
+import { Route as CrmTagsRouteImport } from './routes/crm-tags'
 import { Route as CustomerPaymentsRouteImport } from './routes/customer-payments'
+import { Route as CustomerSegmentsRouteImport } from './routes/customer-segments'
 import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as DeliveryNotesRouteImport } from './routes/delivery-notes'
 import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as FilesRouteImport } from './routes/files'
+import { Route as FinancialReportsRouteImport } from './routes/financial-reports'
+import { Route as FiscalYearsRouteImport } from './routes/fiscal-years'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as GoodsReceiptsRouteImport } from './routes/goods-receipts'
 import { Route as GradientBlurDemoRouteImport } from './routes/gradient-blur-demo'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as JournalEntriesRouteImport } from './routes/journal-entries'
 import { Route as LandedCostsRouteImport } from './routes/landed-costs'
+import { Route as LeadSourcesRouteImport } from './routes/lead-sources'
+import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as LocationsRouteImport } from './routes/locations'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MovementsRouteImport } from './routes/movements'
+import { Route as NotesRouteImport } from './routes/notes'
 import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as OpportunitiesRouteImport } from './routes/opportunities'
 import { Route as OrganizationRouteImport } from './routes/organization'
 import { Route as PermissionsRouteImport } from './routes/permissions'
+import { Route as PipelinesRouteImport } from './routes/pipelines'
 import { Route as PosRouteImport } from './routes/pos'
 import { Route as PreferencesRouteImport } from './routes/preferences'
 import { Route as ProductsRouteImport } from './routes/products'
@@ -55,6 +74,8 @@ import { Route as SerialNumbersRouteImport } from './routes/serial-numbers'
 import { Route as SupplierInvoicesRouteImport } from './routes/supplier-invoices'
 import { Route as SupplierPaymentsRouteImport } from './routes/supplier-payments'
 import { Route as SuppliersRouteImport } from './routes/suppliers'
+import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as TaxReportsRouteImport } from './routes/tax-reports'
 import { Route as TaxesRouteImport } from './routes/taxes'
 import { Route as TeamsRouteImport } from './routes/teams'
 import { Route as TransfersRouteImport } from './routes/transfers'
@@ -74,6 +95,31 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountingRoute = AccountingRouteImport.update({
+  id: '/accounting',
+  path: '/accounting',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountsRoute = AccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountsPayableRoute = AccountsPayableRouteImport.update({
+  id: '/accounts-payable',
+  path: '/accounts-payable',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountsReceivableRoute = AccountsReceivableRouteImport.update({
+  id: '/accounts-receivable',
+  path: '/accounts-receivable',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ActivitiesRoute = ActivitiesRouteImport.update({
+  id: '/activities',
+  path: '/activities',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ActivityRoute = ActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
@@ -87,6 +133,11 @@ const AdjustmentsRoute = AdjustmentsRouteImport.update({
 const AuditLogsRoute = AuditLogsRouteImport.update({
   id: '/audit-logs',
   path: '/audit-logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BankAccountsRoute = BankAccountsRouteImport.update({
+  id: '/bank-accounts',
+  path: '/bank-accounts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BatchesRoute = BatchesRouteImport.update({
@@ -109,9 +160,34 @@ const CategoriesRoute = CategoriesRouteImport.update({
   path: '/categories',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactsRoute = ContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CostCentersRoute = CostCentersRouteImport.update({
+  id: '/cost-centers',
+  path: '/cost-centers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmRoute = CrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmTagsRoute = CrmTagsRouteImport.update({
+  id: '/crm-tags',
+  path: '/crm-tags',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CustomerPaymentsRoute = CustomerPaymentsRouteImport.update({
   id: '/customer-payments',
   path: '/customer-payments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerSegmentsRoute = CustomerSegmentsRouteImport.update({
+  id: '/customer-segments',
+  path: '/customer-segments',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CustomersRoute = CustomersRouteImport.update({
@@ -132,6 +208,16 @@ const DepartmentsRoute = DepartmentsRouteImport.update({
 const FilesRoute = FilesRouteImport.update({
   id: '/files',
   path: '/files',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinancialReportsRoute = FinancialReportsRouteImport.update({
+  id: '/financial-reports',
+  path: '/financial-reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FiscalYearsRoute = FiscalYearsRouteImport.update({
+  id: '/fiscal-years',
+  path: '/fiscal-years',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -159,9 +245,24 @@ const InventoryRoute = InventoryRouteImport.update({
   path: '/inventory',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JournalEntriesRoute = JournalEntriesRouteImport.update({
+  id: '/journal-entries',
+  path: '/journal-entries',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LandedCostsRoute = LandedCostsRouteImport.update({
   id: '/landed-costs',
   path: '/landed-costs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadSourcesRoute = LeadSourcesRouteImport.update({
+  id: '/lead-sources',
+  path: '/lead-sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadsRoute = LeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LocationsRoute = LocationsRouteImport.update({
@@ -179,9 +280,19 @@ const MovementsRoute = MovementsRouteImport.update({
   path: '/movements',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotesRoute = NotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotificationsRoute = NotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpportunitiesRoute = OpportunitiesRouteImport.update({
+  id: '/opportunities',
+  path: '/opportunities',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrganizationRoute = OrganizationRouteImport.update({
@@ -192,6 +303,11 @@ const OrganizationRoute = OrganizationRouteImport.update({
 const PermissionsRoute = PermissionsRouteImport.update({
   id: '/permissions',
   path: '/permissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PipelinesRoute = PipelinesRouteImport.update({
+  id: '/pipelines',
+  path: '/pipelines',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PosRoute = PosRouteImport.update({
@@ -299,6 +415,16 @@ const SuppliersRoute = SuppliersRouteImport.update({
   path: '/suppliers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TaxReportsRoute = TaxReportsRouteImport.update({
+  id: '/tax-reports',
+  path: '/tax-reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TaxesRoute = TaxesRouteImport.update({
   id: '/taxes',
   path: '/taxes',
@@ -367,30 +493,49 @@ const StatesLoadingRoute = StatesLoadingRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/accounting': typeof AccountingRoute
+  '/accounts': typeof AccountsRoute
+  '/accounts-payable': typeof AccountsPayableRoute
+  '/accounts-receivable': typeof AccountsReceivableRoute
+  '/activities': typeof ActivitiesRoute
   '/activity': typeof ActivityRoute
   '/adjustments': typeof AdjustmentsRoute
   '/audit-logs': typeof AuditLogsRoute
+  '/bank-accounts': typeof BankAccountsRoute
   '/batches': typeof BatchesRoute
   '/branches': typeof BranchesRoute
   '/brands': typeof BrandsRoute
   '/categories': typeof CategoriesRoute
+  '/contacts': typeof ContactsRoute
+  '/cost-centers': typeof CostCentersRoute
+  '/crm': typeof CrmRoute
+  '/crm-tags': typeof CrmTagsRoute
   '/customer-payments': typeof CustomerPaymentsRoute
+  '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
+  '/financial-reports': typeof FinancialReportsRoute
+  '/fiscal-years': typeof FiscalYearsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/goods-receipts': typeof GoodsReceiptsRoute
   '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/inventory': typeof InventoryRoute
+  '/journal-entries': typeof JournalEntriesRoute
   '/landed-costs': typeof LandedCostsRoute
+  '/lead-sources': typeof LeadSourcesRoute
+  '/leads': typeof LeadsRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
   '/movements': typeof MovementsRoute
+  '/notes': typeof NotesRoute
   '/notifications': typeof NotificationsRoute
+  '/opportunities': typeof OpportunitiesRoute
   '/organization': typeof OrganizationRoute
   '/permissions': typeof PermissionsRoute
+  '/pipelines': typeof PipelinesRoute
   '/pos': typeof PosRoute
   '/preferences': typeof PreferencesRoute
   '/products': typeof ProductsRoute
@@ -412,6 +557,8 @@ export interface FileRoutesByFullPath {
   '/supplier-invoices': typeof SupplierInvoicesRoute
   '/supplier-payments': typeof SupplierPaymentsRoute
   '/suppliers': typeof SuppliersRoute
+  '/tasks': typeof TasksRoute
+  '/tax-reports': typeof TaxReportsRoute
   '/taxes': typeof TaxesRoute
   '/teams': typeof TeamsRoute
   '/transfers': typeof TransfersRoute
@@ -428,30 +575,49 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/accounting': typeof AccountingRoute
+  '/accounts': typeof AccountsRoute
+  '/accounts-payable': typeof AccountsPayableRoute
+  '/accounts-receivable': typeof AccountsReceivableRoute
+  '/activities': typeof ActivitiesRoute
   '/activity': typeof ActivityRoute
   '/adjustments': typeof AdjustmentsRoute
   '/audit-logs': typeof AuditLogsRoute
+  '/bank-accounts': typeof BankAccountsRoute
   '/batches': typeof BatchesRoute
   '/branches': typeof BranchesRoute
   '/brands': typeof BrandsRoute
   '/categories': typeof CategoriesRoute
+  '/contacts': typeof ContactsRoute
+  '/cost-centers': typeof CostCentersRoute
+  '/crm': typeof CrmRoute
+  '/crm-tags': typeof CrmTagsRoute
   '/customer-payments': typeof CustomerPaymentsRoute
+  '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
+  '/financial-reports': typeof FinancialReportsRoute
+  '/fiscal-years': typeof FiscalYearsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/goods-receipts': typeof GoodsReceiptsRoute
   '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/inventory': typeof InventoryRoute
+  '/journal-entries': typeof JournalEntriesRoute
   '/landed-costs': typeof LandedCostsRoute
+  '/lead-sources': typeof LeadSourcesRoute
+  '/leads': typeof LeadsRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
   '/movements': typeof MovementsRoute
+  '/notes': typeof NotesRoute
   '/notifications': typeof NotificationsRoute
+  '/opportunities': typeof OpportunitiesRoute
   '/organization': typeof OrganizationRoute
   '/permissions': typeof PermissionsRoute
+  '/pipelines': typeof PipelinesRoute
   '/pos': typeof PosRoute
   '/preferences': typeof PreferencesRoute
   '/products': typeof ProductsRoute
@@ -473,6 +639,8 @@ export interface FileRoutesByTo {
   '/supplier-invoices': typeof SupplierInvoicesRoute
   '/supplier-payments': typeof SupplierPaymentsRoute
   '/suppliers': typeof SuppliersRoute
+  '/tasks': typeof TasksRoute
+  '/tax-reports': typeof TaxReportsRoute
   '/taxes': typeof TaxesRoute
   '/teams': typeof TeamsRoute
   '/transfers': typeof TransfersRoute
@@ -490,30 +658,49 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/accounting': typeof AccountingRoute
+  '/accounts': typeof AccountsRoute
+  '/accounts-payable': typeof AccountsPayableRoute
+  '/accounts-receivable': typeof AccountsReceivableRoute
+  '/activities': typeof ActivitiesRoute
   '/activity': typeof ActivityRoute
   '/adjustments': typeof AdjustmentsRoute
   '/audit-logs': typeof AuditLogsRoute
+  '/bank-accounts': typeof BankAccountsRoute
   '/batches': typeof BatchesRoute
   '/branches': typeof BranchesRoute
   '/brands': typeof BrandsRoute
   '/categories': typeof CategoriesRoute
+  '/contacts': typeof ContactsRoute
+  '/cost-centers': typeof CostCentersRoute
+  '/crm': typeof CrmRoute
+  '/crm-tags': typeof CrmTagsRoute
   '/customer-payments': typeof CustomerPaymentsRoute
+  '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
+  '/financial-reports': typeof FinancialReportsRoute
+  '/fiscal-years': typeof FiscalYearsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/goods-receipts': typeof GoodsReceiptsRoute
   '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/inventory': typeof InventoryRoute
+  '/journal-entries': typeof JournalEntriesRoute
   '/landed-costs': typeof LandedCostsRoute
+  '/lead-sources': typeof LeadSourcesRoute
+  '/leads': typeof LeadsRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
   '/movements': typeof MovementsRoute
+  '/notes': typeof NotesRoute
   '/notifications': typeof NotificationsRoute
+  '/opportunities': typeof OpportunitiesRoute
   '/organization': typeof OrganizationRoute
   '/permissions': typeof PermissionsRoute
+  '/pipelines': typeof PipelinesRoute
   '/pos': typeof PosRoute
   '/preferences': typeof PreferencesRoute
   '/products': typeof ProductsRoute
@@ -535,6 +722,8 @@ export interface FileRoutesById {
   '/supplier-invoices': typeof SupplierInvoicesRoute
   '/supplier-payments': typeof SupplierPaymentsRoute
   '/suppliers': typeof SuppliersRoute
+  '/tasks': typeof TasksRoute
+  '/tax-reports': typeof TaxReportsRoute
   '/taxes': typeof TaxesRoute
   '/teams': typeof TeamsRoute
   '/transfers': typeof TransfersRoute
@@ -553,30 +742,49 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accounting'
+    | '/accounts'
+    | '/accounts-payable'
+    | '/accounts-receivable'
+    | '/activities'
     | '/activity'
     | '/adjustments'
     | '/audit-logs'
+    | '/bank-accounts'
     | '/batches'
     | '/branches'
     | '/brands'
     | '/categories'
+    | '/contacts'
+    | '/cost-centers'
+    | '/crm'
+    | '/crm-tags'
     | '/customer-payments'
+    | '/customer-segments'
     | '/customers'
     | '/delivery-notes'
     | '/departments'
     | '/files'
+    | '/financial-reports'
+    | '/fiscal-years'
     | '/forgot-password'
     | '/goods-receipts'
     | '/gradient-blur-demo'
     | '/help'
     | '/inventory'
+    | '/journal-entries'
     | '/landed-costs'
+    | '/lead-sources'
+    | '/leads'
     | '/locations'
     | '/login'
     | '/movements'
+    | '/notes'
     | '/notifications'
+    | '/opportunities'
     | '/organization'
     | '/permissions'
+    | '/pipelines'
     | '/pos'
     | '/preferences'
     | '/products'
@@ -598,6 +806,8 @@ export interface FileRouteTypes {
     | '/supplier-invoices'
     | '/supplier-payments'
     | '/suppliers'
+    | '/tasks'
+    | '/tax-reports'
     | '/taxes'
     | '/teams'
     | '/transfers'
@@ -614,30 +824,49 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accounting'
+    | '/accounts'
+    | '/accounts-payable'
+    | '/accounts-receivable'
+    | '/activities'
     | '/activity'
     | '/adjustments'
     | '/audit-logs'
+    | '/bank-accounts'
     | '/batches'
     | '/branches'
     | '/brands'
     | '/categories'
+    | '/contacts'
+    | '/cost-centers'
+    | '/crm'
+    | '/crm-tags'
     | '/customer-payments'
+    | '/customer-segments'
     | '/customers'
     | '/delivery-notes'
     | '/departments'
     | '/files'
+    | '/financial-reports'
+    | '/fiscal-years'
     | '/forgot-password'
     | '/goods-receipts'
     | '/gradient-blur-demo'
     | '/help'
     | '/inventory'
+    | '/journal-entries'
     | '/landed-costs'
+    | '/lead-sources'
+    | '/leads'
     | '/locations'
     | '/login'
     | '/movements'
+    | '/notes'
     | '/notifications'
+    | '/opportunities'
     | '/organization'
     | '/permissions'
+    | '/pipelines'
     | '/pos'
     | '/preferences'
     | '/products'
@@ -659,6 +888,8 @@ export interface FileRouteTypes {
     | '/supplier-invoices'
     | '/supplier-payments'
     | '/suppliers'
+    | '/tasks'
+    | '/tax-reports'
     | '/taxes'
     | '/teams'
     | '/transfers'
@@ -675,30 +906,49 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/accounting'
+    | '/accounts'
+    | '/accounts-payable'
+    | '/accounts-receivable'
+    | '/activities'
     | '/activity'
     | '/adjustments'
     | '/audit-logs'
+    | '/bank-accounts'
     | '/batches'
     | '/branches'
     | '/brands'
     | '/categories'
+    | '/contacts'
+    | '/cost-centers'
+    | '/crm'
+    | '/crm-tags'
     | '/customer-payments'
+    | '/customer-segments'
     | '/customers'
     | '/delivery-notes'
     | '/departments'
     | '/files'
+    | '/financial-reports'
+    | '/fiscal-years'
     | '/forgot-password'
     | '/goods-receipts'
     | '/gradient-blur-demo'
     | '/help'
     | '/inventory'
+    | '/journal-entries'
     | '/landed-costs'
+    | '/lead-sources'
+    | '/leads'
     | '/locations'
     | '/login'
     | '/movements'
+    | '/notes'
     | '/notifications'
+    | '/opportunities'
     | '/organization'
     | '/permissions'
+    | '/pipelines'
     | '/pos'
     | '/preferences'
     | '/products'
@@ -720,6 +970,8 @@ export interface FileRouteTypes {
     | '/supplier-invoices'
     | '/supplier-payments'
     | '/suppliers'
+    | '/tasks'
+    | '/tax-reports'
     | '/taxes'
     | '/teams'
     | '/transfers'
@@ -737,30 +989,49 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountingRoute: typeof AccountingRoute
+  AccountsRoute: typeof AccountsRoute
+  AccountsPayableRoute: typeof AccountsPayableRoute
+  AccountsReceivableRoute: typeof AccountsReceivableRoute
+  ActivitiesRoute: typeof ActivitiesRoute
   ActivityRoute: typeof ActivityRoute
   AdjustmentsRoute: typeof AdjustmentsRoute
   AuditLogsRoute: typeof AuditLogsRoute
+  BankAccountsRoute: typeof BankAccountsRoute
   BatchesRoute: typeof BatchesRoute
   BranchesRoute: typeof BranchesRoute
   BrandsRoute: typeof BrandsRoute
   CategoriesRoute: typeof CategoriesRoute
+  ContactsRoute: typeof ContactsRoute
+  CostCentersRoute: typeof CostCentersRoute
+  CrmRoute: typeof CrmRoute
+  CrmTagsRoute: typeof CrmTagsRoute
   CustomerPaymentsRoute: typeof CustomerPaymentsRoute
+  CustomerSegmentsRoute: typeof CustomerSegmentsRoute
   CustomersRoute: typeof CustomersRoute
   DeliveryNotesRoute: typeof DeliveryNotesRoute
   DepartmentsRoute: typeof DepartmentsRoute
   FilesRoute: typeof FilesRoute
+  FinancialReportsRoute: typeof FinancialReportsRoute
+  FiscalYearsRoute: typeof FiscalYearsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   GoodsReceiptsRoute: typeof GoodsReceiptsRoute
   GradientBlurDemoRoute: typeof GradientBlurDemoRoute
   HelpRoute: typeof HelpRoute
   InventoryRoute: typeof InventoryRoute
+  JournalEntriesRoute: typeof JournalEntriesRoute
   LandedCostsRoute: typeof LandedCostsRoute
+  LeadSourcesRoute: typeof LeadSourcesRoute
+  LeadsRoute: typeof LeadsRoute
   LocationsRoute: typeof LocationsRoute
   LoginRoute: typeof LoginRoute
   MovementsRoute: typeof MovementsRoute
+  NotesRoute: typeof NotesRoute
   NotificationsRoute: typeof NotificationsRoute
+  OpportunitiesRoute: typeof OpportunitiesRoute
   OrganizationRoute: typeof OrganizationRoute
   PermissionsRoute: typeof PermissionsRoute
+  PipelinesRoute: typeof PipelinesRoute
   PosRoute: typeof PosRoute
   PreferencesRoute: typeof PreferencesRoute
   ProductsRoute: typeof ProductsRoute
@@ -782,6 +1053,8 @@ export interface RootRouteChildren {
   SupplierInvoicesRoute: typeof SupplierInvoicesRoute
   SupplierPaymentsRoute: typeof SupplierPaymentsRoute
   SuppliersRoute: typeof SuppliersRoute
+  TasksRoute: typeof TasksRoute
+  TaxReportsRoute: typeof TaxReportsRoute
   TaxesRoute: typeof TaxesRoute
   TeamsRoute: typeof TeamsRoute
   TransfersRoute: typeof TransfersRoute
@@ -806,6 +1079,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accounting': {
+      id: '/accounting'
+      path: '/accounting'
+      fullPath: '/accounting'
+      preLoaderRoute: typeof AccountingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accounts': {
+      id: '/accounts'
+      path: '/accounts'
+      fullPath: '/accounts'
+      preLoaderRoute: typeof AccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accounts-payable': {
+      id: '/accounts-payable'
+      path: '/accounts-payable'
+      fullPath: '/accounts-payable'
+      preLoaderRoute: typeof AccountsPayableRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accounts-receivable': {
+      id: '/accounts-receivable'
+      path: '/accounts-receivable'
+      fullPath: '/accounts-receivable'
+      preLoaderRoute: typeof AccountsReceivableRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/activities': {
+      id: '/activities'
+      path: '/activities'
+      fullPath: '/activities'
+      preLoaderRoute: typeof ActivitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/activity': {
       id: '/activity'
       path: '/activity'
@@ -825,6 +1133,13 @@ declare module '@tanstack/react-router' {
       path: '/audit-logs'
       fullPath: '/audit-logs'
       preLoaderRoute: typeof AuditLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bank-accounts': {
+      id: '/bank-accounts'
+      path: '/bank-accounts'
+      fullPath: '/bank-accounts'
+      preLoaderRoute: typeof BankAccountsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/batches': {
@@ -855,11 +1170,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CategoriesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contacts': {
+      id: '/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof ContactsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cost-centers': {
+      id: '/cost-centers'
+      path: '/cost-centers'
+      fullPath: '/cost-centers'
+      preLoaderRoute: typeof CostCentersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm': {
+      id: '/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof CrmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm-tags': {
+      id: '/crm-tags'
+      path: '/crm-tags'
+      fullPath: '/crm-tags'
+      preLoaderRoute: typeof CrmTagsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/customer-payments': {
       id: '/customer-payments'
       path: '/customer-payments'
       fullPath: '/customer-payments'
       preLoaderRoute: typeof CustomerPaymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer-segments': {
+      id: '/customer-segments'
+      path: '/customer-segments'
+      fullPath: '/customer-segments'
+      preLoaderRoute: typeof CustomerSegmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/customers': {
@@ -888,6 +1238,20 @@ declare module '@tanstack/react-router' {
       path: '/files'
       fullPath: '/files'
       preLoaderRoute: typeof FilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/financial-reports': {
+      id: '/financial-reports'
+      path: '/financial-reports'
+      fullPath: '/financial-reports'
+      preLoaderRoute: typeof FinancialReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fiscal-years': {
+      id: '/fiscal-years'
+      path: '/fiscal-years'
+      fullPath: '/fiscal-years'
+      preLoaderRoute: typeof FiscalYearsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -925,11 +1289,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/journal-entries': {
+      id: '/journal-entries'
+      path: '/journal-entries'
+      fullPath: '/journal-entries'
+      preLoaderRoute: typeof JournalEntriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/landed-costs': {
       id: '/landed-costs'
       path: '/landed-costs'
       fullPath: '/landed-costs'
       preLoaderRoute: typeof LandedCostsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lead-sources': {
+      id: '/lead-sources'
+      path: '/lead-sources'
+      fullPath: '/lead-sources'
+      preLoaderRoute: typeof LeadSourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leads': {
+      id: '/leads'
+      path: '/leads'
+      fullPath: '/leads'
+      preLoaderRoute: typeof LeadsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/locations': {
@@ -953,11 +1338,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MovementsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notes': {
+      id: '/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof NotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notifications': {
       id: '/notifications'
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/opportunities': {
+      id: '/opportunities'
+      path: '/opportunities'
+      fullPath: '/opportunities'
+      preLoaderRoute: typeof OpportunitiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/organization': {
@@ -972,6 +1371,13 @@ declare module '@tanstack/react-router' {
       path: '/permissions'
       fullPath: '/permissions'
       preLoaderRoute: typeof PermissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pipelines': {
+      id: '/pipelines'
+      path: '/pipelines'
+      fullPath: '/pipelines'
+      preLoaderRoute: typeof PipelinesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pos': {
@@ -1121,6 +1527,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuppliersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tax-reports': {
+      id: '/tax-reports'
+      path: '/tax-reports'
+      fullPath: '/tax-reports'
+      preLoaderRoute: typeof TaxReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/taxes': {
       id: '/taxes'
       path: '/taxes'
@@ -1217,30 +1637,49 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountingRoute: AccountingRoute,
+  AccountsRoute: AccountsRoute,
+  AccountsPayableRoute: AccountsPayableRoute,
+  AccountsReceivableRoute: AccountsReceivableRoute,
+  ActivitiesRoute: ActivitiesRoute,
   ActivityRoute: ActivityRoute,
   AdjustmentsRoute: AdjustmentsRoute,
   AuditLogsRoute: AuditLogsRoute,
+  BankAccountsRoute: BankAccountsRoute,
   BatchesRoute: BatchesRoute,
   BranchesRoute: BranchesRoute,
   BrandsRoute: BrandsRoute,
   CategoriesRoute: CategoriesRoute,
+  ContactsRoute: ContactsRoute,
+  CostCentersRoute: CostCentersRoute,
+  CrmRoute: CrmRoute,
+  CrmTagsRoute: CrmTagsRoute,
   CustomerPaymentsRoute: CustomerPaymentsRoute,
+  CustomerSegmentsRoute: CustomerSegmentsRoute,
   CustomersRoute: CustomersRoute,
   DeliveryNotesRoute: DeliveryNotesRoute,
   DepartmentsRoute: DepartmentsRoute,
   FilesRoute: FilesRoute,
+  FinancialReportsRoute: FinancialReportsRoute,
+  FiscalYearsRoute: FiscalYearsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   GoodsReceiptsRoute: GoodsReceiptsRoute,
   GradientBlurDemoRoute: GradientBlurDemoRoute,
   HelpRoute: HelpRoute,
   InventoryRoute: InventoryRoute,
+  JournalEntriesRoute: JournalEntriesRoute,
   LandedCostsRoute: LandedCostsRoute,
+  LeadSourcesRoute: LeadSourcesRoute,
+  LeadsRoute: LeadsRoute,
   LocationsRoute: LocationsRoute,
   LoginRoute: LoginRoute,
   MovementsRoute: MovementsRoute,
+  NotesRoute: NotesRoute,
   NotificationsRoute: NotificationsRoute,
+  OpportunitiesRoute: OpportunitiesRoute,
   OrganizationRoute: OrganizationRoute,
   PermissionsRoute: PermissionsRoute,
+  PipelinesRoute: PipelinesRoute,
   PosRoute: PosRoute,
   PreferencesRoute: PreferencesRoute,
   ProductsRoute: ProductsRoute,
@@ -1262,6 +1701,8 @@ const rootRouteChildren: RootRouteChildren = {
   SupplierInvoicesRoute: SupplierInvoicesRoute,
   SupplierPaymentsRoute: SupplierPaymentsRoute,
   SuppliersRoute: SuppliersRoute,
+  TasksRoute: TasksRoute,
+  TaxReportsRoute: TaxReportsRoute,
   TaxesRoute: TaxesRoute,
   TeamsRoute: TeamsRoute,
   TransfersRoute: TransfersRoute,

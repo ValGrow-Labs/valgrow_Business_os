@@ -4,6 +4,8 @@ import { CurrentOrg } from "../../common/decorators/current-org.decorator";
 import { RequirePermissions } from "../../common/decorators/require-permissions.decorator";
 import { CreateSupplierPaymentDto } from "./dto/create-supplier-payment.dto";
 
+import { CurrentUser } from "../../common/decorators/current-user.decorator";
+
 @Controller("supplier-payments")
 export class SupplierPaymentsController {
   constructor(private readonly service: SupplierPaymentsService) {}
@@ -24,8 +26,9 @@ export class SupplierPaymentsController {
   @Post()
   create(
     @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
     @Body() dto: CreateSupplierPaymentDto,
   ) {
-    return this.service.createPayment(orgId, dto);
+    return this.service.createPayment(orgId, dto, userId);
   }
 }

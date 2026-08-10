@@ -4,12 +4,16 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { JournalEntriesService } from "../journal-entries/journal-entries.service";
 import { CreateSupplierPaymentDto } from "./dto/create-supplier-payment.dto";
 import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class SupplierPaymentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly journalEntriesService: JournalEntriesService,
+  ) {}
 
   private async generatePaymentNumber(
     organizationId: string,
@@ -60,7 +64,7 @@ export class SupplierPaymentsService {
     return payment;
   }
 
-  async createPayment(organizationId: string, dto: CreateSupplierPaymentDto) {
+  async createPayment(organizationId: string, dto: CreateSupplierPaymentDto, actorId?: string) {
     const supplier = await this.prisma.supplier.findFirst({
       where: { id: dto.supplierId, organizationId, deletedAt: null },
     });
@@ -75,20 +79,21 @@ export class SupplierPaymentsService {
         where: { id: dto.supplierInvoiceId, organizationId },
       });
       if (!invoice)
-        throw new BadRequestException("Invoice not found in this organization");
+        throw new BadRequestException("Supplier invoice not found");
       if (invoice.supplierId !== dto.supplierId) {
         throw new BadRequestException(
           "Invoice does not belong to this supplier",
         );
       }
-      if (invoice.status === "PAID") {
-        throw new BadRequestException("Invoice is already fully paid");
-      }
-
-      const outstanding = invoice.totalAmount.sub(invoice.paidAmount);
-      if (paymentAmount.gt(outstanding)) {
+      if (invoice.status === "PAID" || invoice.status === "CANCELLED") {
         throw new BadRequestException(
-          `Payment amount (${paymentAmount}) exceeds outstanding balance (${outstanding})`,
+          `Cannot add payment to invoice with status ${invoice.status}`,
+        );
+      }
+      const remaining = invoice.totalAmount.sub(invoice.paidAmount);
+      if (paymentAmount.gt(remaining)) {
+        throw new BadRequestException(
+          `Payment amount (${dto.amount}) exceeds remaining invoice balance (${remaining.toString()})`,
         );
       }
     }
@@ -102,32 +107,62 @@ export class SupplierPaymentsService {
       const payment = await tx.supplierPayment.create({
         data: {
           organizationId,
-          paymentNumber,
           supplierId: dto.supplierId,
           supplierInvoiceId: dto.supplierInvoiceId || null,
-          amount: paymentAmount,
+          paymentNumber,
           paymentDate: dto.paymentDate ? new Date(dto.paymentDate) : new Date(),
-          paymentMethod: (dto.paymentMethod as any) || "BANK_TRANSFER",
-          referenceNumber: dto.referenceNumber,
-          notes: dto.notes,
+          amount: paymentAmount,
+          paymentMethod: dto.paymentMethod,
+          referenceNumber: dto.referenceNumber || null,
+          notes: dto.notes || null,
         },
         include: {
-          supplier: { select: { id: true, name: true } },
+          supplier: { select: { id: true, name: true, code: true } },
           invoice: { select: { id: true, invoiceNumber: true } },
         },
       });
 
       if (invoice) {
-        const newPaidAmount = invoice.paidAmount.add(paymentAmount);
-        const newStatus = newPaidAmount.gte(invoice.totalAmount)
-          ? "PAID"
-          : "PARTIALLY_PAID";
-
+        const newPaid = invoice.paidAmount.add(paymentAmount);
+        const isFullyPaid = newPaid.gte(invoice.totalAmount);
         await tx.supplierInvoice.update({
           where: { id: invoice.id },
-          data: { paidAmount: newPaidAmount, status: newStatus },
+          data: {
+            paidAmount: newPaid,
+            status: isFullyPaid ? "PAID" : "PARTIALLY_PAID",
+          },
         });
       }
+
+      // Post GL Entry
+      const amt = Number(dto.amount);
+      const isCash = dto.paymentMethod === "CASH";
+      const apId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "ACCOUNTS_PAYABLE", "2010");
+      const bankOrCashId = isCash
+        ? await this.journalEntriesService.getMappedAccountId(tx, organizationId, "CASH", "1011")
+        : await this.journalEntriesService.getMappedAccountId(tx, organizationId, "BANK", "1012");
+
+      const lines = [
+        { accountId: apId, debit: amt, credit: 0, supplierId: dto.supplierId },
+        { accountId: bankOrCashId, debit: 0, credit: amt, supplierId: dto.supplierId },
+      ];
+
+      let effectiveUserId = actorId;
+      if (!effectiveUserId) {
+        const member = await tx.organizationMember.findFirst({ where: { organizationId } });
+        effectiveUserId = member?.userId || "";
+      }
+
+      await this.journalEntriesService.postOperationalJournal(tx, {
+        orgId: organizationId,
+        userId: effectiveUserId,
+        sourceModule: "PURCHASING",
+        referenceType: "SupplierPayment",
+        referenceId: payment.id,
+        description: `Supplier Payment: ${payment.paymentNumber}`,
+        postingDate: payment.paymentDate,
+        lines,
+      });
 
       return payment;
     });

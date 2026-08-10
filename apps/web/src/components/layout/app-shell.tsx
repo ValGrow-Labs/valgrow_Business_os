@@ -351,9 +351,7 @@ function UserMenu() {
 
   const user = userMe?.user;
   const fullName = user ? `${user.firstName} ${user.lastName}` : "Jaasir";
-  const initials = user
-    ? `${user.firstName[0] || ""}${user.lastName[0] || ""}`.toUpperCase()
-    : "J";
+  const initials = user ? `${user.firstName[0] || ""}${user.lastName[0] || ""}`.toUpperCase() : "J";
   const roleName = userMe?.role?.name || "Workspace owner";
 
   const handleLogout = () => {

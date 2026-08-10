@@ -4,12 +4,16 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { JournalEntriesService } from "../../journal-entries/journal-entries.service";
 import { PosCheckoutDto } from "../dto/checkout.dto";
 import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class PosCheckoutService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly journalEntriesService: JournalEntriesService,
+  ) {}
 
   private async generateReceiptNumber(
     organizationId: string,
@@ -539,6 +543,42 @@ export class PosCheckoutService {
             itemsCount: cart.items.length,
           },
         },
+      });
+
+      // 14. Post GL Journal Entry for POS Sale
+      const salesRevId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "SALES_REVENUE", "4010");
+      const outputTaxId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "OUTPUT_TAX", "2020");
+      const cashId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "CASH", "1011");
+      const cardClearingId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "CARD_CLEARING", "1051");
+      const upiClearingId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "UPI_CLEARING", "1052");
+
+      const subtotalVal = Number(subtotalAmount);
+      const taxVal = Number(taxAmountTotal);
+
+      const glLines: any[] = [];
+      for (const p of dto.payments) {
+        const amt = Number(p.amount);
+        let paymentAccId = cashId;
+        if (p.paymentMethod === "CREDIT_CARD") paymentAccId = cardClearingId;
+        else if (p.paymentMethod === "UPI") paymentAccId = upiClearingId;
+
+        glLines.push({ accountId: paymentAccId, debit: amt, credit: 0, customerId: finalCustomerId, branchId: session.branchId });
+      }
+
+      glLines.push({ accountId: salesRevId, debit: 0, credit: subtotalVal, customerId: finalCustomerId, branchId: session.branchId });
+      if (taxVal > 0) {
+        glLines.push({ accountId: outputTaxId, debit: 0, credit: taxVal, customerId: finalCustomerId, branchId: session.branchId });
+      }
+
+      await this.journalEntriesService.postOperationalJournal(tx, {
+        orgId: organizationId,
+        userId: cashierId,
+        sourceModule: "POS",
+        referenceType: "POSSale",
+        referenceId: posSale.id,
+        description: `POS Sale: ${receiptNumber}`,
+        postingDate: new Date(),
+        lines: glLines,
       });
 
       return {

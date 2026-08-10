@@ -4,12 +4,16 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { JournalEntriesService } from "../journal-entries/journal-entries.service";
 import { CreateCustomerPaymentDto } from "./dto/create-customer-payment.dto";
 import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class CustomerPaymentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly journalEntriesService: JournalEntriesService,
+  ) {}
 
   private async generatePAYNumber(
     organizationId: string,
@@ -119,33 +123,39 @@ export class CustomerPaymentsService {
       });
 
       if (invoice) {
-        const newPaidAmount = invoice.paidAmount.add(payAmount);
-        const newStatus = newPaidAmount.gte(invoice.totalAmount)
-          ? "PAID"
-          : "PARTIALLY_PAID";
-
+        const newPaid = invoice.paidAmount.add(payAmount);
+        const isFullyPaid = newPaid.gte(invoice.totalAmount);
         await tx.salesInvoice.update({
           where: { id: invoice.id },
           data: {
-            paidAmount: newPaidAmount,
-            status: newStatus,
+            paidAmount: newPaid,
+            status: isFullyPaid ? "PAID" : "PARTIALLY_PAID",
           },
         });
       }
 
-      await tx.activityLog.create({
-        data: {
-          organizationId,
-          actorId,
-          action: "PAYMENT_RECORDED",
-          entityType: "CustomerPayment",
-          entityId: payment.id,
-          metadata: {
-            paymentNumber,
-            amount: payAmount.toString(),
-            invoiceId: dto.salesInvoiceId,
-          },
-        },
+      // Post GL Entry
+      const amt = Number(dto.amount);
+      const isCash = dto.paymentMethod === "CASH";
+      const bankOrCashId = isCash
+        ? await this.journalEntriesService.getMappedAccountId(tx, organizationId, "CASH", "1011")
+        : await this.journalEntriesService.getMappedAccountId(tx, organizationId, "BANK", "1012");
+      const arId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "ACCOUNTS_RECEIVABLE", "1020");
+
+      const lines = [
+        { accountId: bankOrCashId, debit: amt, credit: 0, customerId: dto.customerId },
+        { accountId: arId, debit: 0, credit: amt, customerId: dto.customerId },
+      ];
+
+      await this.journalEntriesService.postOperationalJournal(tx, {
+        orgId: organizationId,
+        userId: actorId,
+        sourceModule: "SALES",
+        referenceType: "CustomerPayment",
+        referenceId: payment.id,
+        description: `Customer Payment: ${payment.paymentNumber}`,
+        postingDate: payment.paymentDate,
+        lines,
       });
 
       return payment;

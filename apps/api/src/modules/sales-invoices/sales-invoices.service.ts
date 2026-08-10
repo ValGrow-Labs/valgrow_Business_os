@@ -4,13 +4,17 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { JournalEntriesService } from "../journal-entries/journal-entries.service";
 import { CreateSalesInvoiceDto } from "./dto/create-sales-invoice.dto";
 import { UpdateSalesInvoiceDto } from "./dto/update-sales-invoice.dto";
 import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class SalesInvoicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly journalEntriesService: JournalEntriesService,
+  ) {}
 
   private async generateSINVNumber(
     organizationId: string,
@@ -204,24 +208,52 @@ export class SalesInvoicesService {
       );
     }
 
-    const updated = await this.prisma.salesInvoice.update({
-      where: { id },
-      data: { status: "POSTED" },
-      include: { items: true },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.salesInvoice.update({
+        where: { id },
+        data: { status: "POSTED" },
+        include: { items: true },
+      });
 
-    await this.prisma.activityLog.create({
-      data: {
-        organizationId,
-        actorId,
-        action: "INVOICE_POSTED",
-        entityType: "SalesInvoice",
-        entityId: id,
-        metadata: { invoiceNumber: invoice.invoiceNumber },
-      },
-    });
+      await tx.activityLog.create({
+        data: {
+          organizationId,
+          actorId,
+          action: "INVOICE_POSTED",
+          entityType: "SalesInvoice",
+          entityId: id,
+          metadata: { invoiceNumber: invoice.invoiceNumber },
+        },
+      });
 
-    return updated;
+      // Post GL Entry
+      const subtotal = Number(invoice.subtotalAmount);
+      const tax = Number(invoice.taxAmount);
+      const total = Number(invoice.totalAmount);
+
+      const arId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "ACCOUNTS_RECEIVABLE", "1020");
+      const salesRevId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "SALES_REVENUE", "4010");
+      const outputTaxId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "OUTPUT_TAX", "2020");
+
+      const lines = [
+        { accountId: arId, debit: total, credit: 0, customerId: invoice.customerId },
+        { accountId: salesRevId, debit: 0, credit: subtotal, customerId: invoice.customerId },
+        ...(tax > 0 ? [{ accountId: outputTaxId, debit: 0, credit: tax, customerId: invoice.customerId }] : []),
+      ];
+
+      await this.journalEntriesService.postOperationalJournal(tx, {
+        orgId: organizationId,
+        userId: actorId,
+        sourceModule: "SALES",
+        referenceType: "SalesInvoice",
+        referenceId: invoice.id,
+        description: `Sales Invoice: ${invoice.invoiceNumber}`,
+        postingDate: invoice.invoiceDate,
+        lines,
+      });
+
+      return updated;
+    });
   }
 
   async cancelSalesInvoice(

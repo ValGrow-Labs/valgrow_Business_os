@@ -4,12 +4,16 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { JournalEntriesService } from "../journal-entries/journal-entries.service";
 import { CreateDeliveryNoteDto } from "./dto/create-delivery-note.dto";
 import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class DeliveryNotesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly journalEntriesService: JournalEntriesService,
+  ) {}
 
   private async generateDNNumber(
     organizationId: string,
@@ -385,6 +389,39 @@ export class DeliveryNotesService {
             data: { status: newSOStatus },
           });
         }
+      }
+
+      // Post GL Journal Entry for Delivery Note (COGS & Inventory Asset)
+      let totalCogsVal = 0;
+      for (const item of dn.items) {
+        const product = await tx.product.findUnique({ where: { id: item.productId } });
+        const costLayer = await tx.inventoryCostLayer.findFirst({
+          where: { organizationId, productId: item.productId, status: "ACTIVE" },
+          orderBy: { createdAt: "asc" },
+        });
+        const unitCost = costLayer ? Number(costLayer.unitCost) : Number(product?.costPrice || 0);
+        totalCogsVal += Number(item.quantity) * unitCost;
+      }
+
+      if (totalCogsVal > 0) {
+        const cogsId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "COGS", "5010");
+        const inventoryAssetId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "INVENTORY_ASSET", "1030");
+
+        const lines = [
+          { accountId: cogsId, debit: totalCogsVal, credit: 0, customerId: dn.customerId },
+          { accountId: inventoryAssetId, debit: 0, credit: totalCogsVal, customerId: dn.customerId },
+        ];
+
+        await this.journalEntriesService.postOperationalJournal(tx, {
+          orgId: organizationId,
+          userId: actorId,
+          sourceModule: "SALES",
+          referenceType: "DeliveryNote",
+          referenceId: dn.id,
+          description: `Delivery Note: ${dn.deliveryNumber}`,
+          postingDate: dn.deliveryDate || new Date(),
+          lines,
+        });
       }
 
       await tx.activityLog.create({

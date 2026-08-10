@@ -134,18 +134,50 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: "CRM",
+    items: [
+      { title: "CRM Dashboard", url: "/crm", icon: LayoutDashboard },
+      { title: "Leads", url: "/leads", icon: UserRound },
+      { title: "Opportunities", url: "/opportunities", icon: Sparkles },
+      { title: "Customers", url: "/customers", icon: Contact },
+      { title: "Contacts", url: "/contacts", icon: Users },
+      { title: "Activities", url: "/activities", icon: History },
+      { title: "Tasks", url: "/tasks", icon: BookmarkCheck },
+      { title: "Notes", url: "/notes", icon: ScrollText },
+      { title: "Pipelines", url: "/pipelines", icon: GitBranch },
+      { title: "Lead Sources", url: "/lead-sources", icon: SlidersHorizontal },
+      { title: "Tags", url: "/crm-tags", icon: Tag },
+      { title: "Customer Segments", url: "/customer-segments", icon: Network },
+    ],
+  },
+  {
+    label: "Accounting & Finance",
+    items: [
+      { title: "Accounting Dashboard", url: "/accounting", icon: LayoutDashboard },
+      { title: "Chart of Accounts", url: "/accounts", icon: FolderTree },
+      { title: "Journal Entries", url: "/journal-entries", icon: ScrollText },
+      { title: "Fiscal Years", url: "/fiscal-years", icon: History },
+      { title: "Cost Centers", url: "/cost-centers", icon: Network },
+      { title: "Accounts Receivable", url: "/accounts-receivable", icon: Receipt },
+      { title: "Accounts Payable", url: "/accounts-payable", icon: CreditCard },
+      { title: "Bank Accounts", url: "/bank-accounts", icon: Building2 },
+      { title: "Financial Reports", url: "/financial-reports", icon: BarChart3 },
+      { title: "Tax Summary", url: "/tax-reports", icon: Calculator },
+    ],
+  },
+  {
     label: "POS",
     items: [{ title: "POS Register", url: "/pos", icon: Calculator }],
   },
   {
-  label: "Workspace",
-  items: [
-    { title: "Notifications", url: "/notifications", icon: Bell },
-    { title: "Activity Logs", url: "/activity", icon: History },
-    { title: "Audit Logs", url: "/audit-logs", icon: ScrollText },
-    { title: "File Manager", url: "/files", icon: FolderOpen },
-  ],
-},
+    label: "Workspace",
+    items: [
+      { title: "Notifications", url: "/notifications", icon: Bell },
+      { title: "Activity Logs", url: "/activity", icon: History },
+      { title: "Audit Logs", url: "/audit-logs", icon: ScrollText },
+      { title: "File Manager", url: "/files", icon: FolderOpen },
+    ],
+  },
   {
     label: "Account",
     items: [

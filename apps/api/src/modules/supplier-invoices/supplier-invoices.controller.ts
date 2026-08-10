@@ -7,6 +7,8 @@ import {
   UpdateSupplierInvoiceDto,
 } from "./dto/supplier-invoice.dto";
 
+import { CurrentUser } from "../../common/decorators/current-user.decorator";
+
 @Controller("supplier-invoices")
 export class SupplierInvoicesController {
   constructor(private readonly service: SupplierInvoicesService) {}
@@ -27,9 +29,10 @@ export class SupplierInvoicesController {
   @Post()
   create(
     @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
     @Body() dto: CreateSupplierInvoiceDto,
   ) {
-    return this.service.createInvoice(orgId, dto);
+    return this.service.createInvoice(orgId, dto, userId);
   }
 
   @RequirePermissions("purchasing.update")

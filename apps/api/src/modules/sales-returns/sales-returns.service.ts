@@ -4,12 +4,16 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { JournalEntriesService } from "../journal-entries/journal-entries.service";
 import { CreateSalesReturnDto } from "./dto/create-sales-return.dto";
 import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class SalesReturnsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly journalEntriesService: JournalEntriesService,
+  ) {}
 
   private async generateSRNumber(
     organizationId: string,
@@ -291,19 +295,28 @@ export class SalesReturnsService {
         include: { items: true },
       });
 
-      await tx.activityLog.create({
-        data: {
-          organizationId,
-          actorId,
-          action: "SALES_RETURN_POSTED",
-          entityType: "SalesReturn",
-          entityId: id,
-          metadata: {
-            returnNumber: sr.returnNumber,
-            itemCount: sr.items.length,
-          },
-        },
-      });
+      // Post GL Journal Entry for Sales Return
+      const refundAmt = Number(sr.totalRefundAmount);
+      if (refundAmt > 0) {
+        const salesReturnAccId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "SALES_RETURNS", "4030");
+        const arId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "ACCOUNTS_RECEIVABLE", "1020");
+
+        const lines = [
+          { accountId: salesReturnAccId, debit: refundAmt, credit: 0, customerId: sr.customerId },
+          { accountId: arId, debit: 0, credit: refundAmt, customerId: sr.customerId },
+        ];
+
+        await this.journalEntriesService.postOperationalJournal(tx, {
+          orgId: organizationId,
+          userId: actorId,
+          sourceModule: "SALES",
+          referenceType: "SalesReturn",
+          referenceId: sr.id,
+          description: `Sales Return: ${sr.returnNumber}`,
+          postingDate: new Date(),
+          lines,
+        });
+      }
 
       return postedSr;
     });

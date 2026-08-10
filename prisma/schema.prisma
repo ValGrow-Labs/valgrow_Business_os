@@ -229,11 +229,36 @@ model Organization {
   salesReturnItems  SalesReturnItem[]
   salesCreditNotes  SalesCreditNote[]
 
-  posSessions POSSession[]
-  posCarts    POSCart[]
+  posSessions  POSSession[]
+  posCarts     POSCart[]
   posCartItems POSCartItem[]
-  posSales    POSSale[]
-  posPayments POSPayment[]
+  posSales     POSSale[]
+  posPayments  POSPayment[]
+
+  leadSources       LeadSource[]
+  crmPipelines      CrmPipeline[]
+  crmPipelineStages CrmPipelineStage[]
+  leads             Lead[]
+  opportunities     Opportunity[]
+  customerContacts  CustomerContact[]
+  crmActivities     CrmActivity[]
+  crmTasks          CrmTask[]
+  crmNotes          CrmNote[]
+  crmTags           CrmTag[]
+  customerTags      CustomerTag[]
+  leadTags          LeadTag[]
+  opportunityTags   OpportunityTag[]
+  customerSegments  CustomerSegment[]
+
+  fiscalYears         FiscalYear[]
+  accountingPeriods   AccountingPeriod[]
+  accounts            Account[]
+  accountMappings     AccountMapping[]
+  costCenters         CostCenter[]
+  journalEntries      JournalEntry[]
+  journalEntryLines   JournalEntryLine[]
+  bankAccounts        BankAccount[]
+  bankReconciliations BankReconciliation[]
 
   @@index([slug])
   @@index([status])
@@ -273,6 +298,17 @@ model User {
   openedPOSSessions POSSession[] @relation("POSSessionOpener")
   closedPOSSessions POSSession[] @relation("POSSessionCloser")
   posSales          POSSale[]    @relation("POSCashier")
+
+  assignedLeads         Lead[]        @relation("LeadAssignee")
+  assignedOpportunities Opportunity[] @relation("OpportunityAssignee")
+  assignedActivities    CrmActivity[] @relation("ActivityAssignee")
+  createdActivities     CrmActivity[] @relation("ActivityCreator")
+  assignedTasks         CrmTask[]     @relation("TaskAssignee")
+  createdTasks          CrmTask[]     @relation("TaskCreator")
+  authoredNotes         CrmNote[]
+
+  createdJournals JournalEntry[] @relation("JournalCreator")
+  postedJournals  JournalEntry[] @relation("JournalPoster")
 
   @@index([email])
   @@index([status])
@@ -323,6 +359,8 @@ model Branch {
   posSessions POSSession[]
   posCarts    POSCart[]
   posSales    POSSale[]
+
+  journalLines JournalEntryLine[]
 
   @@index([organizationId])
   @@index([status])
@@ -1088,6 +1126,8 @@ model Supplier {
   invoices       SupplierInvoice[]
   payments       SupplierPayment[]
 
+  journalLines JournalEntryLine[]
+
   @@unique([organizationId, code])
   @@index([organizationId])
   @@index([status])
@@ -1452,6 +1492,16 @@ model Customer {
   posCarts POSCart[]
   posSales POSSale[]
 
+  convertedFromLead Lead[]            @relation("LeadConvertedCustomer")
+  opportunities     Opportunity[]
+  contacts          CustomerContact[]
+  activities        CrmActivity[]
+  tasks             CrmTask[]
+  crmNotes          CrmNote[]
+  tags              CustomerTag[]
+
+  journalLines JournalEntryLine[]
+
   @@unique([organizationId, customerCode])
   @@index([organizationId])
   @@index([status])
@@ -1479,10 +1529,13 @@ model Quotation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  opportunityId String?
+
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   customer     Customer        @relation(fields: [customerId], references: [id])
   branch       Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
   warehouse    Warehouse       @relation(fields: [warehouseId], references: [id])
+  opportunity  Opportunity?    @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
   items        QuotationItem[]
   salesOrders  SalesOrder[]
 
@@ -1491,6 +1544,7 @@ model Quotation {
   @@index([customerId])
   @@index([branchId])
   @@index([warehouseId])
+  @@index([opportunityId])
   @@index([status])
 }
 
@@ -1538,6 +1592,8 @@ model SalesOrder {
   notes                String?
   status               SalesOrderStatus @default(DRAFT)
 
+  opportunityId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1546,6 +1602,7 @@ model SalesOrder {
   quotation     Quotation?       @relation(fields: [quotationId], references: [id], onDelete: SetNull)
   branch        Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
   warehouse     Warehouse        @relation(fields: [warehouseId], references: [id])
+  opportunity   Opportunity?     @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
   items         SalesOrderItem[]
   deliveryNotes DeliveryNote[]
   salesInvoices SalesInvoice[]
@@ -1559,6 +1616,7 @@ model SalesOrder {
   @@index([quotationId])
   @@index([branchId])
   @@index([warehouseId])
+  @@index([opportunityId])
   @@index([status])
 }
 
@@ -2001,3 +2059,720 @@ model POSPayment {
   @@index([paymentMethod])
 }
 
+// ==================================================
+// CRM DOMAIN ENUMS
+// ==================================================
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  UNQUALIFIED
+  CONVERTED
+  LOST
+}
+
+enum OpportunityStatus {
+  OPEN
+  WON
+  LOST
+  CANCELLED
+}
+
+enum CrmActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  TASK
+  FOLLOW_UP
+  DEMO
+  VISIT
+}
+
+enum CrmPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CrmTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PipelineType {
+  LEAD
+  OPPORTUNITY
+}
+
+// ==================================================
+// CRM DOMAIN MODELS
+// ==================================================
+
+model LeadSource {
+  id             String           @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  isSystem       Boolean          @default(false)
+  status         MasterDataStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leads        Lead[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([status])
+}
+
+model CrmPipeline {
+  id             String           @id @default(uuid())
+  organizationId String
+  name           String
+  type           PipelineType     @default(OPPORTUNITY)
+  isDefault      Boolean          @default(false)
+  status         MasterDataStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stages        CrmPipelineStage[]
+  leads         Lead[]
+  opportunities Opportunity[]
+
+  @@unique([organizationId, name, type])
+  @@index([organizationId])
+}
+
+model CrmPipelineStage {
+  id             String  @id @default(uuid())
+  organizationId String
+  pipelineId     String
+  name           String
+  position       Int
+  probability    Int     @default(10)
+  color          String?
+  isSystem       Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pipeline      CrmPipeline   @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  leads         Lead[]
+  opportunities Opportunity[]
+
+  @@unique([pipelineId, name])
+  @@unique([pipelineId, position])
+  @@index([organizationId])
+  @@index([pipelineId])
+}
+
+model Lead {
+  id                  String     @id @default(uuid())
+  organizationId      String
+  leadNumber          String
+  firstName           String
+  lastName            String?
+  companyName         String?
+  email               String?
+  phone               String?
+  address             String?
+  city                String?
+  state               String?
+  country             String?    @default("India")
+  sourceId            String?
+  pipelineId          String?
+  stageId             String?
+  assignedToId        String?
+  estimatedValue      Decimal    @default(0) @db.Decimal(14, 4)
+  currency            String     @default("INR")
+  expectedCloseDate   DateTime?
+  notes               String?
+  status              LeadStatus @default(NEW)
+  convertedCustomerId String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  convertedAt DateTime?
+  deletedAt   DateTime?
+
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  source            LeadSource?       @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  pipeline          CrmPipeline?      @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  stage             CrmPipelineStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  assignedTo        User?             @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  convertedCustomer Customer?         @relation("LeadConvertedCustomer", fields: [convertedCustomerId], references: [id], onDelete: SetNull)
+
+  opportunities Opportunity[]
+  activities    CrmActivity[]
+  tasks         CrmTask[]
+  crmNotes      CrmNote[]
+  tags          LeadTag[]
+
+  @@unique([organizationId, leadNumber])
+  @@index([organizationId])
+  @@index([sourceId])
+  @@index([stageId])
+  @@index([assignedToId])
+  @@index([convertedCustomerId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model Opportunity {
+  id                String            @id @default(uuid())
+  organizationId    String
+  opportunityNumber String
+  customerId        String
+  leadId            String?
+  name              String
+  description       String?
+  pipelineId        String
+  stageId           String
+  assignedToId      String?
+  estimatedValue    Decimal           @default(0) @db.Decimal(14, 4)
+  currency          String            @default("INR")
+  probability       Int               @default(50)
+  expectedCloseDate DateTime?
+  status            OpportunityStatus @default(OPEN)
+  closeReason       String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  closedAt  DateTime?
+  deletedAt DateTime?
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer         @relation(fields: [customerId], references: [id])
+  lead         Lead?            @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  pipeline     CrmPipeline      @relation(fields: [pipelineId], references: [id])
+  stage        CrmPipelineStage @relation(fields: [stageId], references: [id])
+  assignedTo   User?            @relation("OpportunityAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  quotations  Quotation[]
+  salesOrders SalesOrder[]
+  activities  CrmActivity[]
+  tasks       CrmTask[]
+  crmNotes    CrmNote[]
+  tags        OpportunityTag[]
+
+  @@unique([organizationId, opportunityNumber])
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([leadId])
+  @@index([pipelineId])
+  @@index([stageId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model CustomerContact {
+  id             String  @id @default(uuid())
+  organizationId String
+  customerId     String
+  name           String
+  role           String?
+  email          String?
+  phone          String?
+  isPrimary      Boolean @default(false)
+  notes          String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([customerId])
+}
+
+model CrmActivity {
+  id              String          @id @default(uuid())
+  organizationId  String
+  type            CrmActivityType @default(NOTE)
+  subject         String
+  description     String?
+  location        String?
+  durationMinutes Int?
+  activityDate    DateTime        @default(now())
+  priority        CrmPriority     @default(MEDIUM)
+  status          CrmTaskStatus   @default(COMPLETED)
+
+  customerId    String?
+  leadId        String?
+  opportunityId String?
+  assignedToId  String?
+  createdById   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  opportunity  Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  assignedTo   User?        @relation("ActivityAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy    User         @relation("ActivityCreator", fields: [createdById], references: [id])
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([leadId])
+  @@index([opportunityId])
+  @@index([assignedToId])
+  @@index([activityDate])
+}
+
+model CrmTask {
+  id             String        @id @default(uuid())
+  organizationId String
+  title          String
+  description    String?
+  dueDate        DateTime
+  priority       CrmPriority   @default(MEDIUM)
+  status         CrmTaskStatus @default(PENDING)
+
+  customerId    String?
+  leadId        String?
+  opportunityId String?
+  assignedToId  String?
+  createdById   String
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  opportunity  Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  assignedTo   User?        @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy    User         @relation("TaskCreator", fields: [createdById], references: [id])
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([leadId])
+  @@index([opportunityId])
+  @@index([assignedToId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+model CrmNote {
+  id             String @id @default(uuid())
+  organizationId String
+  content        String
+  authorId       String
+
+  customerId    String?
+  leadId        String?
+  opportunityId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User         @relation(fields: [authorId], references: [id])
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  opportunity  Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([leadId])
+  @@index([opportunityId])
+}
+
+model CrmTag {
+  id             String  @id @default(uuid())
+  organizationId String
+  name           String
+  color          String? @default("#3B82F6")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customers     CustomerTag[]
+  leads         LeadTag[]
+  opportunities OpportunityTag[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model CustomerTag {
+  id             String @id @default(uuid())
+  organizationId String
+  customerId     String
+  tagId          String
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tag          CrmTag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, tagId])
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([tagId])
+}
+
+model LeadTag {
+  id             String @id @default(uuid())
+  organizationId String
+  leadId         String
+  tagId          String
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tag          CrmTag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, tagId])
+  @@index([organizationId])
+  @@index([leadId])
+  @@index([tagId])
+}
+
+model OpportunityTag {
+  id             String @id @default(uuid())
+  organizationId String
+  opportunityId  String
+  tagId          String
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  opportunity  Opportunity  @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  tag          CrmTag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([opportunityId, tagId])
+  @@index([organizationId])
+  @@index([opportunityId])
+  @@index([tagId])
+}
+
+model CustomerSegment {
+  id             String  @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  rules          Json?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+// ==================================================
+// ACCOUNTING DOMAIN ENUMS
+// ==================================================
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum AccountCategory {
+  CURRENT_ASSET
+  FIXED_ASSET
+  NON_CURRENT_ASSET
+  CURRENT_LIABILITY
+  LONG_TERM_LIABILITY
+  EQUITY
+  OPERATING_REVENUE
+  OTHER_REVENUE
+  COST_OF_GOODS_SOLD
+  OPERATING_EXPENSE
+  OTHER_EXPENSE
+}
+
+enum NormalBalance {
+  DEBIT
+  CREDIT
+}
+
+enum PeriodStatus {
+  OPEN
+  CLOSED
+  LOCKED
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+enum JournalEntryType {
+  MANUAL
+  AUTOMATIC
+  REVERSAL
+  CLOSING
+}
+
+enum BankAccountType {
+  SAVINGS
+  CURRENT
+  OVERDRAFT
+  CREDIT_CARD
+}
+
+// ==================================================
+// ACCOUNTING DOMAIN MODELS
+// ==================================================
+
+model FiscalYear {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  startDate      DateTime
+  endDate        DateTime
+  isClosed       Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  periods      AccountingPeriod[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model AccountingPeriod {
+  id             String       @id @default(uuid())
+  organizationId String
+  fiscalYearId   String
+  periodName     String
+  periodNumber   Int
+  startDate      DateTime
+  endDate        DateTime
+  status         PeriodStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fiscalYear   FiscalYear     @relation(fields: [fiscalYearId], references: [id], onDelete: Cascade)
+  entries      JournalEntry[]
+
+  @@unique([organizationId, fiscalYearId, periodNumber])
+  @@index([organizationId])
+  @@index([fiscalYearId])
+  @@index([status])
+}
+
+model Account {
+  id                    String          @id @default(uuid())
+  organizationId        String
+  accountCode           String
+  accountName           String
+  accountType           AccountType
+  accountCategory       AccountCategory
+  normalBalance         NormalBalance
+  parentAccountId       String?
+  description           String?
+  isSystemAccount       Boolean         @default(false)
+  isActive              Boolean         @default(true)
+  reconciliationEnabled Boolean         @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       Account?     @relation("AccountHierarchy", fields: [parentAccountId], references: [id], onDelete: Restrict)
+  children     Account[]    @relation("AccountHierarchy")
+
+  journalLines    JournalEntryLine[]
+  accountMappings AccountMapping[]
+  bankAccounts    BankAccount[]
+
+  @@unique([organizationId, accountCode])
+  @@index([organizationId])
+  @@index([accountType])
+  @@index([parentAccountId])
+}
+
+model AccountMapping {
+  id             String  @id @default(uuid())
+  organizationId String
+  mappingKey     String
+  accountId      String
+  description    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, mappingKey])
+  @@index([organizationId])
+  @@index([accountId])
+}
+
+model CostCenter {
+  id             String           @id @default(uuid())
+  organizationId String
+  code           String
+  name           String
+  description    String?
+  status         MasterDataStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  journalLines JournalEntryLine[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+model JournalEntry {
+  id             String             @id @default(uuid())
+  organizationId String
+  periodId       String
+  journalNumber  String
+  entryDate      DateTime           @default(now())
+  postingDate    DateTime           @default(now())
+  entryType      JournalEntryType   @default(AUTOMATIC)
+  status         JournalEntryStatus @default(POSTED)
+  referenceType  String?
+  referenceId    String?
+  sourceModule   String?
+  description    String?
+  reversalOfId   String?
+  reversalReason String?
+
+  totalDebit  Decimal @db.Decimal(14, 4)
+  totalCredit Decimal @db.Decimal(14, 4)
+
+  createdById String
+  postedById  String?
+  postedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  period       AccountingPeriod   @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  reversalOf   JournalEntry?      @relation("JournalReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
+  reversals    JournalEntry[]     @relation("JournalReversal")
+  createdBy    User               @relation("JournalCreator", fields: [createdById], references: [id])
+  postedBy     User?              @relation("JournalPoster", fields: [postedById], references: [id])
+  lines        JournalEntryLine[]
+
+  @@unique([organizationId, journalNumber])
+  @@unique([organizationId, sourceModule, referenceType, referenceId])
+  @@index([organizationId])
+  @@index([periodId])
+  @@index([postingDate])
+  @@index([status])
+  @@index([sourceModule, referenceType, referenceId])
+}
+
+model JournalEntryLine {
+  id             String  @id @default(uuid())
+  organizationId String
+  journalEntryId String
+  accountId      String
+  branchId       String?
+  costCenterId   String?
+  customerId     String?
+  supplierId     String?
+  description    String?
+
+  debit  Decimal @default(0) @db.Decimal(14, 4)
+  credit Decimal @default(0) @db.Decimal(14, 4)
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  branch       Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  costCenter   CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  supplier     Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([journalEntryId])
+  @@index([accountId])
+  @@index([branchId])
+  @@index([customerId])
+  @@index([supplierId])
+}
+
+model BankAccount {
+  id             String           @id @default(uuid())
+  organizationId String
+  accountId      String
+  bankName       String
+  accountName    String
+  accountNumber  String
+  accountType    BankAccountType  @default(CURRENT)
+  ifscCode       String?
+  swiftCode      String?
+  branchName     String?
+  openingBalance Decimal          @default(0) @db.Decimal(14, 4)
+  status         MasterDataStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      Account              @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  reconciles   BankReconciliation[]
+
+  @@unique([organizationId, accountNumber])
+  @@index([organizationId])
+  @@index([accountId])
+}
+
+model BankReconciliation {
+  id             String   @id @default(uuid())
+  organizationId String
+  bankAccountId  String
+  statementDate  DateTime
+  endingBalance  Decimal  @db.Decimal(14, 4)
+  clearedBalance Decimal  @db.Decimal(14, 4)
+  isReconciled   Boolean  @default(false)
+  notes          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccount  BankAccount  @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([bankAccountId])
+}

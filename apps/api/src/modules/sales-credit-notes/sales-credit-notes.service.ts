@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { JournalEntriesService } from "../journal-entries/journal-entries.service";
 import {
   CreateSalesCreditNoteDto,
   UpdateSalesCreditNoteDto,
@@ -12,7 +13,10 @@ import { Prisma, SalesCreditNoteStatus } from "@prisma/client";
 
 @Injectable()
 export class SalesCreditNotesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly journalEntriesService: JournalEntriesService,
+  ) {}
 
   private async generateCNNumber(
     organizationId: string,
@@ -135,23 +139,53 @@ export class SalesCreditNotesService {
     targetStatus: SalesCreditNoteStatus,
   ) {
     const cn = await this.getSalesCreditNoteById(id, organizationId);
-    const updated = await this.prisma.salesCreditNote.update({
-      where: { id },
-      data: { status: targetStatus },
-    });
+    
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.salesCreditNote.update({
+        where: { id },
+        data: { status: targetStatus },
+      });
 
-    await this.prisma.activityLog.create({
-      data: {
-        organizationId,
-        actorId,
-        action: `CREDIT_NOTE_${targetStatus}`,
-        entityType: "SalesCreditNote",
-        entityId: id,
-        metadata: { from: cn.status, to: targetStatus },
-      },
-    });
+      await tx.activityLog.create({
+        data: {
+          organizationId,
+          actorId,
+          action: `CREDIT_NOTE_${targetStatus}`,
+          entityType: "SalesCreditNote",
+          entityId: id,
+          metadata: { from: cn.status, to: targetStatus },
+        },
+      });
 
-    return updated;
+      if (targetStatus === "ISSUED" || targetStatus === "APPLIED") {
+        const amt = Number(cn.amount);
+        const tax = Number(cn.taxAmount);
+        const total = Number(cn.totalAmount);
+
+        const salesReturnsId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "SALES_RETURNS", "4030");
+        const outputTaxId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "OUTPUT_TAX", "2020");
+        const arId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "ACCOUNTS_RECEIVABLE", "1020");
+
+        const lines = [
+          { accountId: salesReturnsId, debit: amt, credit: 0, customerId: cn.customerId },
+          ...(tax > 0 ? [{ accountId: outputTaxId, debit: tax, credit: 0, customerId: cn.customerId }] : []),
+          { accountId: arId, debit: 0, credit: total, customerId: cn.customerId },
+        ];
+
+        await this.journalEntriesService.postOperationalJournal(tx, {
+          orgId: organizationId,
+          userId: actorId,
+          sourceModule: "SALES",
+          referenceType: "SalesCreditNote",
+          referenceId: cn.id,
+          description: `Sales Credit Note: ${cn.creditNoteNumber}`,
+          postingDate: cn.creditDate || new Date(),
+          lines,
+        });
+      }
+
+      return updated;
+    });
   }
 
   issue(id: string, orgId: string, actorId: string) {

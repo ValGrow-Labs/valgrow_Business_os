@@ -48,6 +48,16 @@ import { CustomerPaymentsModule } from "./modules/customer-payments/customer-pay
 import { SalesReturnsModule } from "./modules/sales-returns/sales-returns.module";
 import { SalesCreditNotesModule } from "./modules/sales-credit-notes/sales-credit-notes.module";
 import { PosModule } from "./modules/pos/pos.module";
+import { CrmModule } from "./modules/crm/crm.module";
+import { AccountsModule } from "./modules/accounts/accounts.module";
+import { FiscalYearsModule } from "./modules/fiscal-years/fiscal-years.module";
+import { AccountingPeriodsModule } from "./modules/accounting-periods/accounting-periods.module";
+import { CostCentersModule } from "./modules/cost-centers/cost-centers.module";
+import { JournalEntriesModule } from "./modules/journal-entries/journal-entries.module";
+import { ArApModule } from "./modules/ar-ap/ar-ap.module";
+import { BankAccountingModule } from "./modules/bank-accounting/bank-accounting.module";
+import { TaxAccountingModule } from "./modules/tax-accounting/tax-accounting.module";
+import { FinancialReportsModule } from "./modules/financial-reports/financial-reports.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
@@ -103,6 +113,16 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     SalesReturnsModule,
     SalesCreditNotesModule,
     PosModule,
+    CrmModule,
+    AccountsModule,
+    FiscalYearsModule,
+    AccountingPeriodsModule,
+    CostCentersModule,
+    JournalEntriesModule,
+    ArApModule,
+    BankAccountingModule,
+    TaxAccountingModule,
+    FinancialReportsModule,
   ],
   controllers: [AppController],
   providers: [

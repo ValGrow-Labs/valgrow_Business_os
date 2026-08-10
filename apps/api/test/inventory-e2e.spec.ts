@@ -54,14 +54,14 @@ describe("ValGrow Business OS — Inventory Domain & Security E2E Tests", () => 
     prisma = app.get(PrismaService);
 
     // Clean up test orgs if left over
-    await prisma.user.deleteMany({
-      where: {
-        email: { in: ["inv.user.a@inv-e2e.test", "inv.user.b@inv-e2e.test"] },
-      },
-    });
     await prisma.organization.deleteMany({
       where: {
         slug: { in: ["inv-org-alpha", "inv-org-beta"] },
+      },
+    });
+    await prisma.user.deleteMany({
+      where: {
+        email: { in: ["inv.user.a@inv-e2e.test", "inv.user.b@inv-e2e.test"] },
       },
     });
 
@@ -127,13 +127,13 @@ describe("ValGrow Business OS — Inventory Domain & Security E2E Tests", () => 
 
   afterAll(async () => {
     if (prisma) {
+      await prisma.organization.deleteMany({
+        where: { slug: { in: ["inv-org-alpha", "inv-org-beta"] } },
+      });
       await prisma.user.deleteMany({
         where: {
           email: { in: ["inv.user.a@inv-e2e.test", "inv.user.b@inv-e2e.test"] },
         },
-      });
-      await prisma.organization.deleteMany({
-        where: { slug: { in: ["inv-org-alpha", "inv-org-beta"] } },
       });
       await prisma.$disconnect();
     }

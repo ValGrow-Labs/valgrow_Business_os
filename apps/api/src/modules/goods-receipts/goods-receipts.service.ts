@@ -4,12 +4,16 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { JournalEntriesService } from "../journal-entries/journal-entries.service";
 import { CreateGoodsReceiptDto } from "./dto/create-goods-receipt.dto";
 import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class GoodsReceiptsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly journalEntriesService: JournalEntriesService,
+  ) {}
 
   private async generateGRNNumber(
     organizationId: string,
@@ -391,6 +395,33 @@ export class GoodsReceiptsService {
             data: { status: newPOStatus },
           });
         }
+      }
+
+      // Post GL Journal Entry for Goods Receipt
+      let totalCostSum = 0;
+      for (const item of grn.items) {
+        totalCostSum += Number(item.receivedQty) * Number(item.unitCost);
+      }
+
+      if (totalCostSum > 0) {
+        const inventoryAssetId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "INVENTORY_ASSET", "1030");
+        const purchaseClearingId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "PURCHASE_CLEARING", "1053");
+
+        const lines = [
+          { accountId: inventoryAssetId, debit: totalCostSum, credit: 0, supplierId: grn.supplierId },
+          { accountId: purchaseClearingId, debit: 0, credit: totalCostSum, supplierId: grn.supplierId },
+        ];
+
+        await this.journalEntriesService.postOperationalJournal(tx, {
+          orgId: organizationId,
+          userId: actorId,
+          sourceModule: "PURCHASING",
+          referenceType: "GoodsReceipt",
+          referenceId: grn.id,
+          description: `Goods Receipt: ${grn.receiptNumber}`,
+          postingDate: grn.receivedAt || new Date(),
+          lines,
+        });
       }
 
       await tx.activityLog.create({

@@ -6,9 +6,10 @@ import { PosCartService } from "./services/pos-cart.service";
 import { PosCheckoutService } from "./services/pos-checkout.service";
 import { PosRefundService } from "./services/pos-refund.service";
 import { SalesReturnsModule } from "../sales-returns/sales-returns.module";
+import { JournalEntriesModule } from "../journal-entries/journal-entries.module";
 
 @Module({
-  imports: [SalesReturnsModule],
+  imports: [SalesReturnsModule, JournalEntriesModule],
   controllers: [PosController],
   providers: [
     PosSessionService,

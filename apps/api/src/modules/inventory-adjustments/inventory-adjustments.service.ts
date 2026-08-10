@@ -4,12 +4,16 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { JournalEntriesService } from "../journal-entries/journal-entries.service";
 import { CreateAdjustmentDto } from "./dto/create-adjustment.dto";
 import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class InventoryAdjustmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly journalEntriesService: JournalEntriesService,
+  ) {}
 
   private async validateAdjustmentSetup(
     organizationId: string,
@@ -217,6 +221,38 @@ export class InventoryAdjustmentsService {
             },
           });
         }
+      }
+
+      // Post GL Journal Entry for Inventory Adjustment
+      let netAdjustmentCost = 0;
+      for (const item of dto.items) {
+        netAdjustmentCost += Number(item.adjustedQty) * Number(item.unitCost || 0);
+      }
+
+      if (Math.abs(netAdjustmentCost) > 0.0001) {
+        const inventoryAssetId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "INVENTORY_ASSET", "1030");
+        const adjustmentWriteoffId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "INVENTORY_ADJUSTMENT", "5020");
+
+        const lines = netAdjustmentCost > 0
+          ? [
+              { accountId: inventoryAssetId, debit: netAdjustmentCost, credit: 0 },
+              { accountId: adjustmentWriteoffId, debit: 0, credit: netAdjustmentCost },
+            ]
+          : [
+              { accountId: adjustmentWriteoffId, debit: Math.abs(netAdjustmentCost), credit: 0 },
+              { accountId: inventoryAssetId, debit: 0, credit: Math.abs(netAdjustmentCost) },
+            ];
+
+        await this.journalEntriesService.postOperationalJournal(tx, {
+          orgId: organizationId,
+          userId: createdById,
+          sourceModule: "INVENTORY",
+          referenceType: "StockAdjustment",
+          referenceId: adjustment.id,
+          description: `Stock Adjustment: ${dto.reason}`,
+          postingDate: new Date(),
+          lines,
+        });
       }
 
       return adjustment;

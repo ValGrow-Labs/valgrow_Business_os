@@ -14,6 +14,7 @@ import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { seedDefaultChartOfAccounts } from "../accounts/default-accounts.seed";
 
 @Injectable()
 export class AuthService {
@@ -135,6 +136,9 @@ export class AuthService {
           managerId: user.id,
         },
       });
+
+      // 6. Seed Default Chart of Accounts & Fiscal Year
+      await seedDefaultChartOfAccounts(tx as any, org.id);
 
       return { user, org, member, ownerRole };
     });

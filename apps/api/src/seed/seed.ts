@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 import * as bcrypt from "bcrypt";
+import { seedDefaultChartOfAccounts } from "../modules/accounts/default-accounts.seed";
 
 const prisma = new PrismaClient();
 
@@ -121,6 +122,128 @@ async function main() {
       resource: "Inventory",
       action: "reserve",
       description: "Create and fulfill stock reservations",
+    },
+    {
+      key: "crm.read",
+      resource: "CRM",
+      action: "read",
+      description:
+        "View CRM leads, opportunities, activities, and customer 360",
+    },
+    {
+      key: "crm.create",
+      resource: "CRM",
+      action: "create",
+      description:
+        "Create CRM leads, opportunities, activities, tasks, notes, and contacts",
+    },
+    {
+      key: "crm.update",
+      resource: "CRM",
+      action: "update",
+      description: "Update CRM leads, opportunities, activities, and tasks",
+    },
+    {
+      key: "crm.delete",
+      resource: "CRM",
+      action: "delete",
+      description: "Delete CRM records",
+    },
+    {
+      key: "crm.assign",
+      resource: "CRM",
+      action: "assign",
+      description: "Assign leads and opportunities to users",
+    },
+    {
+      key: "crm.convert",
+      resource: "CRM",
+      action: "convert",
+      description: "Convert leads into Customers and Opportunities",
+    },
+    {
+      key: "crm.manage_pipeline",
+      resource: "CRM",
+      action: "manage_pipeline",
+      description: "Manage CRM pipelines and stages",
+    },
+    {
+      key: "crm.manage_tags",
+      resource: "CRM",
+      action: "manage_tags",
+      description: "Manage CRM tags and assignments",
+    },
+    {
+      key: "crm.manage_sources",
+      resource: "CRM",
+      action: "manage_sources",
+      description: "Manage CRM lead sources",
+    },
+    {
+      key: "accounting.read",
+      resource: "Accounting",
+      action: "read",
+      description: "View GL accounts, journal entries, and financial reports",
+    },
+    {
+      key: "accounting.create",
+      resource: "Accounting",
+      action: "create",
+      description: "Create manual journal entries and bank accounts",
+    },
+    {
+      key: "accounting.update",
+      resource: "Accounting",
+      action: "update",
+      description: "Edit draft journal entries and account details",
+    },
+    {
+      key: "accounting.delete",
+      resource: "Accounting",
+      action: "delete",
+      description: "Delete draft journal entries",
+    },
+    {
+      key: "accounting.post",
+      resource: "Accounting",
+      action: "post",
+      description: "Post journal entries to the General Ledger",
+    },
+    {
+      key: "accounting.reverse",
+      resource: "Accounting",
+      action: "reverse",
+      description: "Post journal entry reversals",
+    },
+    {
+      key: "accounting.close_period",
+      resource: "Accounting",
+      action: "close_period",
+      description: "Close or lock accounting periods and fiscal years",
+    },
+    {
+      key: "accounting.reconcile",
+      resource: "Accounting",
+      action: "reconcile",
+      description: "Perform bank and cash reconciliations",
+    },
+    {
+      key: "accounting.manage_accounts",
+      resource: "Accounting",
+      action: "manage_accounts",
+      description: "Manage Chart of Accounts and GL mappings",
+    },
+    {
+      key: "accounting.manage_tax",
+      resource: "Accounting",
+      action: "manage_tax",
+      description: "Manage tax accounting settings and rates",
+    },
+    {
+      key: "accounting.manage_bank",
+      resource: "Accounting",
+      action: "manage_bank",
+      description: "Create and configure bank accounts",
     },
   ];
 
@@ -724,6 +847,116 @@ async function main() {
   console.log(
     `✓ Seeded ${productsData.length} development products with variants and tier pricing`,
   );
+
+  // 4. Seed CRM Master Data & Demo Data
+  const leadSourcesData = [
+    { name: "Website", description: "Inbound website lead form" },
+    { name: "Referral", description: "Existing client or partner referral" },
+    { name: "Cold Call", description: "Outbound sales call" },
+    { name: "Social Media", description: "LinkedIn / Meta campaigns" },
+    { name: "Walk-in", description: "Direct showroom walk-in" },
+  ];
+
+  for (const src of leadSourcesData) {
+    await prisma.leadSource.upsert({
+      where: {
+        organizationId_name: { organizationId: org.id, name: src.name },
+      },
+      update: { description: src.description },
+      create: {
+        organizationId: org.id,
+        name: src.name,
+        description: src.description,
+      },
+    });
+  }
+  console.log(`✓ Seeded ${leadSourcesData.length} CRM Lead Sources`);
+
+  const pipeline = await prisma.crmPipeline.upsert({
+    where: {
+      organizationId_name_type: {
+        organizationId: org.id,
+        name: "Standard Sales Pipeline",
+        type: "OPPORTUNITY",
+      },
+    },
+    update: { isDefault: true },
+    create: {
+      organizationId: org.id,
+      name: "Standard Sales Pipeline",
+      type: "OPPORTUNITY",
+      isDefault: true,
+      stages: {
+        create: [
+          {
+            organizationId: org.id,
+            name: "New / Qualification",
+            position: 1,
+            probability: 10,
+            color: "#3B82F6",
+          },
+          {
+            organizationId: org.id,
+            name: "Needs Analysis",
+            position: 2,
+            probability: 30,
+            color: "#8B5CF6",
+          },
+          {
+            organizationId: org.id,
+            name: "Value Proposition",
+            position: 3,
+            probability: 50,
+            color: "#F59E0B",
+          },
+          {
+            organizationId: org.id,
+            name: "Proposal / Negotiation",
+            position: 4,
+            probability: 80,
+            color: "#EC4899",
+          },
+          {
+            organizationId: org.id,
+            name: "Closed Won",
+            position: 5,
+            probability: 100,
+            color: "#10B981",
+          },
+          {
+            organizationId: org.id,
+            name: "Closed Lost",
+            position: 6,
+            probability: 0,
+            color: "#EF4444",
+          },
+        ],
+      },
+    },
+    include: { stages: true },
+  });
+  console.log(
+    `✓ Seeded default CRM Sales Pipeline with ${pipeline.stages.length} stages`,
+  );
+
+  const tagsData = [
+    { name: "VIP", color: "#EF4444" },
+    { name: "Enterprise", color: "#3B82F6" },
+    { name: "High Value", color: "#10B981" },
+    { name: "Follow-up Required", color: "#F59E0B" },
+  ];
+  for (const t of tagsData) {
+    await prisma.crmTag.upsert({
+      where: { organizationId_name: { organizationId: org.id, name: t.name } },
+      update: { color: t.color },
+      create: { organizationId: org.id, name: t.name, color: t.color },
+    });
+  }
+  console.log(`✓ Seeded ${tagsData.length} CRM Tags`);
+
+  // Seed Default Chart of Accounts & Mappings
+  await seedDefaultChartOfAccounts(prisma, org.id);
+  console.log(`✓ Seeded default Chart of Accounts and GL Mappings for ${org.name}`);
 
   console.log("✅ Master Data Seed completed successfully!");
 }
