@@ -9,9 +9,11 @@ import { Prisma } from "@prisma/client";
 
 export interface MovementQueryOptions {
   locationId?: string;
+  warehouseId?: string;
   productId?: string;
   variantId?: string;
   movementType?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }
@@ -104,16 +106,39 @@ export class InventoryMovementsService {
     const skip = (page - 1) * limit;
 
     const where: any = { organizationId };
-    if (options.locationId) where.locationId = options.locationId;
+    if (options.locationId && options.locationId !== "ALL") where.locationId = options.locationId;
+    if (options.warehouseId && options.warehouseId !== "ALL") where.warehouseId = options.warehouseId;
     if (options.productId) where.productId = options.productId;
     if (options.variantId) where.variantId = options.variantId;
-    if (options.movementType) where.movementType = options.movementType;
+    if (options.movementType && options.movementType !== "ALL") where.movementType = options.movementType;
+
+    if (options.search) {
+      const term = options.search.trim();
+      where.OR = [
+        { product: { name: { contains: term, mode: "insensitive" } } },
+        { product: { sku: { contains: term, mode: "insensitive" } } },
+        { referenceId: { contains: term, mode: "insensitive" } },
+        { serialNumber: { contains: term, mode: "insensitive" } },
+        { notes: { contains: term, mode: "insensitive" } },
+        { actor: { firstName: { contains: term, mode: "insensitive" } } },
+        { actor: { lastName: { contains: term, mode: "insensitive" } } },
+      ];
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.stockMovement.findMany({
         where,
         skip,
         take: limit,
+        include: {
+          product: { select: { id: true, name: true, sku: true } },
+          variant: { select: { id: true, name: true, sku: true } },
+          warehouse: { select: { id: true, name: true, code: true } },
+          location: { select: { id: true, name: true, code: true } },
+          batch: { select: { id: true, batchNumber: true, batchType: true } },
+          serial: { select: { id: true, serialNumber: true } },
+          actor: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.stockMovement.count({ where }),
@@ -133,6 +158,15 @@ export class InventoryMovementsService {
   async getMovementById(id: string, organizationId: string) {
     const movement = await this.prisma.stockMovement.findFirst({
       where: { id, organizationId },
+      include: {
+        product: { select: { id: true, name: true, sku: true } },
+        variant: { select: { id: true, name: true, sku: true } },
+        warehouse: { select: { id: true, name: true, code: true } },
+        location: { select: { id: true, name: true, code: true } },
+        batch: { select: { id: true, batchNumber: true, batchType: true } },
+        serial: { select: { id: true, serialNumber: true } },
+        actor: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
     });
 
     if (!movement) {

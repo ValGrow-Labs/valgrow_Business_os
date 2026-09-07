@@ -20,6 +20,14 @@ export class CreateBatchDto {
   @IsNotEmpty()
   batchNumber: string;
 
+  @IsString()
+  @IsOptional()
+  batchType?: string;
+
+  @IsString()
+  @IsOptional()
+  workOrderRef?: string;
+
   @IsDateString()
   @IsOptional()
   manufactureDate?: string;
@@ -33,3 +41,4 @@ export class CreateBatchDto {
   @IsNotEmpty()
   costPrice: number;
 }
+

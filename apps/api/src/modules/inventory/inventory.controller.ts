@@ -1,37 +1,114 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Controller, Get, Param, Query, Res, Header } from "@nestjs/common";
+import { Response } from "express";
 import { InventoryService } from "./inventory.service";
 import { CurrentOrg } from "../../common/decorators/current-org.decorator";
+import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { RequirePermissions } from "../../common/decorators/require-permissions.decorator";
+import { ActivityLogsService } from "../activity-logs/activity-logs.service";
 
 @Controller("inventory")
 export class InventoryController {
-  constructor(private readonly inventoryService: InventoryService) {}
+  constructor(
+    private readonly inventoryService: InventoryService,
+    private readonly activityLogsService: ActivityLogsService,
+  ) {}
 
   @RequirePermissions("inventory.read")
   @Get("stock")
   async getStock(
     @CurrentOrg("id") organizationId: string,
     @Query("warehouseId") warehouseId?: string,
+    @Query("branchId") branchId?: string,
     @Query("locationId") locationId?: string,
     @Query("productId") productId?: string,
     @Query("variantId") variantId?: string,
     @Query("batchId") batchId?: string,
     @Query("lowStock") lowStock?: boolean,
+    @Query("health") health?: "OK" | "LOW" | "OUT",
     @Query("search") search?: string,
+    @Query("sortBy") sortBy?: string,
+    @Query("sortOrder") sortOrder?: "asc" | "desc",
     @Query("page") page?: number,
     @Query("limit") limit?: number,
   ) {
     return this.inventoryService.getStock(organizationId, {
       warehouseId,
+      branchId,
       locationId,
       productId,
       variantId,
       batchId,
       lowStock: lowStock ? String(lowStock) === "true" : undefined,
+      health,
       search,
+      sortBy,
+      sortOrder,
       page,
       limit,
     });
+  }
+
+  @RequirePermissions("inventory.read")
+  @Get("stock/export/csv")
+  async exportCsv(
+    @CurrentOrg("id") organizationId: string,
+    @CurrentUser("id") userId: string,
+    @Res() res: Response,
+    @Query("warehouseId") warehouseId?: string,
+    @Query("branchId") branchId?: string,
+    @Query("health") health?: "OK" | "LOW" | "OUT",
+    @Query("search") search?: string,
+  ) {
+    const csvContent = await this.inventoryService.exportCsv(organizationId, {
+      warehouseId,
+      branchId,
+      health,
+      search,
+    });
+
+    await this.activityLogsService.logEvent(
+      organizationId,
+      userId || null,
+      "EXPORT_INVENTORY_STOCK_CSV",
+      "InventoryStock",
+      "ALL",
+      { warehouseId, branchId, health, search },
+    );
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", 'attachment; filename="stock_levels.csv"');
+    return res.status(200).send(csvContent);
+  }
+
+  @RequirePermissions("inventory.read")
+  @Get("stock/export/pdf")
+  async exportPdf(
+    @CurrentOrg("id") organizationId: string,
+    @CurrentUser("id") userId: string,
+    @Res() res: Response,
+    @Query("warehouseId") warehouseId?: string,
+    @Query("branchId") branchId?: string,
+    @Query("health") health?: "OK" | "LOW" | "OUT",
+    @Query("search") search?: string,
+  ) {
+    const htmlReport = await this.inventoryService.exportPdfReport(organizationId, {
+      warehouseId,
+      branchId,
+      health,
+      search,
+    });
+
+    await this.activityLogsService.logEvent(
+      organizationId,
+      userId || null,
+      "EXPORT_INVENTORY_STOCK_PDF",
+      "InventoryStock",
+      "ALL",
+      { warehouseId, branchId, health, search },
+    );
+
+    res.setHeader("Content-Type", "text/html");
+    return res.status(200).send(htmlReport);
   }
 
   @RequirePermissions("inventory.read")
@@ -43,3 +120,4 @@ export class InventoryController {
     return this.inventoryService.getStockById(id, organizationId);
   }
 }
+

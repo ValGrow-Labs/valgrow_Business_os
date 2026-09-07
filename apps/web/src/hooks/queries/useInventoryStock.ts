@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
+export type StockHealthStatus = "OK" | "LOW" | "OUT";
+
 export interface StockItem {
   id: string;
   organizationId: string;
@@ -14,10 +16,11 @@ export interface StockItem {
   available: number;
   reorderLevel: number | null;
   reorderQuantity: number | null;
+  stockHealth?: StockHealthStatus;
   version: number;
   createdAt: string;
   updatedAt: string;
-  warehouse?: { id: string; name: string; code: string } | null;
+  warehouse?: { id: string; name: string; code: string; branchId?: string } | null;
   location?: { id: string; name: string; code: string } | null;
   product?: { id: string; name: string; sku: string; costPrice: number | string } | null;
   variant?: { id: string; name: string; sku: string } | null;
@@ -26,6 +29,14 @@ export interface StockItem {
 
 export interface StockResponse {
   data: StockItem[];
+  summary?: {
+    totalOnHand: number;
+    totalReserved: number;
+    totalAvailable: number;
+    lowStockCount: number;
+    outOfStockCount: number;
+    totalRecords: number;
+  };
   meta: {
     total: number;
     page: number;
@@ -35,30 +46,43 @@ export interface StockResponse {
 }
 
 export interface StockQueryParams {
-  warehouseId?: string;
-  locationId?: string;
-  productId?: string;
-  variantId?: string;
-  batchId?: string;
-  lowStock?: boolean;
-  search?: string;
-  page?: number;
-  limit?: number;
+  warehouseId?: string | undefined;
+  branchId?: string | undefined;
+  locationId?: string | undefined;
+  productId?: string | undefined;
+  variantId?: string | undefined;
+  batchId?: string | undefined;
+  lowStock?: boolean | undefined;
+  health?: StockHealthStatus | undefined;
+  search?: string | undefined;
+  sortBy?: string | undefined;
+  sortOrder?: "asc" | "desc" | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
 }
 
-export function useInventoryStock(params?: StockQueryParams) {
+
+export function buildStockQueryString(params?: StockQueryParams): string {
   const queryParams = new URLSearchParams();
   if (params?.warehouseId) queryParams.set("warehouseId", params.warehouseId);
+  if (params?.branchId) queryParams.set("branchId", params.branchId);
   if (params?.locationId) queryParams.set("locationId", params.locationId);
   if (params?.productId) queryParams.set("productId", params.productId);
   if (params?.variantId) queryParams.set("variantId", params.variantId);
   if (params?.batchId) queryParams.set("batchId", params.batchId);
   if (params?.lowStock) queryParams.set("lowStock", "true");
+  if (params?.health) queryParams.set("health", params.health);
   if (params?.search) queryParams.set("search", params.search);
+  if (params?.sortBy) queryParams.set("sortBy", params.sortBy);
+  if (params?.sortOrder) queryParams.set("sortOrder", params.sortOrder);
   if (params?.page) queryParams.set("page", String(params.page));
   if (params?.limit) queryParams.set("limit", String(params.limit));
 
-  const queryStr = queryParams.toString() ? `?${queryParams.toString()}` : "";
+  return queryParams.toString() ? `?${queryParams.toString()}` : "";
+}
+
+export function useInventoryStock(params?: StockQueryParams) {
+  const queryStr = buildStockQueryString(params);
 
   return useQuery<StockResponse>({
     queryKey: ["inventoryStock", params],
@@ -73,3 +97,10 @@ export function useInventoryStockById(id: string) {
     enabled: Boolean(id),
   });
 }
+
+export function downloadStockExport(format: "csv" | "pdf", params?: StockQueryParams) {
+  const queryStr = buildStockQueryString(params);
+  const endpoint = `/api/inventory/stock/export/${format}${queryStr}`;
+  window.open(endpoint, "_blank");
+}
+

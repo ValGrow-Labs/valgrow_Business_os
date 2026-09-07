@@ -12,6 +12,10 @@ export interface TransferItemLine {
   requestedQty: number | string;
   shippedQty: number | string;
   receivedQty: number | string;
+  product?: { id: string; name: string; sku: string } | null;
+  variant?: { id: string; name: string; sku: string } | null;
+  sourceLocation?: { id: string; name: string; code: string } | null;
+  destLocation?: { id: string; name: string; code: string } | null;
 }
 
 export interface TransferItem {

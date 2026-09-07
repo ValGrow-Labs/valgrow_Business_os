@@ -12,6 +12,21 @@ export interface AdjustmentItemLine {
   adjustedQty: number | string;
   newQty: number | string;
   unitCost: number | string;
+  location?: {
+    id: string;
+    name: string;
+    code: string;
+  } | undefined;
+  product?: {
+    id: string;
+    name: string;
+    sku: string;
+  } | undefined;
+  variant?: {
+    id: string;
+    name: string;
+    sku: string;
+  } | null | undefined;
 }
 
 export interface AdjustmentItem {
@@ -24,20 +39,58 @@ export interface AdjustmentItem {
   createdById: string;
   createdAt: string;
   updatedAt: string;
-  items?: AdjustmentItemLine[];
+  warehouse?: {
+    id: string;
+    name: string;
+    code: string;
+  } | undefined;
+  items?: AdjustmentItemLine[] | undefined;
 }
 
-export function useInventoryAdjustments() {
+export interface CreateAdjustmentLineInput {
+  locationId: string;
+  productId: string;
+  variantId?: string | null | undefined;
+  batchId?: string | null | undefined;
+  currentQty: number;
+  adjustedQty: number;
+  newQty: number;
+  unitCost?: number | undefined;
+}
+
+export interface CreateAdjustmentPayload {
+  adjustmentNumber: string;
+  warehouseId: string;
+  reason: string;
+  notes?: string | undefined;
+  items: CreateAdjustmentLineInput[];
+}
+
+export interface UseInventoryAdjustmentsOptions {
+  search?: string | undefined;
+  reason?: string | undefined;
+  warehouseId?: string | undefined;
+}
+
+export function useInventoryAdjustments(options?: UseInventoryAdjustmentsOptions) {
+  const queryParams = new URLSearchParams();
+  if (options?.search) queryParams.set("search", options.search);
+  if (options?.reason && options.reason !== "ALL") queryParams.set("reason", options.reason);
+  if (options?.warehouseId && options.warehouseId !== "ALL") queryParams.set("warehouseId", options.warehouseId);
+
+  const queryString = queryParams.toString();
+  const url = `/inventory/adjustments${queryString ? `?${queryString}` : ""}`;
+
   return useQuery<AdjustmentItem[]>({
-    queryKey: ["inventoryAdjustments"],
-    queryFn: () => apiClient<AdjustmentItem[]>("/inventory/adjustments"),
+    queryKey: ["inventoryAdjustments", options],
+    queryFn: () => apiClient<AdjustmentItem[]>(url),
   });
 }
 
 export function useCreateAdjustment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<AdjustmentItem>) =>
+    mutationFn: (data: CreateAdjustmentPayload) =>
       apiClient<AdjustmentItem>("/inventory/adjustments", {
         method: "POST",
         body: JSON.stringify(data),
@@ -46,6 +99,7 @@ export function useCreateAdjustment() {
       queryClient.invalidateQueries({ queryKey: ["inventoryAdjustments"] });
       queryClient.invalidateQueries({ queryKey: ["inventoryStock"] });
       queryClient.invalidateQueries({ queryKey: ["inventoryMovements"] });
+      queryClient.invalidateQueries({ queryKey: ["activityLogs"] });
     },
   });
 }
