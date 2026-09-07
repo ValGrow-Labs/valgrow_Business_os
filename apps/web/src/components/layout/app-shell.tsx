@@ -1,11 +1,13 @@
 import { useState, type ComponentType, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  ArrowRight,
   Bell,
   Building2,
   Check,
   ChevronsUpDown,
   CircleHelp,
+  Crown,
   GitBranch,
   LogOut,
   Menu,
@@ -135,54 +137,31 @@ function SidebarNav({ compact, onNavigate }: { compact: boolean; onNavigate?: ()
 
   return (
     <ScrollArea className="h-full">
-      <nav className="space-y-6 p-3">
-        {navGroups.map((group) => (
-          <div key={group.label} className="space-y-1">
-            {!compact ? (
-              <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+      <nav className="space-y-5 p-3">
+        {navGroups.map((group, idx) => (
+          <div key={group.label || idx} className="space-y-1">
+            {!compact && group.label ? (
+              <p className="px-2.5 pb-1 text-[10px] font-bold tracking-wider text-muted-foreground/70 uppercase">
                 {group.label}
               </p>
-            ) : (
+            ) : compact && group.label ? (
               <Separator className="mx-auto my-2 w-6" />
-            )}
+            ) : null}
             {group.items.map((item) => {
               const active = !item.soon && pathname === item.url;
               const content = (
                 <>
-                  <item.icon className="h-4 w-4 shrink-0" />
+                  <item.icon className={cn("h-4 w-4 shrink-0", active ? "text-purple-700" : "text-slate-500")} />
                   {!compact ? <span className="truncate">{item.title}</span> : null}
-                  {!compact && item.soon ? (
-                    <Badge variant="secondary" className="ml-auto text-[10px]">
-                      Soon
-                    </Badge>
-                  ) : null}
                 </>
               );
               const base = cn(
-                "flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all",
                 compact && "justify-center",
                 active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/60",
+                  ? "bg-purple-100/80 text-purple-900 font-semibold"
+                  : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-900",
               );
-
-              if (item.soon) {
-                return (
-                  <TooltipProvider key={item.title} delayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div
-                          aria-disabled
-                          className={cn(base, "cursor-not-allowed opacity-50 hover:bg-transparent")}
-                        >
-                          {content}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">{item.title} — coming soon</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                );
-              }
 
               return (
                 <Link key={item.title} to={item.url} className={base} onClick={onNavigate}>
@@ -349,10 +328,9 @@ function UserMenu() {
   const { data: userMe } = useCurrentUser();
   const logoutMutation = useLogoutMutation();
 
-  const user = userMe?.user;
-  const fullName = user ? `${user.firstName} ${user.lastName}` : "Jaasir";
-  const initials = user ? `${user.firstName[0] || ""}${user.lastName[0] || ""}`.toUpperCase() : "J";
-  const roleName = userMe?.role?.name || "Workspace owner";
+  const fullName = "John Doe";
+  const initials = "JD";
+  const roleName = "Admin";
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -369,10 +347,13 @@ function UserMenu() {
           type="button"
           className="flex items-center gap-2.5 shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-opacity hover:opacity-90 cursor-pointer"
         >
-          <div className="h-10 w-10 rounded-full bg-purple-950 text-white flex items-center justify-center shrink-0">
-            <span className="text-sm font-semibold">{initials}</span>
+          <div className="h-9 w-9 rounded-full bg-[#4C1D95] text-white flex items-center justify-center shrink-0 font-semibold text-xs shadow-xs">
+            <span>{initials}</span>
           </div>
-          <span className="text-sm font-medium text-foreground whitespace-nowrap">{fullName}</span>
+          <div className="text-left leading-tight hidden sm:block">
+            <span className="block text-xs font-bold text-slate-900">{fullName}</span>
+            <span className="block text-[10px] font-medium text-slate-500">{roleName}</span>
+          </div>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -456,23 +437,22 @@ export function AppShell({
           </div>
           <div className="p-3">
             {compact ? (
-              <div className="gradient-brand flex items-center justify-center rounded-xl p-2.5">
-                <Sparkles className="h-4 w-4 text-primary-foreground" />
+              <div className="flex items-center justify-center rounded-xl bg-purple-100 p-2.5 text-purple-700">
+                <Crown className="h-4 w-4" />
               </div>
             ) : (
-              <div className="gradient-brand relative overflow-hidden rounded-2xl p-4 shadow-[var(--shadow-panel)]">
-                <Sparkles className="h-5 w-5 text-primary-foreground" />
-                <p className="mt-2 text-sm font-semibold text-primary-foreground">AI Assistant</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-primary-foreground/85">
-                  Ask questions across every module, in plain language.
-                </p>
+              <div className="rounded-2xl border border-purple-100/80 bg-[#FAF7FF] p-3 text-center">
+                <div className="mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-purple-700">
+                  <Crown className="h-3.5 w-3.5" />
+                </div>
+                <p className="text-[11px] text-slate-500">You are on</p>
+                <p className="text-xs font-bold text-purple-950">Free Plan</p>
                 <Button
                   size="sm"
-                  variant="secondary"
-                  className="mt-3 w-full bg-white/15 text-primary-foreground hover:bg-white/25"
-                  onClick={() => setPaletteOpen(true)}
+                  variant="outline"
+                  className="mt-2 w-full h-8 border-purple-200 text-[11px] font-semibold text-purple-700 hover:bg-purple-50 hover:text-purple-800"
                 >
-                  Open assistant
+                  Upgrade Plan <ArrowRight className="ml-1 h-3 w-3" />
                 </Button>
               </div>
             )}
@@ -480,51 +460,59 @@ export function AppShell({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-16 shrink-0 items-center border-b border-border bg-surface/70 px-4 backdrop-blur sm:px-6">
-            {/* Mobile menu trigger */}
-            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden shrink-0 mr-3"
-                  aria-label="Open menu"
-                >
-                  <Menu className="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-72 bg-sidebar p-0">
-                <SheetTitle className="px-4 pt-4">
-                  <Brand />
-                </SheetTitle>
-                <div className="h-[calc(100vh-5rem)]">
-                  <SidebarNav compact={false} onNavigate={() => setMobileOpen(false)} />
-                </div>
-              </SheetContent>
-            </Sheet>
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-white px-4 sm:px-6">
+            {/* Left Header Title & Mobile menu */}
+            <div className="flex items-center gap-3">
+              <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="lg:hidden shrink-0"
+                    aria-label="Open menu"
+                  >
+                    <Menu className="h-5 w-5 text-slate-600" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-72 bg-sidebar p-0">
+                  <SheetTitle className="px-4 pt-4">
+                    <Brand />
+                  </SheetTitle>
+                  <div className="h-[calc(100vh-5rem)]">
+                    <SidebarNav compact={false} onNavigate={() => setMobileOpen(false)} />
+                  </div>
+                </SheetContent>
+              </Sheet>
 
-            {/* Search — left side, flex-1 so it fills available space */}
-            <div className="flex-1 min-w-0">
+              <button
+                onClick={() => setCompact((c) => !c)}
+                className="hidden lg:flex items-center justify-center p-1 text-slate-500 hover:text-slate-900 transition-colors"
+                aria-label="Toggle Menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              <h1 className="text-base font-bold text-slate-900 hidden sm:block">Overview</h1>
+            </div>
+
+            {/* Center Search bar */}
+            <div className="flex-1 max-w-md mx-4">
               <button
                 onClick={() => setPaletteOpen(true)}
-                className="flex h-[42px] w-full max-w-[450px] items-center gap-3 rounded-xl border border-input bg-surface-2/60 px-4 text-sm text-muted-foreground transition-colors hover:border-primary/40"
+                className="flex h-9 w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 text-xs text-slate-500 transition-colors hover:border-purple-300 hover:bg-white"
               >
-                <Search className="h-4 w-4 shrink-0" />
-                <span className="truncate text-sm text-muted-foreground text-left">
-                  Search modules, people, reports...
-                </span>
+                <div className="flex items-center gap-2 truncate">
+                  <Search className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  <span className="truncate">Search products, invoices, customers...</span>
+                </div>
+                <kbd className="hidden sm:inline-flex h-5 items-center rounded border border-slate-200 bg-white px-1.5 text-[10px] font-medium text-slate-400">
+                  ⌘ K
+                </kbd>
               </button>
             </div>
 
-            {/* Right-side controls — never shrink, never clip */}
-            <div className="ml-auto flex shrink-0 items-center gap-4">
+            {/* Right-side controls */}
+            <div className="flex shrink-0 items-center gap-3">
               <NotificationBell />
-              <HeaderIconLink to="/settings/system" label="Settings" icon={Settings} />
-
-              {/* Separator between utility controls and org/branch/profile */}
-              <div className="mx-1 h-6 w-px bg-border shrink-0" />
-
-              <OrgSwitcher />
               <BranchSwitcher />
               <UserMenu />
             </div>

@@ -58,15 +58,25 @@ export type NavGroup = {
 
 export const navGroups: NavGroup[] = [
   {
-    label: "Foundation",
+    label: "",
     items: [
       { title: "Overview", url: "/", icon: LayoutDashboard },
       { title: "Global Search", url: "/search", icon: Search },
-      { title: "Components", url: "/components", icon: Component },
     ],
   },
   {
-    label: "Organization",
+    label: "OPERATIONS",
+    items: [
+      { title: "POS", url: "/pos", icon: Calculator },
+      { title: "Inventory", url: "/inventory", icon: Boxes },
+      { title: "Purchasing", url: "/purchasing", icon: ShoppingCart },
+      { title: "Customers", url: "/customers", icon: Contact },
+      { title: "Reports", url: "/financial-reports", icon: BarChart3 },
+      { title: "Expenses", url: "/supplier-invoices", icon: Receipt },
+    ],
+  },
+  {
+    label: "MANAGEMENT",
     items: [
       { title: "Organization", url: "/organization", icon: Building2 },
       { title: "Branches", url: "/branches", icon: GitBranch },
@@ -75,141 +85,11 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Access",
+    label: "SYSTEM",
     items: [
       { title: "Users", url: "/users", icon: Users },
-      { title: "Roles", url: "/roles", icon: ShieldCheck },
-      { title: "Permissions", url: "/permissions", icon: KeyRound },
+      { title: "Settings", url: "/settings/system", icon: Settings },
     ],
-  },
-  {
-    label: "Master Data",
-    items: [
-      { title: "Products", url: "/products", icon: Package },
-      { title: "Categories", url: "/categories", icon: FolderTree },
-      { title: "Brands", url: "/brands", icon: Tag },
-      { title: "Units", url: "/units", icon: Scale },
-      { title: "Taxes", url: "/taxes", icon: Receipt },
-    ],
-  },
-  {
-    label: "Inventory",
-    items: [
-      { title: "Stock Levels", url: "/inventory", icon: Boxes },
-      { title: "Warehouses", url: "/warehouses", icon: Warehouse },
-      { title: "Locations", url: "/locations", icon: MapPin },
-      { title: "Batches", url: "/batches", icon: Package },
-      { title: "Serial Numbers", url: "/serial-numbers", icon: Barcode },
-      { title: "Movements", url: "/movements", icon: History },
-      { title: "Transfers", url: "/transfers", icon: ArrowRightLeft },
-      { title: "Adjustments", url: "/adjustments", icon: Sliders },
-      { title: "Reservations", url: "/reservations", icon: BookmarkCheck },
-    ],
-  },
-  {
-    label: "Purchasing",
-    items: [
-      { title: "Purchasing Dashboard", url: "/purchasing", icon: ShoppingCart },
-      { title: "Suppliers", url: "/suppliers", icon: Contact },
-      { title: "Purchase Requests", url: "/purchase-requests", icon: ScrollText },
-      { title: "Purchase Orders", url: "/purchase-orders", icon: ShoppingBag },
-      { title: "Goods Receipts", url: "/goods-receipts", icon: PackageCheck },
-      { title: "Landed Costs", url: "/landed-costs", icon: Calculator },
-      { title: "Supplier Invoices", url: "/supplier-invoices", icon: Receipt },
-      { title: "Supplier Payments", url: "/supplier-payments", icon: CreditCard },
-    ],
-  },
-  {
-    label: "Sales",
-    items: [
-      { title: "Sales Dashboard", url: "/sales", icon: ShoppingCart },
-      { title: "Customers", url: "/customers", icon: Contact },
-      { title: "Quotations", url: "/quotations", icon: ScrollText },
-      { title: "Sales Orders", url: "/sales-orders", icon: ShoppingBag },
-      { title: "Delivery Notes", url: "/delivery-notes", icon: PackageCheck },
-      { title: "Sales Invoices", url: "/sales-invoices", icon: Receipt },
-      { title: "Customer Payments", url: "/customer-payments", icon: CreditCard },
-      { title: "Sales Returns", url: "/sales-returns", icon: ArrowRightLeft },
-      { title: "Credit Notes", url: "/sales-credit-notes", icon: Calculator },
-    ],
-  },
-  {
-    label: "CRM",
-    items: [
-      { title: "CRM Dashboard", url: "/crm", icon: LayoutDashboard },
-      { title: "Leads", url: "/leads", icon: UserRound },
-      { title: "Opportunities", url: "/opportunities", icon: Sparkles },
-      { title: "Customers", url: "/customers", icon: Contact },
-      { title: "Contacts", url: "/contacts", icon: Users },
-      { title: "Activities", url: "/activities", icon: History },
-      { title: "Tasks", url: "/tasks", icon: BookmarkCheck },
-      { title: "Notes", url: "/notes", icon: ScrollText },
-      { title: "Pipelines", url: "/pipelines", icon: GitBranch },
-      { title: "Lead Sources", url: "/lead-sources", icon: SlidersHorizontal },
-      { title: "Tags", url: "/crm-tags", icon: Tag },
-      { title: "Customer Segments", url: "/customer-segments", icon: Network },
-    ],
-  },
-  {
-    label: "Accounting & Finance",
-    items: [
-      { title: "Accounting Dashboard", url: "/accounting", icon: LayoutDashboard },
-      { title: "Chart of Accounts", url: "/accounts", icon: FolderTree },
-      { title: "Journal Entries", url: "/journal-entries", icon: ScrollText },
-      { title: "Fiscal Years", url: "/fiscal-years", icon: History },
-      { title: "Cost Centers", url: "/cost-centers", icon: Network },
-      { title: "Accounts Receivable", url: "/accounts-receivable", icon: Receipt },
-      { title: "Accounts Payable", url: "/accounts-payable", icon: CreditCard },
-      { title: "Bank Accounts", url: "/bank-accounts", icon: Building2 },
-      { title: "Financial Reports", url: "/financial-reports", icon: BarChart3 },
-      { title: "Tax Summary", url: "/tax-reports", icon: Calculator },
-    ],
-  },
-  {
-    label: "POS",
-    items: [{ title: "POS Register", url: "/pos", icon: Calculator }],
-  },
-  {
-    label: "Workspace",
-    items: [
-      { title: "Notifications", url: "/notifications", icon: Bell },
-      { title: "Activity Logs", url: "/activity", icon: History },
-      { title: "Audit Logs", url: "/audit-logs", icon: ScrollText },
-      { title: "File Manager", url: "/files", icon: FolderOpen },
-    ],
-  },
-  {
-    label: "Account",
-    items: [
-      { title: "Profile", url: "/profile", icon: UserRound },
-      { title: "Preferences", url: "/preferences", icon: SlidersHorizontal },
-    ],
-  },
-  {
-    label: "Settings",
-    items: [
-      { title: "System", url: "/settings/system", icon: Cpu },
-      { title: "Theme", url: "/settings/theme", icon: Palette },
-      { title: "Appearance", url: "/settings/appearance", icon: Settings },
-      { title: "Security", url: "/settings/security", icon: Lock },
-    ],
-  },
-  {
-    label: "Business modules",
-    items: [
-      { title: "Projects", url: "/", icon: Boxes, soon: true },
-      { title: "Clients", url: "/", icon: Contact, soon: true },
-      { title: "Finance", url: "/", icon: Calculator, soon: true },
-      { title: "Operations", url: "/", icon: BriefcaseBusiness, soon: true },
-      { title: "AI Workspace", url: "/", icon: Sparkles, soon: true },
-      { title: "Analytics", url: "/", icon: BarChart3, soon: true },
-      { title: "Automation", url: "/", icon: Cpu, soon: true },
-      { title: "Reports", url: "/", icon: ScrollText, soon: true },
-    ],
-  },
-  {
-    label: "Support",
-    items: [{ title: "Help", url: "/help", icon: LifeBuoy }],
   },
 ];
 
