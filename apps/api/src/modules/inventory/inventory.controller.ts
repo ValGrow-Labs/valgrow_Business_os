@@ -186,6 +186,43 @@ export class InventoryController {
   }
 
   @RequirePermissions("inventory.read")
+  @Get("audit-trail")
+  async getAuditTrail(
+    @CurrentOrg("id") organizationId: string,
+    @Query("productId") productId?: string,
+    @Query("warehouseId") warehouseId?: string,
+    @Query("locationId") locationId?: string,
+    @Query("actorId") actorId?: string,
+    @Query("movementType") movementType?: string,
+    @Query("dateFrom") dateFrom?: string,
+    @Query("dateTo") dateTo?: string,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number,
+  ) {
+    return this.inventoryService.getAuditTrail(organizationId, {
+      productId,
+      warehouseId,
+      locationId,
+      actorId,
+      movementType,
+      dateFrom,
+      dateTo,
+      page,
+      limit,
+    });
+  }
+
+  @RequirePermissions("inventory.read")
+  @Get("valuation-report")
+  async getValuationReport(
+    @CurrentOrg("id") organizationId: string,
+    @Query("warehouseId") warehouseId?: string,
+    @Query("method") method?: "FIFO" | "LIFO" | "WEIGHTED_AVERAGE",
+  ) {
+    return this.inventoryService.getValuationReport(organizationId, warehouseId, method);
+  }
+
+  @RequirePermissions("inventory.read")
   @Get("stock/:id")
   async getStockById(
     @Param("id") id: string,

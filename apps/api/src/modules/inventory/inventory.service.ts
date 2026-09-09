@@ -18,11 +18,16 @@ export interface StockQueryOptions {
   limit?: number;
 }
 
+import { StockValuationService } from "./stock-valuation.service";
+
 export type StockHealthStatus = "OK" | "LOW" | "OUT";
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly valuationService: StockValuationService,
+  ) {}
 
   /** Builds the base Prisma WHERE clause from query options (without health filter). */
   private buildBaseWhere(
@@ -806,6 +811,202 @@ export class InventoryService {
       },
     };
   }
+
+  /**
+   * Dedicated Inventory Audit Trail with running balance, actor details, and cost calculations.
+   */
+  async getAuditTrail(
+    organizationId: string,
+    options: {
+      productId?: string;
+      warehouseId?: string;
+      locationId?: string;
+      actorId?: string;
+      movementType?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      page?: number;
+      limit?: number;
+    } = {},
+  ) {
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.min(200, Math.max(1, Number(options.limit) || 50));
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.StockMovementWhereInput = { organizationId };
+
+    if (options.productId) where.productId = options.productId;
+    if (options.warehouseId) where.warehouseId = options.warehouseId;
+    if (options.locationId) where.locationId = options.locationId;
+    if (options.actorId) where.actorId = options.actorId;
+    if (options.movementType) where.movementType = options.movementType as any;
+
+    if (options.dateFrom || options.dateTo) {
+      where.createdAt = {};
+      if (options.dateFrom) where.createdAt.gte = new Date(options.dateFrom);
+      if (options.dateTo) where.createdAt.lte = new Date(options.dateTo);
+    }
+
+    const [rows, total] = await Promise.all([
+      this.prisma.stockMovement.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          product: { select: { id: true, name: true, sku: true } },
+          variant: { select: { id: true, name: true, sku: true } },
+          warehouse: { select: { id: true, name: true, code: true } },
+          location: { select: { id: true, name: true, code: true } },
+          batch: { select: { id: true, batchNumber: true } },
+          actor: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.stockMovement.count({ where }),
+    ]);
+
+    const data = rows.map((m) => {
+      const qty = Number(m.quantity);
+      const unitCost = Number(m.unitCost);
+      const totalCost = Number(m.totalCost);
+
+      return {
+        id: m.id,
+        createdAt: m.createdAt,
+        movementType: m.movementType,
+        quantity: qty,
+        unitCost,
+        totalCost,
+        referenceType: m.referenceType,
+        referenceId: m.referenceId,
+        notes: m.notes,
+        productId: m.productId,
+        productName: m.product?.name || "Unassigned",
+        productSku: m.product?.sku || "-",
+        variantName: m.variant?.name || "Base Product",
+        warehouseName: m.warehouse?.name || "-",
+        locationName: m.location?.name || "-",
+        batchNumber: m.batch?.batchNumber || "N/A",
+        performedBy: m.actor
+          ? `${m.actor.firstName || ""} ${m.actor.lastName || ""}`.trim()
+          : "System",
+      };
+    });
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    };
+  }
+
+  /**
+   * Generates formal Inventory Valuation Report using StockValuationService / Cost Layers.
+   */
+  async getValuationReport(
+    organizationId: string,
+    warehouseId?: string,
+    method: "FIFO" | "LIFO" | "WEIGHTED_AVERAGE" = "FIFO",
+  ) {
+    const [stockLevels, costLayers] = await Promise.all([
+      this.prisma.stockLevel.findMany({
+        where: {
+          organizationId,
+          ...(warehouseId ? { warehouseId } : {}),
+        },
+        include: {
+          product: { select: { id: true, name: true, sku: true, costPrice: true } },
+          warehouse: { select: { id: true, name: true, code: true } },
+        },
+      }),
+      this.prisma.inventoryCostLayer.findMany({
+        where: {
+          organizationId,
+          remainingQty: { gt: 0 },
+          ...(warehouseId ? { warehouseId } : {}),
+        },
+        orderBy: { createdAt: method === "LIFO" ? "desc" : "asc" },
+      }),
+    ]);
+
+    const layersByStock = new Map<string, typeof costLayers>();
+    for (const layer of costLayers) {
+      const key = `${layer.productId}-${layer.warehouseId}`;
+      const list = layersByStock.get(key) || [];
+      list.push(layer);
+      layersByStock.set(key, list);
+    }
+
+    const byProductMap = new Map<
+      string,
+      {
+        productId: string;
+        productName: string;
+        sku: string;
+        warehouseName: string;
+        totalOnHand: number;
+        unitCost: number;
+        totalValue: number;
+        layerCount: number;
+      }
+    >();
+
+    let totalValuation = 0;
+    let totalUnitsOnHand = 0;
+
+    for (const lvl of stockLevels) {
+      if (!lvl.product) continue;
+      const onHand = Number(lvl.onHand);
+      if (onHand <= 0) continue;
+
+      const key = `${lvl.productId}-${lvl.warehouseId}`;
+      const itemLayers = layersByStock.get(key) || [];
+
+      let itemValue = 0;
+      if (method === "WEIGHTED_AVERAGE" || itemLayers.length === 0) {
+        const unitCost = Number(lvl.product.costPrice || 0);
+        itemValue = onHand * unitCost;
+      } else {
+        itemValue = itemLayers.reduce(
+          (sum: number, layer) => sum + Number(layer.remainingQty) * Number(layer.unitCost),
+          0,
+        );
+      }
+
+      const weightedUnitCost = onHand > 0 ? Math.round((itemValue / onHand) * 100) / 100 : 0;
+      totalValuation += itemValue;
+      totalUnitsOnHand += onHand;
+
+      byProductMap.set(key, {
+        productId: lvl.productId,
+        productName: lvl.product.name,
+        sku: lvl.product.sku || "-",
+        warehouseName: lvl.warehouse?.name || "-",
+        totalOnHand: onHand,
+        unitCost: weightedUnitCost,
+        totalValue: Math.round(itemValue * 100) / 100,
+        layerCount: itemLayers.length,
+      });
+    }
+
+    const byProduct = Array.from(byProductMap.values());
+
+    return {
+      method,
+      asOfDate: new Date(),
+      summary: {
+        totalInventoryValue: Math.round(totalValuation * 100) / 100,
+        totalUnitsOnHand,
+        totalItems: byProduct.length,
+      },
+      data: byProduct,
+    };
+  }
 }
+
 
 

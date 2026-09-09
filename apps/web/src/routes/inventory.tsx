@@ -41,7 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Download, Filter, Columns, ArrowUpDown, Settings2, ShoppingCart, AlertTriangle, Check, BarChart3, ClipboardCheck } from "lucide-react";
+import { Search, Download, Filter, Columns, ArrowUpDown, Settings2, ShoppingCart, AlertTriangle, Check, BarChart3, ClipboardCheck, Coins } from "lucide-react";
 import {
   useInventoryStock,
   usePurchaseSuggestions,
@@ -51,13 +51,14 @@ import {
   type StockItem,
   type PurchaseSuggestionItem,
 } from "@/hooks/queries/useInventoryStock";
+import { useInventoryValuationReport } from "@/hooks/queries/useInventoryAudit";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import { useBranches } from "@/hooks/queries/useBranches";
 import { useWarehouses } from "@/hooks/queries/useWarehouses";
 
 const title = "Live Stock Levels";
 const description =
-  "Real-time stock availability, reorder level thresholds, and auto purchase suggestions across all warehouses.";
+  "Real-time stock availability, reorder level thresholds, auto purchase suggestions, and valuation reports across all warehouses.";
 
 export const Route = createFileRoute("/inventory")({
   head: () => ({
@@ -114,6 +115,10 @@ function InventoryStockPage() {
   // Suggestions modal state
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
+  // Valuation report modal state
+  const [valuationOpen, setValuationOpen] = useState(false);
+  const [valuationMethod, setValuationMethod] = useState<"FIFO" | "LIFO" | "WEIGHTED_AVERAGE">("FIFO");
+
   // Column visibility state
   const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>({
     product: true,
@@ -144,6 +149,10 @@ function InventoryStockPage() {
 
   const { data: stockData } = useInventoryStock(queryParams);
   const { data: suggestionsData } = usePurchaseSuggestions();
+  const { data: valuationData } = useInventoryValuationReport({
+    warehouseId: warehouseId !== "ALL" ? warehouseId : undefined,
+    method: valuationMethod,
+  });
   const updateReorderMutation = useUpdateReorderSettings();
 
   const toggleSort = (field: string) => {
@@ -222,6 +231,10 @@ function InventoryStockPage() {
         eyebrow="Inventory"
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setValuationOpen(true)} className="border-brand/40 bg-brand/5 text-brand font-medium">
+              <Coins className="mr-1.5 h-4 w-4" />
+              Valuation Report
+            </Button>
             <Button variant="outline" size="sm" asChild className="border-brand/40 bg-brand/5 text-brand font-medium">
               <Link to="/inventory-analytics">
                 <BarChart3 className="mr-1.5 h-4 w-4" />
@@ -738,6 +751,110 @@ function InventoryStockPage() {
 
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setSuggestionsOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Modal 3: Inventory Valuation Report Modal ───────────────────────── */}
+      <Dialog open={valuationOpen} onOpenChange={setValuationOpen}>
+        <DialogContent className="sm:max-w-[850px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between text-lg">
+              <div className="flex items-center gap-2">
+                <Coins className="h-5 w-5 text-brand" />
+                Inventory Valuation Report
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-medium">Method:</span>
+                <Select
+                  value={valuationMethod}
+                  onValueChange={(val) => setValuationMethod(val as any)}
+                >
+                  <SelectTrigger className="h-8 w-44">
+                    <SelectValue placeholder="Valuation Method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FIFO">FIFO (First-In First-Out)</SelectItem>
+                    <SelectItem value="LIFO">LIFO (Last-In First-Out)</SelectItem>
+                    <SelectItem value="WEIGHTED_AVERAGE">Weighted Average</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </DialogTitle>
+            <DialogDescription>
+              Official financial valuation report of current inventory assets calculated via <strong>{valuationMethod}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          {valuationData?.summary && (
+            <div className="grid grid-cols-3 gap-3 my-2 p-3 bg-muted/40 rounded-lg text-sm border">
+              <div>
+                <div className="text-xs text-muted-foreground">Total Inventory Valuation</div>
+                <div className="font-bold text-brand text-lg">
+                  ₹{valuationData.summary.totalInventoryValue.toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Total On-Hand Units</div>
+                <div className="font-semibold text-foreground text-base">
+                  {valuationData.summary.totalUnitsOnHand} Units
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Valued Products</div>
+                <div className="font-semibold text-foreground text-base">
+                  {valuationData.summary.totalItems} SKUs
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(!valuationData?.data || valuationData.data.length === 0) ? (
+            <div className="py-12 text-center text-muted-foreground">
+              No inventory stock records found to evaluate.
+            </div>
+          ) : (
+            <div className="border rounded-md overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product &amp; SKU</TableHead>
+                    <TableHead>Warehouse</TableHead>
+                    <TableHead>On-Hand Qty</TableHead>
+                    <TableHead>Unit Cost ({valuationMethod})</TableHead>
+                    <TableHead>Total Valuation (₹)</TableHead>
+                    <TableHead>Cost Layers</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {valuationData.data.map((item) => (
+                    <TableRow key={`${item.productId}-${item.warehouseName}`}>
+                      <TableCell>
+                        <div className="font-medium text-foreground">{item.productName}</div>
+                        <div className="text-xs text-muted-foreground">{item.sku}</div>
+                      </TableCell>
+                      <TableCell>{item.warehouseName}</TableCell>
+                      <TableCell className="font-mono font-semibold">{item.totalOnHand} Units</TableCell>
+                      <TableCell className="font-mono">₹{item.unitCost.toLocaleString()}</TableCell>
+                      <TableCell className="font-mono font-bold text-foreground">
+                        ₹{item.totalValue.toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs font-mono">
+                          {item.layerCount} Active Layers
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setValuationOpen(false)}>
               Close
             </Button>
           </DialogFooter>
