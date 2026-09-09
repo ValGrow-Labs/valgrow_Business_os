@@ -426,4 +426,311 @@ export class InventoryService {
 </body>
 </html>`;
   }
+
+  // ─── ANALYTICS & INTELLIGENCE METHODS (PHASE 3) ─────────────────────────
+
+  /**
+   * ABC Analysis: Classifies inventory items into A (top 80% value), B (next 15%), C (bottom 5%).
+   */
+  async getAbcAnalysis(organizationId: string) {
+    const stockLevels = await this.prisma.stockLevel.findMany({
+      where: { organizationId },
+      include: {
+        product: { select: { id: true, name: true, sku: true, costPrice: true } },
+        warehouse: { select: { id: true, name: true } },
+      },
+    });
+
+    const productMap = new Map<
+      string,
+      {
+        productId: string;
+        productName: string;
+        productSku: string;
+        totalOnHand: number;
+        unitCost: number;
+        totalStockValue: number;
+        warehouses: string[];
+      }
+    >();
+
+    for (const lvl of stockLevels) {
+      if (!lvl.product) continue;
+      const pid = lvl.productId;
+      const onHand = Number(lvl.onHand);
+      const unitCost = Number(lvl.product.costPrice || 0);
+
+      const existing = productMap.get(pid) || {
+        productId: pid,
+        productName: lvl.product.name,
+        productSku: lvl.product.sku || "-",
+        totalOnHand: 0,
+        unitCost,
+        totalStockValue: 0,
+        warehouses: [],
+      };
+
+      existing.totalOnHand += onHand;
+      existing.totalStockValue += onHand * unitCost;
+      if (lvl.warehouse?.name && !existing.warehouses.includes(lvl.warehouse.name)) {
+        existing.warehouses.push(lvl.warehouse.name);
+      }
+      productMap.set(pid, existing);
+    }
+
+    const items = Array.from(productMap.values()).sort((a, b) => b.totalStockValue - a.totalStockValue);
+    const grandTotalValue = items.reduce((acc, i) => acc + i.totalStockValue, 0);
+
+    let cumulative = 0;
+    const classified = items.map((item) => {
+      cumulative += item.totalStockValue;
+      const cumulativePercentage = grandTotalValue > 0 ? (cumulative / grandTotalValue) * 100 : 0;
+      const shareOfTotalValue = grandTotalValue > 0 ? (item.totalStockValue / grandTotalValue) * 100 : 0;
+
+      let classification: "A" | "B" | "C" = "C";
+      if (cumulativePercentage <= 80 || (cumulativePercentage - shareOfTotalValue) < 80) {
+        classification = "A";
+      } else if (cumulativePercentage <= 95 || (cumulativePercentage - shareOfTotalValue) < 95) {
+        classification = "B";
+      }
+
+      return {
+        ...item,
+        shareOfTotalValue: Math.round(shareOfTotalValue * 100) / 100,
+        cumulativePercentage: Math.round(cumulativePercentage * 100) / 100,
+        classification,
+      };
+    });
+
+    const classA = classified.filter((i) => i.classification === "A");
+    const classB = classified.filter((i) => i.classification === "B");
+    const classC = classified.filter((i) => i.classification === "C");
+
+    return {
+      data: classified,
+      summary: {
+        grandTotalValue,
+        totalProducts: classified.length,
+        classA: { count: classA.length, value: classA.reduce((a, b) => a + b.totalStockValue, 0) },
+        classB: { count: classB.length, value: classB.reduce((a, b) => a + b.totalStockValue, 0) },
+        classC: { count: classC.length, value: classC.reduce((a, b) => a + b.totalStockValue, 0) },
+      },
+    };
+  }
+
+  /**
+   * Fast & Slow Moving Inventory Velocity: Ranks products by outbound movement rate over N days.
+   */
+  async getMovementVelocity(organizationId: string, days = 30) {
+    const periodDays = Math.max(1, Number(days) || 30);
+    const since = new Date(Date.now() - periodDays * 86400000);
+
+    const movements = await this.prisma.stockMovement.findMany({
+      where: {
+        organizationId,
+        createdAt: { gte: since },
+      },
+      include: {
+        product: { select: { id: true, name: true, sku: true, costPrice: true } },
+      },
+    });
+
+    const velocityMap = new Map<
+      string,
+      {
+        productId: string;
+        productName: string;
+        productSku: string;
+        outboundQty: number;
+        inboundQty: number;
+        totalMovements: number;
+        dailyVelocity: number;
+      }
+    >();
+
+    for (const m of movements) {
+      if (!m.product) continue;
+      const pid = m.productId;
+      const qty = Number(m.quantity);
+
+      const existing = velocityMap.get(pid) || {
+        productId: pid,
+        productName: m.product.name,
+        productSku: m.product.sku || "-",
+        outboundQty: 0,
+        inboundQty: 0,
+        totalMovements: 0,
+        dailyVelocity: 0,
+      };
+
+      existing.totalMovements += 1;
+      if (qty < 0) {
+        existing.outboundQty += Math.abs(qty);
+      } else {
+        existing.inboundQty += qty;
+      }
+      velocityMap.set(pid, existing);
+    }
+
+    const items = Array.from(velocityMap.values()).map((i) => ({
+      ...i,
+      dailyVelocity: Math.round((i.outboundQty / periodDays) * 100) / 100,
+    }));
+
+    items.sort((a, b) => b.outboundQty - a.outboundQty);
+
+    const fastMoving = items.filter((i) => i.dailyVelocity >= 1);
+    const moderateMoving = items.filter((i) => i.dailyVelocity > 0 && i.dailyVelocity < 1);
+    const slowMoving = items.filter((i) => i.dailyVelocity === 0);
+
+    return {
+      periodDays,
+      data: items,
+      summary: {
+        totalTrackedProducts: items.length,
+        fastMovingCount: fastMoving.length,
+        moderateMovingCount: moderateMoving.length,
+        slowMovingCount: slowMoving.length,
+      },
+    };
+  }
+
+  /**
+   * Dead Stock Detection: Products with stock > 0 but ZERO movements in the last N days.
+   */
+  async getDeadStock(organizationId: string, inactiveDays = 90) {
+    const daysThreshold = Math.max(1, Number(inactiveDays) || 90);
+    const since = new Date(Date.now() - daysThreshold * 86400000);
+
+    const stockLevels = await this.prisma.stockLevel.findMany({
+      where: { organizationId, onHand: { gt: 0 } },
+      include: {
+        product: { select: { id: true, name: true, sku: true, costPrice: true } },
+        warehouse: { select: { id: true, name: true } },
+      },
+    });
+
+    const activeMovements = await this.prisma.stockMovement.findMany({
+      where: { organizationId, createdAt: { gte: since } },
+      select: { productId: true },
+      distinct: ["productId"],
+    });
+
+    const activeProductIds = new Set(activeMovements.map((m) => m.productId));
+
+    const deadStockItems = stockLevels
+      .filter((lvl) => !activeProductIds.has(lvl.productId))
+      .map((lvl) => {
+        const onHand = Number(lvl.onHand);
+        const unitCost = Number(lvl.product?.costPrice || 0);
+        const tiedUpCapital = onHand * unitCost;
+
+        return {
+          stockLevelId: lvl.id,
+          productId: lvl.productId,
+          productName: lvl.product?.name || "Unassigned",
+          productSku: lvl.product?.sku || "-",
+          warehouseId: lvl.warehouseId,
+          warehouseName: lvl.warehouse?.name || "-",
+          onHand,
+          unitCost,
+          tiedUpCapital,
+          inactiveDays: daysThreshold,
+          lastActivity: "No activity in 90+ days",
+        };
+      });
+
+    const totalTiedUpCapital = deadStockItems.reduce((acc, item) => acc + item.tiedUpCapital, 0);
+
+    return {
+      inactiveDaysThreshold: daysThreshold,
+      data: deadStockItems,
+      summary: {
+        totalDeadStockItems: deadStockItems.length,
+        totalTiedUpCapital,
+      },
+    };
+  }
+
+  /**
+   * Stock Forecast & Stockout Risk Prediction.
+   */
+  async getStockForecast(organizationId: string, lookbackDays = 30) {
+    const days = Math.max(1, Number(lookbackDays) || 30);
+    const since = new Date(Date.now() - days * 86400000);
+
+    const stockLevels = await this.prisma.stockLevel.findMany({
+      where: { organizationId },
+      include: {
+        product: { select: { id: true, name: true, sku: true, costPrice: true } },
+        warehouse: { select: { id: true, name: true } },
+      },
+    });
+
+    const movements = await this.prisma.stockMovement.findMany({
+      where: { organizationId, createdAt: { gte: since }, quantity: { lt: 0 } },
+      select: { productId: true, quantity: true },
+    });
+
+    const outboundMap = new Map<string, number>();
+    for (const m of movements) {
+      const current = outboundMap.get(m.productId) || 0;
+      outboundMap.set(m.productId, current + Math.abs(Number(m.quantity)));
+    }
+
+    const forecastData = stockLevels.map((lvl) => {
+      const onHand = Number(lvl.onHand);
+      const reserved = Number(lvl.reserved);
+      const available = onHand - reserved;
+      const reorderLevel = lvl.reorderLevel !== null ? Number(lvl.reorderLevel) : null;
+
+      const totalOutbound = outboundMap.get(lvl.productId) || 0;
+      const avgDailyConsumption = Math.round((totalOutbound / days) * 100) / 100;
+
+      let daysUntilStockout: number | null = null;
+      if (avgDailyConsumption > 0 && available > 0) {
+        daysUntilStockout = Math.round(available / avgDailyConsumption);
+      } else if (available <= 0) {
+        daysUntilStockout = 0;
+      }
+
+      let riskStatus: "CRITICAL" | "WARNING" | "SAFE" = "SAFE";
+      if (available <= 0 || (daysUntilStockout !== null && daysUntilStockout <= 7)) {
+        riskStatus = "CRITICAL";
+      } else if (daysUntilStockout !== null && daysUntilStockout <= 30) {
+        riskStatus = "WARNING";
+      }
+
+      return {
+        stockLevelId: lvl.id,
+        productId: lvl.productId,
+        productName: lvl.product?.name || "Unassigned",
+        productSku: lvl.product?.sku || "-",
+        warehouseName: lvl.warehouse?.name || "-",
+        onHand,
+        reserved,
+        available,
+        reorderLevel,
+        avgDailyConsumption,
+        daysUntilStockout,
+        riskStatus,
+      };
+    });
+
+    const criticalCount = forecastData.filter((i) => i.riskStatus === "CRITICAL").length;
+    const warningCount = forecastData.filter((i) => i.riskStatus === "WARNING").length;
+    const safeCount = forecastData.filter((i) => i.riskStatus === "SAFE").length;
+
+    return {
+      lookbackDays: days,
+      data: forecastData,
+      summary: {
+        totalRecords: forecastData.length,
+        criticalCount,
+        warningCount,
+        safeCount,
+      },
+    };
+  }
 }
+

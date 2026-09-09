@@ -134,6 +134,39 @@ export class InventoryController {
   }
 
   @RequirePermissions("inventory.read")
+  @Get("analytics/abc")
+  async getAbcAnalysis(@CurrentOrg("id") organizationId: string) {
+    return this.inventoryService.getAbcAnalysis(organizationId);
+  }
+
+  @RequirePermissions("inventory.read")
+  @Get("analytics/movement-velocity")
+  async getMovementVelocity(
+    @CurrentOrg("id") organizationId: string,
+    @Query("days") days?: number,
+  ) {
+    return this.inventoryService.getMovementVelocity(organizationId, days);
+  }
+
+  @RequirePermissions("inventory.read")
+  @Get("analytics/dead-stock")
+  async getDeadStock(
+    @CurrentOrg("id") organizationId: string,
+    @Query("inactiveDays") inactiveDays?: number,
+  ) {
+    return this.inventoryService.getDeadStock(organizationId, inactiveDays);
+  }
+
+  @RequirePermissions("inventory.read")
+  @Get("analytics/forecast")
+  async getStockForecast(
+    @CurrentOrg("id") organizationId: string,
+    @Query("lookbackDays") lookbackDays?: number,
+  ) {
+    return this.inventoryService.getStockForecast(organizationId, lookbackDays);
+  }
+
+  @RequirePermissions("inventory.read")
   @Get("stock/:id")
   async getStockById(
     @Param("id") id: string,
@@ -142,5 +175,6 @@ export class InventoryController {
     return this.inventoryService.getStockById(id, organizationId);
   }
 }
+
 
 

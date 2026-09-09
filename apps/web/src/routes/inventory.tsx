@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHeader } from "@/components/foundation/page-header";
 import { StatCard } from "@/components/foundation/stat-card";
@@ -41,7 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Download, Filter, Columns, ArrowUpDown, Settings2, ShoppingCart, AlertTriangle, Check } from "lucide-react";
+import { Search, Download, Filter, Columns, ArrowUpDown, Settings2, ShoppingCart, AlertTriangle, Check, BarChart3 } from "lucide-react";
 import {
   useInventoryStock,
   usePurchaseSuggestions,
@@ -222,6 +222,12 @@ function InventoryStockPage() {
         eyebrow="Inventory"
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild className="border-brand/40 bg-brand/5 text-brand font-medium">
+              <Link to="/inventory-analytics">
+                <BarChart3 className="mr-1.5 h-4 w-4" />
+                Analytics &amp; Intelligence
+              </Link>
+            </Button>
             <Button
               variant="outline"
               size="sm"
