@@ -270,7 +270,7 @@ function MovementsPage() {
         />
 
         {/* Aggregate Stat Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Total Ledger Entries"
             value={meta.total.toLocaleString()}
@@ -278,15 +278,15 @@ function MovementsPage() {
             icon={History}
           />
           <StatCard
-            label="Inbound Receipts (+)"
+            label="Inbound Transactions"
             value={totalInboundCount.toLocaleString()}
-            hint="PO receipts, returns & adds"
+            hint="Receipts, Returns & Inward Adjustments"
             icon={ArrowDownLeft}
           />
           <StatCard
-            label="Outbound Dispatches (-)"
+            label="Outbound Transactions"
             value={totalOutboundCount.toLocaleString()}
-            hint="Sales shipments & transfers"
+            hint="Sales Shipments & Transfers"
             icon={ArrowUpRight}
           />
           <StatCard
@@ -298,9 +298,9 @@ function MovementsPage() {
         </div>
 
         {/* Toolbar & View Toggle */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-card p-4">
-          <div className="flex flex-1 items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-card p-3 sm:p-4">
+          <div className="flex flex-1 items-center gap-3 w-full">
+            <div className="relative flex-1 w-full sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search by SKU, product, actor, ref #..."
@@ -309,12 +309,12 @@ function MovementsPage() {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                className="pl-9"
+                className="pl-9 w-full"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
             {/* View Mode Toggle Switcher */}
             <div className="inline-flex items-center rounded-md border p-1 bg-muted/50">
               <Button

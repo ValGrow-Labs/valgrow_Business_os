@@ -230,50 +230,55 @@ function InventoryStockPage() {
         description={description}
         eyebrow="Inventory"
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setValuationOpen(true)} className="border-brand/40 bg-brand/5 text-brand font-medium">
-              <Coins className="mr-1.5 h-4 w-4" />
-              Valuation Report
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
+            <Button variant="outline" size="sm" onClick={() => setValuationOpen(true)} className="border-brand/40 bg-brand/5 text-brand font-medium text-xs sm:text-sm">
+              <Coins className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>Valuation Report</span>
             </Button>
-            <Button variant="outline" size="sm" asChild className="border-brand/40 bg-brand/5 text-brand font-medium">
+            <Button variant="outline" size="sm" asChild className="border-brand/40 bg-brand/5 text-brand font-medium text-xs sm:text-sm">
               <Link to="/inventory-analytics">
-                <BarChart3 className="mr-1.5 h-4 w-4" />
-                Analytics &amp; Intelligence
+                <BarChart3 className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Analytics &amp; Intelligence</span>
+                <span className="sm:hidden">Analytics</span>
               </Link>
             </Button>
-            <Button variant="outline" size="sm" asChild className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
+            <Button variant="outline" size="sm" asChild className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium text-xs sm:text-sm">
               <Link to="/cycle-count">
-                <ClipboardCheck className="mr-1.5 h-4 w-4" />
-                Cycle Counting
+                <ClipboardCheck className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Cycle Counting</span>
+                <span className="sm:hidden">Counting</span>
               </Link>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setSuggestionsOpen(true)}
-              className="relative border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+              className="relative border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 text-xs sm:text-sm"
             >
-              <ShoppingCart className="mr-1.5 h-4 w-4" />
-              Purchase Suggestions
+              <ShoppingCart className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Purchase Suggestions</span>
+              <span className="sm:hidden">Suggestions</span>
               {suggestionCount > 0 && (
                 <Badge variant="destructive" className="ml-1.5 h-5 px-1.5 text-[10px] font-bold">
                   {suggestionCount}
                 </Badge>
               )}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportCsv}>
-              <Download className="mr-1.5 h-4 w-4" />
-              Export (CSV)
+            <Button variant="outline" size="sm" onClick={handleExportCsv} className="text-xs sm:text-sm">
+              <Download className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Export (CSV)</span>
+              <span className="sm:hidden">CSV</span>
             </Button>
-            <Button size="sm" onClick={handleExportPdf}>
-              <Download className="mr-1.5 h-4 w-4" />
-              Export stock report
+            <Button size="sm" onClick={handleExportPdf} className="text-xs sm:text-sm">
+              <Download className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Export stock report</span>
+              <span className="sm:hidden">PDF</span>
             </Button>
           </div>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s, i) => (
           <StatCard
             key={s.label}
@@ -286,8 +291,8 @@ function InventoryStockPage() {
       </div>
 
       <div className="panel overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
-          <div className="relative w-full max-w-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-border p-4">
+          <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Filter records…"
@@ -296,11 +301,11 @@ function InventoryStockPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="pl-9"
+              className="pl-9 w-full"
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-between sm:justify-end w-full sm:w-auto">
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -600,7 +605,7 @@ function InventoryStockPage() {
 
       {/* ─── Modal 1: Edit Reorder Level Settings ────────────────────────────── */}
       <Dialog open={Boolean(editingItem)} onOpenChange={(open) => !open && setEditingItem(null)}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="w-[95vw] sm:max-w-[425px] p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings2 className="h-5 w-5 text-brand" />
@@ -660,7 +665,7 @@ function InventoryStockPage() {
 
       {/* ─── Modal 2: Auto Purchase Suggestions Panel ───────────────────────── */}
       <Dialog open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-[800px] max-h-[85vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">
               <ShoppingCart className="h-5 w-5 text-amber-500" />
@@ -672,7 +677,7 @@ function InventoryStockPage() {
           </DialogHeader>
 
           {suggestionsData?.summary && suggestionsData.summary.totalSuggestions > 0 && (
-            <div className="grid grid-cols-3 gap-3 my-2 p-3 bg-muted/40 rounded-lg text-sm border">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-2 p-3 bg-muted/40 rounded-lg text-sm border">
               <div>
                 <div className="text-xs text-muted-foreground">Total Suggestions</div>
                 <div className="font-semibold text-foreground text-base">
@@ -707,7 +712,7 @@ function InventoryStockPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product & Warehouse</TableHead>
+                    <TableHead>Product &amp; Warehouse</TableHead>
                     <TableHead>Available / Min</TableHead>
                     <TableHead>Suggested Order Qty</TableHead>
                     <TableHead>Est. Unit Cost</TableHead>
@@ -759,9 +764,9 @@ function InventoryStockPage() {
 
       {/* ─── Modal 3: Inventory Valuation Report Modal ───────────────────────── */}
       <Dialog open={valuationOpen} onOpenChange={setValuationOpen}>
-        <DialogContent className="sm:max-w-[850px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-[850px] max-h-[85vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between text-lg">
+            <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-lg">
               <div className="flex items-center gap-2">
                 <Coins className="h-5 w-5 text-brand" />
                 Inventory Valuation Report
@@ -789,7 +794,7 @@ function InventoryStockPage() {
           </DialogHeader>
 
           {valuationData?.summary && (
-            <div className="grid grid-cols-3 gap-3 my-2 p-3 bg-muted/40 rounded-lg text-sm border">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-2 p-3 bg-muted/40 rounded-lg text-sm border">
               <div>
                 <div className="text-xs text-muted-foreground">Total Inventory Valuation</div>
                 <div className="font-bold text-brand text-lg">

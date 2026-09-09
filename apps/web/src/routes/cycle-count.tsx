@@ -189,22 +189,23 @@ function CycleCountPage() {
         description={description}
         eyebrow="Inventory Operations"
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" asChild>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
+            <Button variant="outline" size="sm" asChild className="text-xs sm:text-sm">
               <Link to="/inventory">
-                <ArrowLeft className="mr-1.5 h-4 w-4" />
-                Back to Stock
+                <ArrowLeft className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Back to Stock</span>
+                <span className="sm:hidden">Stock</span>
               </Link>
             </Button>
-            <Button size="sm" onClick={() => setNewModalOpen(true)}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              New Count Sheet
+            <Button size="sm" onClick={() => setNewModalOpen(true)} className="text-xs sm:text-sm">
+              <Plus className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>New Count Sheet</span>
             </Button>
           </div>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s, i) => (
           <StatCard
             key={s.label}
@@ -347,9 +348,9 @@ function CycleCountPage() {
 
       {/* ─── Modal 2: Count Sheet Input & Variance Review ─────────────────── */}
       <Dialog open={Boolean(activeSessionId)} onOpenChange={(open) => !open && setActiveSessionId(null)}>
-        <DialogContent className="sm:max-w-[850px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-[850px] max-h-[85vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between text-lg">
+            <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-lg">
               <div className="flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-brand" />
                 Sheet: {activeSessionDetail?.countNumber}

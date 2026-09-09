@@ -313,13 +313,15 @@ function BatchesPage() {
           title={title}
           description={description}
           actions={
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                <Download className="mr-2 h-4 w-4" /> Export CSV
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
+              <Button variant="outline" size="sm" onClick={handleExportCSV} className="text-xs sm:text-sm">
+                <Download className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span>Export CSV</span>
               </Button>
               {canCreate && (
-                <Button size="sm" onClick={handleOpenCreate}>
-                  <Plus className="mr-2 h-4 w-4" /> New Batch Lot
+                <Button size="sm" onClick={handleOpenCreate} className="text-xs sm:text-sm">
+                  <Plus className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span>New Batch Lot</span>
                 </Button>
               )}
             </div>
@@ -327,7 +329,7 @@ function BatchesPage() {
         />
 
         {/* Aggregate Stat Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Total Batches"
             value={allBatches.length.toLocaleString()}
@@ -355,20 +357,20 @@ function BatchesPage() {
         </div>
 
         {/* Toolbar & Filters */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-card p-4">
-          <div className="flex flex-1 items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-card p-3 sm:p-4">
+          <div className="flex flex-1 items-center gap-3 w-full">
+            <div className="relative flex-1 w-full sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search by lot #, product, work order..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
+                className="pl-9 w-full"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 justify-between sm:justify-end w-full sm:w-auto">
             {/* Filter Menu */}
             <Popover>
               <PopoverTrigger asChild>

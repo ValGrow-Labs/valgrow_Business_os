@@ -161,7 +161,7 @@ function InventoryAnalyticsPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s, i) => (
           <StatCard
             key={s.label}
@@ -174,28 +174,30 @@ function InventoryAnalyticsPage() {
       </div>
 
       <Tabs defaultValue="abc" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto">
-          <TabsTrigger value="abc" className="flex items-center gap-1.5">
-            <PieChart className="h-4 w-4" />
-            ABC Analysis
-          </TabsTrigger>
-          <TabsTrigger value="velocity" className="flex items-center gap-1.5">
-            <TrendingUp className="h-4 w-4" />
-            Fast / Slow Moving
-          </TabsTrigger>
-          <TabsTrigger value="deadstock" className="flex items-center gap-1.5">
-            <AlertOctagon className="h-4 w-4" />
-            Dead Stock ({deadStockSummary?.totalDeadStockItems || 0})
-          </TabsTrigger>
-          <TabsTrigger value="forecast" className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4" />
-            Stock Forecast
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-1">
+          <TabsList className="flex w-full min-w-max justify-start sm:grid sm:grid-cols-4 sm:w-auto p-1">
+            <TabsTrigger value="abc" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <PieChart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>ABC Analysis</span>
+            </TabsTrigger>
+            <TabsTrigger value="velocity" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>Fast / Slow Moving</span>
+            </TabsTrigger>
+            <TabsTrigger value="deadstock" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <AlertOctagon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>Dead Stock ({deadStockSummary?.totalDeadStockItems || 0})</span>
+            </TabsTrigger>
+            <TabsTrigger value="forecast" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>Stock Forecast</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ─── TAB 1: ABC ANALYSIS ────────────────────────────────────────── */}
         <TabsContent value="abc" className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
             <Card className="border-emerald-500/30 bg-emerald-500/5">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center justify-between">
@@ -303,17 +305,17 @@ function InventoryAnalyticsPage() {
 
         {/* ─── TAB 2: MOVEMENT VELOCITY ───────────────────────────────────── */}
         <TabsContent value="velocity" className="space-y-4">
-          <div className="flex items-center justify-between p-4 panel">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 panel">
             <div>
               <h3 className="font-semibold text-base">Inventory Movement Velocity</h3>
               <p className="text-xs text-muted-foreground">
                 Outbound consumption rates and daily turnover velocity per SKU.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
               <span className="text-xs font-medium text-muted-foreground">Lookback Period:</span>
               <Select value={String(velocityDays)} onValueChange={(val) => setVelocityDays(Number(val))}>
-                <SelectTrigger className="w-32 h-8">
+                <SelectTrigger className="w-36 h-8">
                   <SelectValue placeholder="30 Days" />
                 </SelectTrigger>
                 <SelectContent>
@@ -426,7 +428,7 @@ function InventoryAnalyticsPage() {
 
         {/* ─── TAB 3: DEAD STOCK ──────────────────────────────────────────── */}
         <TabsContent value="deadstock" className="space-y-4">
-          <div className="flex items-center justify-between p-4 panel">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 panel">
             <div>
               <h3 className="font-semibold text-base flex items-center gap-2">
                 <AlertOctagon className="h-5 w-5 text-destructive" />
@@ -436,7 +438,7 @@ function InventoryAnalyticsPage() {
                 Products holding positive on-hand inventory with zero ledger activity over the selected period.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
               <span className="text-xs font-medium text-muted-foreground">Inactivity Window:</span>
               <Select value={String(deadStockDays)} onValueChange={(val) => setDeadStockDays(Number(val))}>
                 <SelectTrigger className="w-36 h-8">
@@ -510,7 +512,7 @@ function InventoryAnalyticsPage() {
 
         {/* ─── TAB 4: STOCK FORECAST ──────────────────────────────────────── */}
         <TabsContent value="forecast" className="space-y-4">
-          <div className="flex items-center justify-between p-4 panel">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 panel">
             <div>
               <h3 className="font-semibold text-base flex items-center gap-2">
                 <Clock className="h-5 w-5 text-brand" />
@@ -520,7 +522,7 @@ function InventoryAnalyticsPage() {
                 Predicts estimated days remaining before inventory depletion based on historical daily consumption rate.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
               <span className="text-xs font-medium text-muted-foreground">Historical Baseline:</span>
               <Select value={String(forecastDays)} onValueChange={(val) => setForecastDays(Number(val))}>
                 <SelectTrigger className="w-36 h-8">

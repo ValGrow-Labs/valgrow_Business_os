@@ -312,13 +312,15 @@ function TransfersPage() {
           title={title}
           description={description}
           actions={
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                <Download className="mr-2 h-4 w-4" /> Export CSV
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
+              <Button variant="outline" size="sm" onClick={handleExportCSV} className="text-xs sm:text-sm">
+                <Download className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span>Export CSV</span>
               </Button>
               {canTransfer && (
-                <Button size="sm" onClick={handleOpenCreate}>
-                  <Plus className="mr-2 h-4 w-4" /> New Stock Transfer
+                <Button size="sm" onClick={handleOpenCreate} className="text-xs sm:text-sm">
+                  <Plus className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span>New Transfer</span>
                 </Button>
               )}
             </div>
@@ -326,7 +328,7 @@ function TransfersPage() {
         />
 
         {/* Aggregate Stat Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Total Transfers"
             value={allTransfers.length.toLocaleString()}
@@ -342,11 +344,11 @@ function TransfersPage() {
           <StatCard
             label="In Transit"
             value={inTransitCount.toLocaleString()}
-            hint="Inventory on truck / line"
+            hint="Active stock movements"
             icon={Truck}
           />
           <StatCard
-            label="Completed Transfers"
+            label="Completed"
             value={completedCount.toLocaleString()}
             hint="Stock posted at destination"
             icon={CheckCircle2}
@@ -354,20 +356,20 @@ function TransfersPage() {
         </div>
 
         {/* Toolbar & Filters */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-card p-4">
-          <div className="flex flex-1 items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-card p-3 sm:p-4">
+          <div className="flex flex-1 items-center gap-3 w-full">
+            <div className="relative flex-1 w-full sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search transfer #, warehouse, notes..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
+                className="pl-9 w-full"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 justify-between sm:justify-end w-full sm:w-auto">
             {/* Status Filter */}
             <Popover>
               <PopoverTrigger asChild>
@@ -612,7 +614,7 @@ function TransfersPage() {
 
         {/* Create Transfer Dialog */}
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>Create Stock Transfer</DialogTitle>
               <DialogDescription>
@@ -627,7 +629,7 @@ function TransfersPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="sourceWh">Source Warehouse *</Label>
                   <Select

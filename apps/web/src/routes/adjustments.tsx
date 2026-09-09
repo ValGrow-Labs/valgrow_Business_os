@@ -294,19 +294,20 @@ function AdjustmentsPage() {
           title={title}
           description={description}
           actions={
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="mr-2 gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
+              <Badge variant="outline" className="gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs py-1">
                 <Calculator className="h-3.5 w-3.5" />
-                FIFO Valuation Engine
+                <span className="hidden sm:inline">FIFO Valuation Engine</span>
+                <span className="sm:hidden">FIFO</span>
               </Badge>
-              <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={adjustments.length === 0}>
-                <Download className="mr-2 h-4 w-4" />
-                Export CSV
+              <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={adjustments.length === 0} className="text-xs sm:text-sm">
+                <Download className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span>Export CSV</span>
               </Button>
               {canAdjust && (
-                <Button size="sm" onClick={() => setIsFormOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Stock Adjustment
+                <Button size="sm" onClick={() => setIsFormOpen(true)} className="text-xs sm:text-sm">
+                  <Plus className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span>New Adjustment</span>
                 </Button>
               )}
             </div>
@@ -314,7 +315,7 @@ function AdjustmentsPage() {
         />
 
         {/* 4 Stat Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Total Adjustments"
             value={String(totalAdjustments)}
@@ -341,22 +342,22 @@ function AdjustmentsPage() {
           />
         </div>
 
-        {/* Toolbar */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-1 items-center gap-2">
-            <div className="relative flex-1 max-w-xs">
+        {/* Filters bar */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64 max-w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search adjustment no, warehouse..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-8"
+                className="pl-8 w-full"
               />
             </div>
 
             {/* Reason Filter */}
             <Select value={reasonFilter} onValueChange={setReasonFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[170px]">
                 <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
                 <SelectValue placeholder="Reason Filter" />
               </SelectTrigger>
@@ -372,7 +373,7 @@ function AdjustmentsPage() {
 
             {/* Warehouse Filter */}
             <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[170px]">
                 <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
                 <SelectValue placeholder="Warehouse" />
               </SelectTrigger>

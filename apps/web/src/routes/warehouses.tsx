@@ -223,18 +223,18 @@ function WarehousesPage() {
         description={description}
         eyebrow="Inventory"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
             {canCreate && (
-              <Button size="sm" onClick={handleOpenCreate}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                New warehouse
+              <Button size="sm" onClick={handleOpenCreate} className="text-xs sm:text-sm">
+                <Plus className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span>New warehouse</span>
               </Button>
             )}
           </div>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s, i) => (
           <StatCard
             key={s.label}
@@ -247,8 +247,8 @@ function WarehousesPage() {
       </div>
 
       <div className="panel overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
-          <div className="relative w-full max-w-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-border p-4">
+          <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Filter records…"
