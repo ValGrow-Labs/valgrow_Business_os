@@ -30,21 +30,21 @@ import {
 
 export function OverviewHeader() {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 pb-2">
+    <div className="flex flex-wrap items-center justify-between gap-4 pb-1">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
           Good morning, John! <span className="text-2xl">👋</span>
         </h1>
         <p className="mt-1 text-xs sm:text-sm text-slate-500 font-medium">
-          Here's what's happening in your business.
+          Here's what's happening in your business today.
         </p>
       </div>
 
       <div className="flex items-center gap-2">
-        <button className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:border-slate-300 transition-colors">
-          <Calendar className="h-4 w-4 text-slate-500" />
+        <button className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50/50 transition-colors">
+          <Calendar className="h-4 w-4 text-slate-400" />
           <span>21 May 2026 - 27 May 2026</span>
-          <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+          <ChevronDown className="h-3.5 w-3.5 text-slate-400 ml-1" />
         </button>
       </div>
     </div>
@@ -54,74 +54,50 @@ export function OverviewHeader() {
 export function WelcomeHeroBanner() {
   const [searchValue, setSearchValue] = useState("");
 
-  const suggestionChips = [
-    "What should I focus on today?",
-    "Which products are low in stock?",
-    "How are my sales this week?",
-    "Who are my inactive customers?",
-  ];
-
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#240A59] via-[#3C158A] to-[#1E074A] p-6 sm:p-8 lg:p-10 text-white shadow-xl">
-      {/* Decorative sparkle Orbs */}
-      <div className="pointer-events-none absolute -left-12 -top-12 h-64 w-64 rounded-full bg-purple-500/20 blur-3xl" />
-      <div className="pointer-events-none absolute right-1/3 bottom-0 h-48 w-48 rounded-full bg-indigo-500/20 blur-3xl" />
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#EDE5FF] via-[#E4D9FF] to-[#F2EBFF] p-6 sm:p-8 lg:p-10 border border-purple-100/60 shadow-2xs">
+      {/* Decorative Orbs */}
+      <div className="pointer-events-none absolute -left-12 -top-12 h-64 w-64 rounded-full bg-purple-300/30 blur-3xl" />
+      <div className="pointer-events-none absolute right-1/4 bottom-0 h-48 w-48 rounded-full bg-indigo-300/20 blur-3xl" />
 
       <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12">
-        {/* Left Text & Search Content */}
-        <div className="lg:col-span-7 space-y-5">
-          <div className="flex items-center gap-2 text-purple-300">
-            <Sparkles className="h-5 w-5" />
-            <span className="text-xs font-semibold tracking-wider uppercase">Welcome to</span>
+        {/* Left Content */}
+        <div className="lg:col-span-7 space-y-4 sm:space-y-5">
+          <div className="flex items-center gap-2 text-purple-700 font-semibold text-xs uppercase tracking-wider">
+            <Sparkles className="h-4.5 w-4.5 text-purple-600" />
+            <span>Welcome to</span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-[#2B1266] leading-tight">
             ValGrow Business OS
           </h2>
-          <p className="text-sm sm:text-base text-purple-100/90 max-w-xl font-normal leading-relaxed">
-            Manage your business smarter, simpler and in one place.
+          <p className="text-sm sm:text-base text-[#4C2694] font-medium max-w-xl leading-relaxed">
+            Manage your business, marketing and suppliers in one place.
           </p>
 
           {/* Search Box inside Hero */}
           <div className="pt-2">
-            <div className="relative flex items-center max-w-xl rounded-2xl bg-white/95 backdrop-blur-md p-1.5 shadow-lg border border-white/30">
-              <Sparkles className="ml-3 h-5 w-5 shrink-0 text-purple-600" />
+            <div className="relative flex items-center max-w-xl rounded-full bg-white p-1.5 pl-4 shadow-sm border border-purple-100/80">
+              <Sparkles className="h-5 w-5 shrink-0 text-purple-600 mr-2" />
               <input
                 type="text"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
                 placeholder="Ask ValGrow: What should I focus on today?"
-                className="w-full bg-transparent px-3 py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                className="w-full bg-transparent py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none font-medium"
               />
               <button
                 type="button"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-600 text-white shadow-md hover:bg-purple-700 transition-colors"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5B21B6] text-white shadow-sm hover:bg-purple-800 transition-colors"
               >
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           </div>
-
-          {/* Prompt Chips */}
-          <div className="pt-1">
-            <p className="text-xs text-purple-300/90 font-medium mb-2.5">Try asking:</p>
-            <div className="flex flex-wrap gap-2">
-              {suggestionChips.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => setSearchValue(chip)}
-                  className="rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 text-xs text-purple-100 font-medium transition-colors"
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
-        {/* Right Illustration */}
-        <div className="lg:col-span-5 flex justify-center">
+        {/* Right Graphic Illustration */}
+        <div className="lg:col-span-5 flex justify-center relative">
           <HeroIllustration className="w-full max-w-md lg:max-w-none" />
         </div>
       </div>
@@ -133,84 +109,82 @@ export function BusinessHubSection() {
   const cards = [
     {
       title: "POS",
-      description: "Create bills, accept payments and print receipts.",
+      description: "Sell and manage effortlessly",
       url: "/pos",
-      buttonText: "Launch POS →",
-      bgColor: "bg-emerald-50 text-emerald-600",
-      buttonColor: "bg-emerald-600 hover:bg-emerald-700 text-white",
+      iconBg: "bg-[#F3E8FF] text-[#7C3AED]",
+      btnBg: "bg-purple-50 text-[#7C3AED] hover:bg-purple-100",
       icon: Receipt,
     },
     {
       title: "Inventory",
-      description: "Manage stock, products and stock movement.",
+      description: "Track stock in real-time",
       url: "/inventory",
-      buttonText: "Explore Inventory →",
-      bgColor: "bg-blue-50 text-blue-600",
-      buttonColor: "bg-blue-600 hover:bg-blue-700 text-white",
+      iconBg: "bg-[#E0F2FE] text-[#0284C7]",
+      btnBg: "bg-sky-50 text-[#0284C7] hover:bg-sky-100",
       icon: Boxes,
     },
     {
       title: "Purchasing",
-      description: "Buy items, manage suppliers and orders.",
+      description: "Manage suppliers and orders",
       url: "/purchasing",
-      buttonText: "Place Order →",
-      bgColor: "bg-orange-50 text-orange-600",
-      buttonColor: "bg-orange-500 hover:bg-orange-600 text-white",
+      iconBg: "bg-[#DCFCE7] text-[#16A34A]",
+      btnBg: "bg-emerald-50 text-[#16A34A] hover:bg-emerald-100",
       icon: ShoppingCart,
     },
     {
       title: "Customers",
-      description: "View customers, purchase history and due amount.",
+      description: "Build stronger customer relationships",
       url: "/customers",
-      buttonText: "Manage Customers →",
-      bgColor: "bg-purple-50 text-purple-600",
-      buttonColor: "bg-purple-600 hover:bg-purple-700 text-white",
+      iconBg: "bg-[#FFE4E6] text-[#E11D48]",
+      btnBg: "bg-rose-50 text-[#E11D48] hover:bg-rose-100",
       icon: Users,
     },
     {
       title: "Reports",
-      description: "View sales, profit, stock and other reports.",
+      description: "Get insights and grow smarter",
       url: "/financial-reports",
-      buttonText: "Analyze Reports →",
-      bgColor: "bg-teal-50 text-teal-600",
-      buttonColor: "bg-teal-600 hover:bg-teal-700 text-white",
+      iconBg: "bg-[#FEF3C7] text-[#D97706]",
+      btnBg: "bg-amber-50 text-[#D97706] hover:bg-amber-100",
       icon: BarChart3,
     },
   ];
 
   return (
     <div className="space-y-4 pt-2">
-      <h2 className="text-lg font-bold text-slate-900">Business Hub</h2>
+      <div>
+        <h2 className="text-xl font-extrabold text-slate-900">Business Hub</h2>
+        <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+          Quick access to your key operations
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <div
+            <Link
               key={card.title}
-              className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:border-slate-300 hover:shadow-md"
+              to={card.url}
+              className="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-2xs transition-all hover:border-purple-200 hover:shadow-md"
             >
-              <div>
-                <div className="flex items-center justify-center mb-3">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-full ${card.bgColor}`}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${card.iconBg} shadow-2xs`}>
                     <Icon className="h-6 w-6" />
                   </div>
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-full ${card.btnBg} transition-transform group-hover:translate-x-0.5`}>
+                    <ArrowRight className="h-4 w-4" />
+                  </div>
                 </div>
-                <h3 className="text-center font-bold text-slate-900 text-base">{card.title}</h3>
-                <p className="mt-1 text-center text-xs text-slate-500 leading-relaxed min-h-[36px]">
-                  {card.description}
-                </p>
-              </div>
 
-              <Link to={card.url} className="mt-4 block">
-                <Button
-                  size="sm"
-                  className={`w-full rounded-xl h-9 text-xs font-semibold ${card.buttonColor} shadow-xs`}
-                >
-                  {card.buttonText}
-                </Button>
-              </Link>
-            </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">{card.title}</h3>
+                  <p className="mt-1 text-xs text-slate-500 leading-relaxed font-normal">
+                    {card.description}
+                  </p>
+                </div>
+              </div>
+            </Link>
           );
         })}
       </div>
@@ -344,13 +318,23 @@ export function FeatureCardsSection() {
 
   return (
     <div className="space-y-4 pt-4">
-      <div>
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900">
-          Explore What ValGrow Business OS Can Do
-        </h2>
-        <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-          Powerful tools to manage every part of your business — all in one place.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+            Explore What ValGrow Business OS Can Do
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+            Powerful tools to run and grow your business
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-full border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs gap-1.5 shrink-0"
+        >
+          <span>View All</span>
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

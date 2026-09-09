@@ -9,6 +9,7 @@ import {
   CircleHelp,
   Crown,
   GitBranch,
+  LayoutGrid,
   LogOut,
   Menu,
   Moon,
@@ -50,24 +51,20 @@ import { setActiveOrgId } from "@/lib/api-client";
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link to="/" className={cn("flex items-center px-1", compact ? "justify-center" : "gap-3.5")}>
+    <Link to="/" className={cn("flex items-center px-1", compact ? "justify-center" : "gap-2.5")}>
       <span
         className={cn(
-          "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-black/5",
-          compact ? "h-[42px] w-[42px]" : "h-[50px] w-[50px]",
+          "flex shrink-0 items-center justify-center rounded-full bg-white border border-slate-300 text-slate-900 font-extrabold shadow-2xs",
+          compact ? "h-9 w-9 text-xs" : "h-9 w-9 text-xs",
         )}
       >
-        <img
-          src={valgrowLogo}
-          alt="ValGrow"
-          className={cn("object-contain shrink-0", compact ? "h-7 w-7" : "h-[34px] w-[34px]")}
-        />
+        VG
       </span>
       {!compact ? (
         <span className="leading-tight truncate">
-          <span className="block text-sm font-bold">ValGrow</span>
-          <span className="block text-[11px] uppercase tracking-widest text-muted-foreground">
-            Business OS
+          <span className="block text-sm font-extrabold text-slate-900">ValGrow</span>
+          <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-bold">
+            BUSINESS OS
           </span>
         </span>
       ) : null}
@@ -257,17 +254,17 @@ function NotificationBell() {
   const list =
     apiNotifications && apiNotifications.length > 0
       ? apiNotifications.map((n) => ({
-          id: n.id,
-          title: n.title,
-          body: n.body,
-          time: new Date(n.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          unread: n.unread,
-          kind: (n.kind.toLowerCase() === "error" ? "warning" : n.kind.toLowerCase()) as
-            "info" | "success" | "warning",
-        }))
+        id: n.id,
+        title: n.title,
+        body: n.body,
+        time: new Date(n.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        unread: n.unread,
+        kind: (n.kind.toLowerCase() === "error" ? "warning" : n.kind.toLowerCase()) as
+          "info" | "success" | "warning",
+      }))
       : notifications;
 
   const unread = list.filter((n) => n.unread).length;
@@ -283,7 +280,7 @@ function NotificationBell() {
         >
           <Bell className="h-4 w-4" />
           {unread > 0 ? (
-            <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#5B21B6] text-[10px] font-bold text-white shadow-2xs">
               {unread}
             </span>
           ) : null}
@@ -393,40 +390,45 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="relative isolate min-h-screen w-full overflow-hidden bg-background p-2 sm:p-4 lg:p-6">
-      <div className="gradient-brand pointer-events-none fixed -left-24 -top-24 -z-10 h-96 w-96 rounded-full opacity-20 blur-[110px]" />
-      <div className="pointer-events-none fixed -right-20 top-1/3 -z-10 h-80 w-80 rounded-full bg-warning/20 opacity-25 blur-[110px]" />
-      <div className="pointer-events-none fixed bottom-0 left-1/2 -z-10 h-72 w-72 -translate-x-1/2 rounded-full bg-info/20 opacity-20 blur-[110px]" />
-
-      <div className="mx-auto flex h-[calc(100vh-1rem)] w-full max-w-[1680px] overflow-hidden rounded-3xl border border-border bg-background shadow-[var(--shadow-panel)] sm:h-[calc(100vh-2rem)] lg:h-[calc(100vh-3rem)]">
+    <div className="relative isolate h-screen w-full overflow-hidden bg-slate-50 p-0 sm:p-2 lg:p-3">
+      <div className="mx-auto flex h-full w-full max-w-[1720px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
         <aside
           className={cn(
-            "hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 lg:flex",
-            compact ? "w-[116px]" : "w-64",
+            "hidden h-full shrink-0 flex-col border-r border-slate-200/80 bg-[#FAFAFC] transition-[width] duration-200 lg:flex",
+            compact ? "w-[100px]" : "w-60",
           )}
         >
           {compact ? (
-            <div className="relative flex h-[72px] w-full items-center px-3 border-b border-sidebar-border">
+            <div className="relative flex h-[64px] w-full items-center px-3 border-b border-slate-200/80">
               <Brand compact />
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setCompact((c) => !c)}
                 aria-label="Expand sidebar"
-                className="absolute right-2 top-1/2 h-9 w-9 -translate-y-1/2 shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2 shrink-0 hover:bg-slate-100"
               >
                 <Menu className="h-4 w-4" />
               </Button>
             </div>
           ) : (
-            <div className="flex h-16 w-full items-center justify-between px-3 border-b border-sidebar-border">
-              <Brand />
+            <div className="flex h-16 w-full items-center justify-between px-3 border-b border-slate-200/80">
+              <div className="flex items-center gap-2">
+                <Brand />
+                <button
+                  type="button"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-2xs"
+                  aria-label="App switcher"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                </button>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setCompact((c) => !c)}
                 aria-label="Collapse sidebar"
-                className="shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                className="shrink-0 hover:bg-slate-100"
               >
                 <PanelLeftClose className="h-4 w-4" />
               </Button>
@@ -441,16 +443,16 @@ export function AppShell({
                 <Crown className="h-4 w-4" />
               </div>
             ) : (
-              <div className="rounded-2xl border border-purple-100/80 bg-[#FAF7FF] p-3 text-center">
-                <div className="mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-purple-700">
+              <div className="rounded-2xl border border-purple-100/80 bg-[#FAF7FF] p-3.5 text-center">
+                <div className="mx-auto mb-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-purple-700">
                   <Crown className="h-3.5 w-3.5" />
                 </div>
-                <p className="text-[11px] text-slate-500">You are on</p>
-                <p className="text-xs font-bold text-purple-950">Free Plan</p>
+                <p className="text-[11px] text-slate-500 font-medium">You are on</p>
+                <p className="text-xs font-bold text-slate-900">Free Plan</p>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="mt-2 w-full h-8 border-purple-200 text-[11px] font-semibold text-purple-700 hover:bg-purple-50 hover:text-purple-800"
+                  className="mt-2.5 w-full h-8 border-purple-200 bg-white text-[11px] font-semibold text-purple-700 hover:bg-purple-50 hover:text-purple-800 shadow-2xs"
                 >
                   Upgrade Plan <ArrowRight className="ml-1 h-3 w-3" />
                 </Button>
@@ -459,8 +461,8 @@ export function AppShell({
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-white px-4 sm:px-6">
+        <div className="flex min-w-0 flex-1 flex-col h-full bg-white">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white px-4 sm:px-6">
             {/* Left Header Title & Mobile menu */}
             <div className="flex items-center gap-3">
               <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -494,22 +496,6 @@ export function AppShell({
               <h1 className="text-base font-bold text-slate-900 hidden sm:block">Overview</h1>
             </div>
 
-            {/* Center Search bar */}
-            <div className="flex-1 max-w-md mx-4">
-              <button
-                onClick={() => setPaletteOpen(true)}
-                className="flex h-9 w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 text-xs text-slate-500 transition-colors hover:border-purple-300 hover:bg-white"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <Search className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                  <span className="truncate">Search products, invoices, customers...</span>
-                </div>
-                <kbd className="hidden sm:inline-flex h-5 items-center rounded border border-slate-200 bg-white px-1.5 text-[10px] font-medium text-slate-400">
-                  ⌘ K
-                </kbd>
-              </button>
-            </div>
-
             {/* Right-side controls */}
             <div className="flex shrink-0 items-center gap-3">
               <NotificationBell />
@@ -518,7 +504,7 @@ export function AppShell({
             </div>
           </header>
 
-          <main className="min-w-0 flex-1 overflow-y-auto px-3 py-6 sm:px-6 lg:px-8">
+          <main className="min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
             <div
               className={cn(
                 "mx-auto w-full",
@@ -529,13 +515,6 @@ export function AppShell({
               {rightPanel ? <div className="space-y-4">{rightPanel}</div> : null}
             </div>
           </main>
-
-          <footer className="shrink-0 border-t border-border px-4 py-3 text-xs text-muted-foreground sm:px-6">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span>ValGrow Business OS</span>
-              <span>Placeholder content only · v0.1.0</span>
-            </div>
-          </footer>
         </div>
 
         <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />

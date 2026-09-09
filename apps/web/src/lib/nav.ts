@@ -67,28 +67,18 @@ export const navGroups: NavGroup[] = [
   {
     label: "OPERATIONS",
     items: [
-      { title: "POS", url: "/pos", icon: Calculator },
+      { title: "POS", url: "/pos", icon: ShoppingBag },
       { title: "Inventory", url: "/inventory", icon: Boxes },
       { title: "Purchasing", url: "/purchasing", icon: ShoppingCart },
       { title: "Customers", url: "/customers", icon: Contact },
       { title: "Reports", url: "/financial-reports", icon: BarChart3 },
-      { title: "Expenses", url: "/supplier-invoices", icon: Receipt },
+      { title: "Expenses", url: "/supplier-invoices", icon: CreditCard },
     ],
   },
   {
     label: "MANAGEMENT",
     items: [
       { title: "Organization", url: "/organization", icon: Building2 },
-      { title: "Branches", url: "/branches", icon: GitBranch },
-      { title: "Departments", url: "/departments", icon: Network },
-      { title: "Teams", url: "/teams", icon: UsersRound },
-    ],
-  },
-  {
-    label: "SYSTEM",
-    items: [
-      { title: "Users", url: "/users", icon: Users },
-      { title: "Settings", url: "/settings/system", icon: Settings },
     ],
   },
 ];

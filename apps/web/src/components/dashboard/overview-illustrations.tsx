@@ -2,13 +2,160 @@ import React from "react";
 
 export function HeroIllustration({ className }: { className?: string }) {
   return (
-    <div className={`relative flex items-center justify-center ${className || ""}`}>
-      <img
-        src="/illustrations/hero.jpg"
-        alt="ValGrow Business OS Dashboard"
-        className="w-full h-auto drop-shadow-2xl select-none rounded-2xl object-cover"
-        draggable={false}
-      />
+    <div className={`relative flex items-center justify-center w-full ${className || ""}`}>
+      <svg
+        viewBox="0 0 520 280"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-auto max-w-[520px] select-none"
+      >
+        <defs>
+          <filter id="heroShadow" x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="8" stdDeviation="12" floodColor="#4C1D95" floodOpacity="0.15" />
+          </filter>
+          <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#1E1B4B" floodOpacity="0.12" />
+          </filter>
+          <linearGradient id="laptopBody" x1="0" y1="0" x2="0" y2="100%">
+            <stop offset="0%" stopColor="#1E293B" />
+            <stop offset="100%" stopColor="#0F172A" />
+          </linearGradient>
+          <linearGradient id="laptopScreen" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#F8FAFC" />
+            <stop offset="100%" stopColor="#EEF2FF" />
+          </linearGradient>
+          <linearGradient id="chartBarGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#818CF8" />
+            <stop offset="100%" stopColor="#4F46E5" />
+          </linearGradient>
+        </defs>
+
+        {/* Script Text top right: Smarter Business Together */}
+        <g transform="translate(450, 45)" textAnchor="end">
+          <text
+            fill="#5B21B6"
+            fontSize="18"
+            fontWeight="700"
+            fontFamily="Georgia, 'Times New Roman', serif"
+            fontStyle="italic"
+          >
+            Smarter
+          </text>
+          <text
+            y="20"
+            fill="#5B21B6"
+            fontSize="18"
+            fontWeight="700"
+            fontFamily="Georgia, 'Times New Roman', serif"
+            fontStyle="italic"
+          >
+            Business
+          </text>
+          <text
+            y="40"
+            fill="#5B21B6"
+            fontSize="18"
+            fontWeight="700"
+            fontFamily="Georgia, 'Times New Roman', serif"
+            fontStyle="italic"
+          >
+            Together
+          </text>
+        </g>
+
+        {/* Laptop Graphics */}
+        <g filter="url(#heroShadow)" transform="translate(130, 80)">
+          {/* Outer Bezel */}
+          <rect x="0" y="0" width="220" height="140" rx="10" fill="url(#laptopBody)" />
+          {/* Camera Notch */}
+          <circle cx="110" cy="5" r="2" fill="#64748B" />
+          {/* Inner Screen */}
+          <rect x="8" y="10" width="204" height="122" rx="4" fill="url(#laptopScreen)" />
+          
+          {/* Screen Content: Dashboard UI Mockup */}
+          {/* Top nav inside mockup */}
+          <rect x="8" y="10" width="204" height="16" fill="#FFFFFF" />
+          <circle cx="18" cy="18" r="3" fill="#E2E8F0" />
+          <rect x="26" y="16" width="30" height="4" rx="2" fill="#94A3B8" />
+          <circle cx="195" cy="18" r="4" fill="#818CF8" />
+          <circle cx="204" cy="18" r="4" fill="#CBD5E1" />
+
+          {/* Sidebar inside mockup */}
+          <rect x="8" y="26" width="40" height="106" fill="#F1F5F9" />
+          <rect x="14" y="34" width="28" height="4" rx="2" fill="#818CF8" />
+          <rect x="14" y="44" width="28" height="3" rx="1.5" fill="#CBD5E1" />
+          <rect x="14" y="52" width="28" height="3" rx="1.5" fill="#CBD5E1" />
+          <rect x="14" y="60" width="28" height="3" rx="1.5" fill="#CBD5E1" />
+
+          {/* Main content inside mockup */}
+          {/* Bar Chart */}
+          <rect x="56" y="34" width="70" height="50" rx="4" fill="#FFFFFF" />
+          <rect x="64" y="60" width="8" height="18" rx="2" fill="#E2E8F0" />
+          <rect x="76" y="50" width="8" height="28" rx="2" fill="url(#chartBarGrad)" />
+          <rect x="88" y="44" width="8" height="34" rx="2" fill="#818CF8" />
+          <rect x="100" y="54" width="8" height="24" rx="2" fill="url(#chartBarGrad)" />
+          <rect x="112" y="40" width="8" height="38" rx="2" fill="#4F46E5" />
+
+          {/* Pie Chart / Stat Box */}
+          <rect x="132" y="34" width="72" height="50" rx="4" fill="#FFFFFF" />
+          <circle cx="168" cy="59" r="16" fill="none" stroke="#E2E8F0" strokeWidth="6" />
+          <path d="M168 43 A16 16 0 0 1 184 59" fill="none" stroke="#4F46E5" strokeWidth="6" />
+
+          {/* Bottom Table inside mockup */}
+          <rect x="56" y="90" width="148" height="36" rx="4" fill="#FFFFFF" />
+          <rect x="64" y="96" width="50" height="4" rx="2" fill="#CBD5E1" />
+          <rect x="64" y="104" width="80" height="3" rx="1.5" fill="#E2E8F0" />
+          <rect x="64" y="112" width="60" height="3" rx="1.5" fill="#E2E8F0" />
+          <rect x="170" y="96" width="26" height="4" rx="2" fill="#818CF8" />
+
+          {/* Laptop Hinge Base */}
+          <path d="M-15 140 H235 L225 150 H-5 Z" fill="#94A3B8" />
+          <rect x="-20" y="148" width="260" height="6" rx="3" fill="#CBD5E1" />
+        </g>
+
+        {/* 3D Floating Card 1: Business */}
+        <g filter="url(#cardShadow)" transform="translate(30, 75)">
+          <rect x="0" y="0" width="85" height="70" rx="14" fill="#FFFFFF" />
+          {/* Purple Icon Box */}
+          <rect x="25" y="10" width="35" height="32" rx="10" fill="#F3E8FF" />
+          <path d="M35 34 V24 M42 34 V18 M49 34 V28" stroke="#7C3AED" strokeWidth="2.5" strokeLinecap="round" />
+          <text x="42" y="56" textAnchor="middle" fill="#1E1B4B" fontSize="10" fontWeight="700" fontFamily="sans-serif">Business</text>
+        </g>
+
+        {/* 3D Floating Card 2: Marketing */}
+        <g filter="url(#cardShadow)" transform="translate(85, 160)">
+          <rect x="0" y="0" width="90" height="70" rx="14" fill="#FFFFFF" />
+          {/* Pink Icon Box */}
+          <rect x="27" y="10" width="35" height="32" rx="10" fill="#FFE4E6" />
+          {/* Megaphone icon */}
+          <path d="M37 20 L47 16 V32 L37 28 H34 V20 H37 Z" fill="#E11D48" />
+          <text x="45" y="56" textAnchor="middle" fill="#1E1B4B" fontSize="10" fontWeight="700" fontFamily="sans-serif">Marketing</text>
+        </g>
+
+        {/* 3D Floating Card 3: Suppliers */}
+        <g filter="url(#cardShadow)" transform="translate(305, 165)">
+          <rect x="0" y="0" width="85" height="70" rx="14" fill="#FFFFFF" />
+          {/* Green Icon Box */}
+          <rect x="25" y="10" width="35" height="32" rx="10" fill="#DCFCE7" />
+          {/* Users icon */}
+          <circle cx="38" cy="22" r="3.5" fill="#16A34A" />
+          <path d="M32 32 C32 28.5 35 27 38 27 C41 27 44 28.5 44 32" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="47" cy="22" r="2.5" fill="#16A34A" opacity="0.7" />
+          <text x="42" y="56" textAnchor="middle" fill="#1E1B4B" fontSize="10" fontWeight="700" fontFamily="sans-serif">Suppliers</text>
+        </g>
+
+        {/* Potted Plant on Far Right */}
+        <g filter="url(#cardShadow)" transform="translate(425, 160)">
+          {/* Plant Leaves */}
+          <path d="M30 35 C20 15 10 18 12 5 C25 15 28 30 30 35 Z" fill="#15803D" />
+          <path d="M30 35 C38 10 48 12 45 0 C38 12 34 28 30 35 Z" fill="#22C55E" />
+          <path d="M30 35 C12 25 5 35 0 25 C12 32 24 34 30 35 Z" fill="#16A34A" />
+          <path d="M30 35 C48 25 55 35 60 25 C48 32 36 34 30 35 Z" fill="#4ADE80" />
+          {/* Pot */}
+          <path d="M18 35 H42 L38 70 H22 Z" fill="#FFFFFF" />
+          <ellipse cx="30" cy="35" rx="12" ry="3" fill="#E2E8F0" />
+        </g>
+      </svg>
     </div>
   );
 }
