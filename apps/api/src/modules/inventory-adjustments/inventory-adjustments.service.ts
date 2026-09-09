@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { JournalEntriesService } from "../journal-entries/journal-entries.service";
+import { StockValuationService } from "../inventory/stock-valuation.service";
 import { CreateAdjustmentDto } from "./dto/create-adjustment.dto";
 import { Prisma, ValuationMethod } from "@prisma/client";
 
@@ -13,6 +14,7 @@ export class InventoryAdjustmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly journalEntriesService: JournalEntriesService,
+    private readonly stockValuationService: StockValuationService,
   ) {}
 
   private async validateAdjustmentSetup(
@@ -132,138 +134,8 @@ export class InventoryAdjustmentsService {
     return adjustment;
   }
 
-  /**
-   * MINIMAL STOCK VALUATION ENGINE:
-   * Calculates cost impact for stock adjustment line items based on tenant's ValuationMethod (FIFO / LIFO / WEIGHTED_AVERAGE).
-   * NOTE: This minimal engine will be promoted to a shared StockValuationService later.
-   */
-  async calculateItemValuationCost(
-    tx: Prisma.TransactionClient,
-    organizationId: string,
-    valuationMethod: ValuationMethod,
-    item: {
-      productId: string;
-      variantId?: string | null;
-      locationId: string;
-      batchId?: string | null;
-      adjustedQty: number;
-      fallbackUnitCost: number;
-    },
-  ): Promise<{ calculatedUnitCost: number; totalCostImpact: number }> {
-    const diffQty = item.adjustedQty;
-    if (diffQty === 0) {
-      return { calculatedUnitCost: item.fallbackUnitCost, totalCostImpact: 0 };
-    }
-
-    // Positive adjustment: Adding stock at provided/fallback unit cost
-    if (diffQty > 0) {
-      const unitCost = item.fallbackUnitCost || 0;
-      return {
-        calculatedUnitCost: unitCost,
-        totalCostImpact: diffQty * unitCost,
-      };
-    }
-
-    // Negative adjustment: Consuming active cost layers based on FIFO / LIFO / WEIGHTED_AVERAGE
-    const qtyToDeduct = Math.abs(diffQty);
-    const activeLayers = await tx.inventoryCostLayer.findMany({
-      where: {
-        organizationId,
-        productId: item.productId,
-        locationId: item.locationId,
-        variantId: item.variantId || null,
-        batchId: item.batchId || null,
-        status: "ACTIVE",
-        remainingQty: { gt: 0 },
-      },
-      orderBy: {
-        receivedAt: valuationMethod === "LIFO" ? "desc" : "asc",
-      },
-    });
-
-    if (activeLayers.length === 0) {
-      // Fallback if no active layers found
-      const fallbackCost = item.fallbackUnitCost || 0;
-      return {
-        calculatedUnitCost: fallbackCost,
-        totalCostImpact: diffQty * fallbackCost,
-      };
-    }
-
-    if (valuationMethod === "WEIGHTED_AVERAGE") {
-      let totalRemainingQty = 0;
-      let totalRemainingValue = 0;
-      for (const layer of activeLayers) {
-        const rQty = Number(layer.remainingQty);
-        const uCost = Number(layer.unitCost);
-        totalRemainingQty += rQty;
-        totalRemainingValue += rQty * uCost;
-      }
-      const weightedAvgCost =
-        totalRemainingQty > 0
-          ? totalRemainingValue / totalRemainingQty
-          : item.fallbackUnitCost || 0;
-
-      // Deplete layers sequentially to update DB remainingQty
-      let remaining = qtyToDeduct;
-      for (const layer of activeLayers) {
-        if (remaining <= 0) break;
-        const layerQty = Number(layer.remainingQty);
-        const deduct = Math.min(layerQty, remaining);
-        const newRemaining = layerQty - deduct;
-
-        await tx.inventoryCostLayer.update({
-          where: { id: layer.id },
-          data: {
-            remainingQty: new Prisma.Decimal(newRemaining),
-            status: newRemaining === 0 ? "EXHAUSTED" : "ACTIVE",
-          },
-        });
-        remaining -= deduct;
-      }
-
-      return {
-        calculatedUnitCost: weightedAvgCost,
-        totalCostImpact: -(qtyToDeduct * weightedAvgCost),
-      };
-    }
-
-    // FIFO or LIFO layer deduction
-    let remaining = qtyToDeduct;
-    let totalDeductedCost = 0;
-
-    for (const layer of activeLayers) {
-      if (remaining <= 0) break;
-      const layerQty = Number(layer.remainingQty);
-      const layerUnitCost = Number(layer.unitCost);
-      const deduct = Math.min(layerQty, remaining);
-      const newRemaining = layerQty - deduct;
-
-      await tx.inventoryCostLayer.update({
-        where: { id: layer.id },
-        data: {
-          remainingQty: new Prisma.Decimal(newRemaining),
-          status: newRemaining === 0 ? "EXHAUSTED" : "ACTIVE",
-        },
-      });
-
-      totalDeductedCost += deduct * layerUnitCost;
-      remaining -= deduct;
-    }
-
-    // If deduction exceeds available layers, calculate remaining at fallback cost
-    if (remaining > 0) {
-      totalDeductedCost += remaining * (item.fallbackUnitCost || 0);
-    }
-
-    const calculatedAvgUnitCost =
-      qtyToDeduct > 0 ? totalDeductedCost / qtyToDeduct : item.fallbackUnitCost;
-
-    return {
-      calculatedUnitCost: calculatedAvgUnitCost,
-      totalCostImpact: -totalDeductedCost,
-    };
-  }
+  // NOTE: Valuation engine logic has been moved to the shared StockValuationService.
+  // This service now delegates all FIFO/LIFO/WA computation to that shared service.
 
   async createAdjustment(
     organizationId: string,
@@ -306,7 +178,7 @@ export class InventoryAdjustmentsService {
         const fallbackCost = Number(item.unitCost || 0);
 
         const { calculatedUnitCost, totalCostImpact } =
-          await this.calculateItemValuationCost(
+          await this.stockValuationService.calculateItemValuationCost(
             tx,
             organizationId,
             valuationMethod,

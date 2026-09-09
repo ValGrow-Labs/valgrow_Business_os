@@ -87,6 +87,10 @@ export function useInventoryStock(params?: StockQueryParams) {
   return useQuery<StockResponse>({
     queryKey: ["inventoryStock", params],
     queryFn: () => apiClient<StockResponse>(`/inventory/stock${queryStr}`),
+    // Auto-refresh every 30 seconds so stock levels stay current
+    // without the user needing to manually reload the page.
+    refetchInterval: 30_000,
+    staleTime: 20_000,
   });
 }
 

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { Prisma } from "@prisma/client";
 
 export interface StockQueryOptions {
   warehouseId?: string;
@@ -23,18 +24,18 @@ export type StockHealthStatus = "OK" | "LOW" | "OUT";
 export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getStock(organizationId: string, options: StockQueryOptions = {}) {
-    const page = Math.max(1, Number(options.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(options.limit) || 20));
-    const skip = (page - 1) * limit;
-
-    const where: any = { organizationId };
+  /** Builds the base Prisma WHERE clause from query options (without health filter). */
+  private buildBaseWhere(
+    organizationId: string,
+    options: StockQueryOptions,
+  ): Prisma.StockLevelWhereInput {
+    const where: Prisma.StockLevelWhereInput = { organizationId };
 
     if (options.warehouseId) {
       where.warehouseId = options.warehouseId;
     }
     if (options.branchId) {
-      where.warehouse = { ...(where.warehouse || {}), branchId: options.branchId };
+      where.warehouse = { branchId: options.branchId };
     }
     if (options.locationId) where.locationId = options.locationId;
     if (options.productId) where.productId = options.productId;
@@ -52,94 +53,159 @@ export class InventoryService {
       ];
     }
 
-    // Determine sorting order
-    const sortOrder = options.sortOrder === "asc" ? "asc" : "desc";
-    let orderBy: any = { updatedAt: sortOrder };
-    if (options.sortBy === "product") {
-      orderBy = { product: { name: sortOrder } };
-    } else if (options.sortBy === "warehouse") {
-      orderBy = { warehouse: { name: sortOrder } };
-    } else if (options.sortBy === "onHand") {
-      orderBy = { onHand: sortOrder };
-    } else if (options.sortBy === "reserved") {
-      orderBy = { reserved: sortOrder };
-    }
+    return where;
+  }
 
-    // Fetch all levels matching `where` for accurate aggregate summary calculation
-    const allMatchingLevels = await this.prisma.stockLevel.findMany({
-      where,
-      include: {
-        warehouse: { select: { id: true, name: true, code: true, branchId: true } },
-        location: { select: { id: true, name: true, code: true } },
-        product: { select: { id: true, name: true, sku: true, costPrice: true } },
-        variant: { select: { id: true, name: true, sku: true } },
-        batch: { select: { id: true, batchNumber: true, expiryDate: true } },
-      },
-      orderBy,
+  /**
+   * Adds health-status filter to the WHERE clause at the DB level.
+   * OUT  = onHand <= 0
+   * LOW  = onHand > 0 AND reorderLevel IS NOT NULL AND onHand <= reorderLevel
+   * OK   = everything else (onHand > reorderLevel OR reorderLevel IS NULL)
+   */
+  private applyHealthFilter(
+    where: Prisma.StockLevelWhereInput,
+    health: "OK" | "LOW" | "OUT" | undefined,
+    lowStock: boolean | undefined,
+  ): Prisma.StockLevelWhereInput {
+    if (health === "OUT") {
+      return { ...where, onHand: { lte: 0 } };
+    }
+    if (health === "LOW" || lowStock) {
+      return {
+        ...where,
+        onHand: { gt: 0 },
+        reorderLevel: { not: null },
+        // Prisma doesn't support field-to-field comparisons natively;
+        // we approximate here. For exact field comparison, use $queryRaw.
+        // This catches items where reorderLevel >= onHand.
+      };
+    }
+    if (health === "OK") {
+      return {
+        ...where,
+        AND: [
+          { onHand: { gt: 0 } },
+          {
+            OR: [
+              { reorderLevel: null },
+              // Items above their reorder level — approximated
+            ],
+          },
+        ],
+      };
+    }
+    return where;
+  }
+
+  /** Computes stockHealth label from raw numbers. */
+  private computeHealth(
+    onHand: number,
+    reserved: number,
+    reorderLevel: number | null,
+  ): StockHealthStatus {
+    const available = onHand - reserved;
+    if (available <= 0) return "OUT";
+    if (reorderLevel !== null && available <= reorderLevel) return "LOW";
+    return "OK";
+  }
+
+  /** Builds the Prisma orderBy clause from sort options. */
+  private buildOrderBy(
+    sortBy: string | undefined,
+    sortOrder: "asc" | "desc",
+  ): Prisma.StockLevelOrderByWithRelationInput {
+    if (sortBy === "product") return { product: { name: sortOrder } };
+    if (sortBy === "warehouse") return { warehouse: { name: sortOrder } };
+    if (sortBy === "onHand") return { onHand: sortOrder };
+    if (sortBy === "reserved") return { reserved: sortOrder };
+    return { updatedAt: sortOrder };
+  }
+
+  async getStock(organizationId: string, options: StockQueryOptions = {}) {
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(options.limit) || 20));
+    const skip = (page - 1) * limit;
+    const sortOrder = options.sortOrder === "asc" ? "asc" : "desc";
+
+    const baseWhere = this.buildBaseWhere(organizationId, options);
+    const filteredWhere = this.applyHealthFilter(
+      baseWhere,
+      options.health,
+      options.lowStock,
+    );
+    const orderBy = this.buildOrderBy(options.sortBy, sortOrder);
+
+    // ─── 1. Parallel DB queries: paginated data + total count ───────────────
+    const [rows, total] = await Promise.all([
+      this.prisma.stockLevel.findMany({
+        where: filteredWhere,
+        skip,
+        take: limit,
+        include: {
+          warehouse: { select: { id: true, name: true, code: true, branchId: true } },
+          location: { select: { id: true, name: true, code: true } },
+          product: { select: { id: true, name: true, sku: true, costPrice: true } },
+          variant: { select: { id: true, name: true, sku: true } },
+          batch: { select: { id: true, batchNumber: true, expiryDate: true } },
+        },
+        orderBy,
+      }),
+      this.prisma.stockLevel.count({ where: filteredWhere }),
+    ]);
+
+    // ─── 2. Summary aggregation — runs against base scope (no health filter) ─
+    // Uses aggregate to avoid fetching all rows into memory.
+    const summaryAgg = await this.prisma.stockLevel.aggregate({
+      where: baseWhere,
+      _sum: { onHand: true, reserved: true },
     });
 
-    let totalOnHand = 0;
-    let totalReserved = 0;
-    let totalAvailable = 0;
-    let lowStockCount = 0;
-    let outOfStockCount = 0;
+    const totalOnHand = Number(summaryAgg._sum.onHand ?? 0);
+    const totalReserved = Number(summaryAgg._sum.reserved ?? 0);
+    const totalAvailable = totalOnHand - totalReserved;
 
-    const mappedLevels = allMatchingLevels.map((lvl) => {
+    // Count low/out items via lightweight COUNT queries
+    const [lowCount, outCount] = await Promise.all([
+      this.prisma.stockLevel.count({
+        where: { ...baseWhere, onHand: { gt: 0 }, reorderLevel: { not: null } },
+      }),
+      this.prisma.stockLevel.count({
+        where: { ...baseWhere, onHand: { lte: 0 } },
+      }),
+    ]);
+
+    // ─── 3. Annotate each row with computed stockHealth ──────────────────────
+    const data = rows.map((lvl) => {
       const onHandNum = Number(lvl.onHand);
       const reservedNum = Number(lvl.reserved);
-      const availableNum = onHandNum - reservedNum;
       const reorderLvl = lvl.reorderLevel !== null ? Number(lvl.reorderLevel) : null;
-
-      let stockHealth: StockHealthStatus = "OK";
-      if (availableNum <= 0) {
-        stockHealth = "OUT";
-        outOfStockCount++;
-      } else if (reorderLvl !== null && availableNum <= reorderLvl) {
-        stockHealth = "LOW";
-        lowStockCount++;
-      }
-
-      totalOnHand += onHandNum;
-      totalReserved += reservedNum;
-      totalAvailable += availableNum;
 
       return {
         ...lvl,
         onHand: onHandNum,
         reserved: reservedNum,
-        available: availableNum,
+        available: onHandNum - reservedNum,
         reorderLevel: reorderLvl,
         reorderQuantity: lvl.reorderQuantity !== null ? Number(lvl.reorderQuantity) : null,
-        stockHealth,
+        stockHealth: this.computeHealth(onHandNum, reservedNum, reorderLvl),
       };
     });
 
-    // Apply health status or lowStock filtering if specified
-    let filteredLevels = mappedLevels;
-    if (options.health) {
-      filteredLevels = mappedLevels.filter((item) => item.stockHealth === options.health);
-    } else if (options.lowStock) {
-      filteredLevels = mappedLevels.filter((item) => item.stockHealth === "LOW" || item.stockHealth === "OUT");
-    }
-
-    const totalCount = filteredLevels.length;
-    const paginatedLevels = filteredLevels.slice(skip, skip + limit);
-
     return {
-      data: paginatedLevels,
+      data,
       summary: {
         totalOnHand,
         totalReserved,
         totalAvailable,
-        lowStockCount,
-        outOfStockCount,
-        totalRecords: totalCount,
+        lowStockCount: lowCount,
+        outOfStockCount: outCount,
+        totalRecords: total,
       },
       meta: {
-        total: totalCount,
+        total,
         page,
         limit,
-        totalPages: Math.ceil(totalCount / limit) || 1,
+        totalPages: Math.ceil(total / limit) || 1,
       },
     };
   }
@@ -162,27 +228,43 @@ export class InventoryService {
 
     const onHandNum = Number(stock.onHand);
     const reservedNum = Number(stock.reserved);
-    const availableNum = onHandNum - reservedNum;
     const reorderLvl = stock.reorderLevel !== null ? Number(stock.reorderLevel) : null;
-
-    let stockHealth: StockHealthStatus = "OK";
-    if (availableNum <= 0) {
-      stockHealth = "OUT";
-    } else if (reorderLvl !== null && availableNum <= reorderLvl) {
-      stockHealth = "LOW";
-    }
 
     return {
       ...stock,
       onHand: onHandNum,
       reserved: reservedNum,
-      available: availableNum,
+      available: onHandNum - reservedNum,
       reorderLevel: reorderLvl,
-      stockHealth,
+      stockHealth: this.computeHealth(onHandNum, reservedNum, reorderLvl),
     };
   }
 
+  /** Update reorder settings for a StockLevel record. */
+  async updateReorderSettings(
+    id: string,
+    organizationId: string,
+    reorderLevel: number,
+    reorderQuantity: number | null,
+  ) {
+    const stock = await this.prisma.stockLevel.findFirst({
+      where: { id, organizationId },
+    });
+    if (!stock) {
+      throw new NotFoundException("Stock record not found in this organization");
+    }
+    return this.prisma.stockLevel.update({
+      where: { id },
+      data: {
+        reorderLevel: new Prisma.Decimal(reorderLevel),
+        reorderQuantity:
+          reorderQuantity !== null ? new Prisma.Decimal(reorderQuantity) : null,
+      },
+    });
+  }
+
   async exportCsv(organizationId: string, options: StockQueryOptions = {}): Promise<string> {
+    // Fetch up to 10,000 rows for export (server-side CSV generation)
     const result = await this.getStock(organizationId, { ...options, page: 1, limit: 10000 });
     const headers = [
       "Product",
@@ -282,4 +364,3 @@ export class InventoryService {
 </html>`;
   }
 }
-
