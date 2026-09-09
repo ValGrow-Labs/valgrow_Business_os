@@ -1,6 +1,7 @@
-import { Controller, Get, Param, Query, Res, Header } from "@nestjs/common";
+import { Controller, Get, Patch, Param, Query, Body, Res, Header } from "@nestjs/common";
 import { Response } from "express";
 import { InventoryService } from "./inventory.service";
+import { UpdateReorderSettingsDto } from "./dto/update-reorder-settings.dto";
 import { CurrentOrg } from "../../common/decorators/current-org.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { RequirePermissions } from "../../common/decorators/require-permissions.decorator";
@@ -46,6 +47,12 @@ export class InventoryController {
       page,
       limit,
     });
+  }
+
+  @RequirePermissions("inventory.read")
+  @Get("purchase-suggestions")
+  async getPurchaseSuggestions(@CurrentOrg("id") organizationId: string) {
+    return this.inventoryService.getPurchaseSuggestions(organizationId);
   }
 
   @RequirePermissions("inventory.read")
@@ -111,6 +118,21 @@ export class InventoryController {
     return res.status(200).send(htmlReport);
   }
 
+  @RequirePermissions("inventory.update")
+  @Patch("stock/:id/reorder-settings")
+  async updateReorderSettings(
+    @Param("id") id: string,
+    @CurrentOrg("id") organizationId: string,
+    @Body() dto: UpdateReorderSettingsDto,
+  ) {
+    return this.inventoryService.updateReorderSettings(
+      id,
+      organizationId,
+      dto.reorderLevel ?? 0,
+      dto.reorderQuantity ?? null,
+    );
+  }
+
   @RequirePermissions("inventory.read")
   @Get("stock/:id")
   async getStockById(
@@ -120,4 +142,5 @@ export class InventoryController {
     return this.inventoryService.getStockById(id, organizationId);
   }
 }
+
 

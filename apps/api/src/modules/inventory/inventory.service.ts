@@ -263,6 +263,69 @@ export class InventoryService {
     });
   }
 
+  /**
+   * Returns items below reorder level (available <= reorderLevel) with suggested order quantities.
+   */
+  async getPurchaseSuggestions(organizationId: string) {
+    const stockLevels = await this.prisma.stockLevel.findMany({
+      where: {
+        organizationId,
+        reorderLevel: { not: null },
+      },
+      include: {
+        product: { select: { id: true, name: true, sku: true, costPrice: true } },
+        variant: { select: { id: true, name: true, sku: true } },
+        warehouse: { select: { id: true, name: true, code: true } },
+      },
+    });
+
+    const suggestions = stockLevels
+      .map((lvl) => {
+        const onHand = Number(lvl.onHand);
+        const reserved = Number(lvl.reserved);
+        const available = onHand - reserved;
+        const reorderLevel = lvl.reorderLevel !== null ? Number(lvl.reorderLevel) : 0;
+        const reorderQuantity =
+          lvl.reorderQuantity !== null
+            ? Number(lvl.reorderQuantity)
+            : Math.max(1, reorderLevel - available + 10);
+        const estimatedUnitCost = lvl.product?.costPrice ? Number(lvl.product.costPrice) : 0;
+        const estimatedTotalCost = reorderQuantity * estimatedUnitCost;
+
+        return {
+          stockLevelId: lvl.id,
+          productId: lvl.productId,
+          productName: lvl.product?.name || "Unassigned",
+          productSku: lvl.product?.sku || "-",
+          variantId: lvl.variantId,
+          variantName: lvl.variant?.name || "Base Product",
+          warehouseId: lvl.warehouseId,
+          warehouseName: lvl.warehouse?.name || "-",
+          onHand,
+          reserved,
+          available,
+          reorderLevel,
+          suggestedOrderQty: reorderQuantity,
+          estimatedUnitCost,
+          estimatedTotalCost,
+          health: available <= 0 ? ("OUT" as const) : ("LOW" as const),
+        };
+      })
+      .filter((item) => item.available <= item.reorderLevel);
+
+    const totalEstimatedCost = suggestions.reduce((acc, item) => acc + item.estimatedTotalCost, 0);
+
+    return {
+      data: suggestions,
+      summary: {
+        totalSuggestions: suggestions.length,
+        outOfStockCount: suggestions.filter((s) => s.health === "OUT").length,
+        lowStockCount: suggestions.filter((s) => s.health === "LOW").length,
+        totalEstimatedCost,
+      },
+    };
+  }
+
   async exportCsv(organizationId: string, options: StockQueryOptions = {}): Promise<string> {
     // Fetch up to 10,000 rows for export (server-side CSV generation)
     const result = await this.getStock(organizationId, { ...options, page: 1, limit: 10000 });

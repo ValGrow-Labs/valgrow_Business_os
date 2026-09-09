@@ -33,15 +33,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download, Filter, Columns, ArrowUpDown } from "lucide-react";
-import { useInventoryStock, downloadStockExport, type StockHealthStatus } from "@/hooks/queries/useInventoryStock";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Search, Download, Filter, Columns, ArrowUpDown, Settings2, ShoppingCart, AlertTriangle, Check } from "lucide-react";
+import {
+  useInventoryStock,
+  usePurchaseSuggestions,
+  useUpdateReorderSettings,
+  downloadStockExport,
+  type StockHealthStatus,
+  type StockItem,
+  type PurchaseSuggestionItem,
+} from "@/hooks/queries/useInventoryStock";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import { useBranches } from "@/hooks/queries/useBranches";
 import { useWarehouses } from "@/hooks/queries/useWarehouses";
 
 const title = "Live Stock Levels";
 const description =
-  "Real-time stock availability, reservations, and location placement across all warehouses.";
+  "Real-time stock availability, reorder level thresholds, and auto purchase suggestions across all warehouses.";
 
 export const Route = createFileRoute("/inventory")({
   head: () => ({
@@ -90,6 +106,14 @@ function InventoryStockPage() {
   const [sortBy, setSortBy] = useState<string>("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
+  // Reorder settings modal state
+  const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+  const [reorderLevelInput, setReorderLevelInput] = useState<string>("");
+  const [reorderQuantityInput, setReorderQuantityInput] = useState<string>("");
+
+  // Suggestions modal state
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+
   // Column visibility state
   const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>({
     product: true,
@@ -99,7 +123,9 @@ function InventoryStockPage() {
     onHand: true,
     reserved: true,
     available: true,
+    reorderLevel: true,
     health: true,
+    actions: true,
   });
 
   const { data: branchesData } = useBranches();
@@ -117,6 +143,8 @@ function InventoryStockPage() {
   };
 
   const { data: stockData } = useInventoryStock(queryParams);
+  const { data: suggestionsData } = usePurchaseSuggestions();
+  const updateReorderMutation = useUpdateReorderSettings();
 
   const toggleSort = (field: string) => {
     if (sortBy === field) {
@@ -135,7 +163,29 @@ function InventoryStockPage() {
     downloadStockExport("pdf", queryParams);
   };
 
+  const handleOpenReorderModal = (item: StockItem) => {
+    setEditingItem(item);
+    setReorderLevelInput(item.reorderLevel !== null ? String(item.reorderLevel) : "0");
+    setReorderQuantityInput(item.reorderQuantity !== null ? String(item.reorderQuantity) : "");
+  };
+
+  const handleSaveReorderSettings = async () => {
+    if (!editingItem) return;
+    const lvl = Math.max(0, Number(reorderLevelInput) || 0);
+    const qty = reorderQuantityInput.trim() !== "" ? Math.max(0, Number(reorderQuantityInput) || 0) : null;
+
+    await updateReorderMutation.mutateAsync({
+      id: editingItem.id,
+      reorderLevel: lvl,
+      reorderQuantity: qty,
+    });
+
+    setEditingItem(null);
+  };
+
   const summary = stockData?.summary;
+  const suggestionCount = suggestionsData?.summary?.totalSuggestions || 0;
+
   const stats = [
     {
       label: "Total On Hand",
@@ -153,9 +203,11 @@ function InventoryStockPage() {
       hint: "Ready for sale/transfer",
     },
     {
-      label: "Stock Health Alerts",
-      value: summary ? `${summary.lowStockCount} Low / ${summary.outOfStockCount} Out` : "0 Low / 0 Out",
-      hint: "Needs reordering",
+      label: "Reorder Suggestions",
+      value: `${suggestionCount} Items Below Threshold`,
+      hint: suggestionsData?.summary?.totalEstimatedCost
+        ? `Est. Reorder Cost: ₹${suggestionsData.summary.totalEstimatedCost.toLocaleString()}`
+        : "Automated replenishment",
     },
   ];
 
@@ -170,6 +222,20 @@ function InventoryStockPage() {
         eyebrow="Inventory"
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSuggestionsOpen(true)}
+              className="relative border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+            >
+              <ShoppingCart className="mr-1.5 h-4 w-4" />
+              Purchase Suggestions
+              {suggestionCount > 0 && (
+                <Badge variant="destructive" className="ml-1.5 h-5 px-1.5 text-[10px] font-bold">
+                  {suggestionCount}
+                </Badge>
+              )}
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExportCsv}>
               <Download className="mr-1.5 h-4 w-4" />
               Export (CSV)
@@ -189,11 +255,10 @@ function InventoryStockPage() {
             label={s.label}
             value={s.value}
             {...(s.hint ? { hint: s.hint } : {})}
-            tone={i === 0 ? "brand" : "default"}
+            tone={i === 0 || (i === 3 && suggestionCount > 0) ? "brand" : "default"}
           />
         ))}
       </div>
-
 
       <div className="panel overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
@@ -226,7 +291,7 @@ function InventoryStockPage() {
               <PopoverContent className="w-80 p-4" align="end">
                 <div className="grid gap-3">
                   <h4 className="font-semibold text-sm">Filter Stock Levels</h4>
-                  
+
                   <div className="grid gap-1">
                     <label className="text-xs font-medium text-muted-foreground">Branch</label>
                     <Select value={branchId} onValueChange={(val) => { setBranchId(val); setPage(1); }}>
@@ -344,10 +409,22 @@ function InventoryStockPage() {
                   Available Stock
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
+                  checked={Boolean(visibleCols["reorderLevel"])}
+                  onCheckedChange={(val) => setVisibleCols({ ...visibleCols, reorderLevel: Boolean(val) })}
+                >
+                  Reorder Level
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
                   checked={Boolean(visibleCols["health"])}
                   onCheckedChange={(val) => setVisibleCols({ ...visibleCols, health: Boolean(val) })}
                 >
                   Stock Health
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={Boolean(visibleCols["actions"])}
+                  onCheckedChange={(val) => setVisibleCols({ ...visibleCols, actions: Boolean(val) })}
+                >
+                  Actions
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -396,7 +473,9 @@ function InventoryStockPage() {
                     </TableHead>
                   )}
                   {visibleCols["available"] && <TableHead>Available Stock</TableHead>}
+                  {visibleCols["reorderLevel"] && <TableHead>Reorder Level</TableHead>}
                   {visibleCols["health"] && <TableHead>Stock Health</TableHead>}
+                  {visibleCols["actions"] && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -419,9 +498,36 @@ function InventoryStockPage() {
                     {visibleCols["onHand"] && <TableCell className="font-mono">{row.onHand} Units</TableCell>}
                     {visibleCols["reserved"] && <TableCell className="font-mono text-muted-foreground">{row.reserved} Units</TableCell>}
                     {visibleCols["available"] && <TableCell className="font-mono font-semibold text-foreground">{row.available} Units</TableCell>}
+                    {visibleCols["reorderLevel"] && (
+                      <TableCell className="font-mono">
+                        {row.reorderLevel !== null ? (
+                          <div className="flex items-center gap-1">
+                            <span>{row.reorderLevel} Units</span>
+                            {row.reorderQuantity !== null && (
+                              <span className="text-[11px] text-muted-foreground">(Order: {row.reorderQuantity})</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-xs italic">Not Set</span>
+                        )}
+                      </TableCell>
+                    )}
                     {visibleCols["health"] && (
                       <TableCell>
                         <HealthBadge status={row.stockHealth || "OK"} />
+                      </TableCell>
+                    )}
+                    {visibleCols["actions"] && (
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-xs"
+                          onClick={() => handleOpenReorderModal(row)}
+                        >
+                          <Settings2 className="mr-1 h-3.5 w-3.5" />
+                          Set Threshold
+                        </Button>
                       </TableCell>
                     )}
                   </TableRow>
@@ -466,8 +572,165 @@ function InventoryStockPage() {
           </Pagination>
         </div>
       </div>
+
+      {/* ─── Modal 1: Edit Reorder Level Settings ────────────────────────────── */}
+      <Dialog open={Boolean(editingItem)} onOpenChange={(open) => !open && setEditingItem(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5 text-brand" />
+              Set Reorder Level & Quantity
+            </DialogTitle>
+            <DialogDescription>
+              Configure the low-stock alert threshold and default reorder quantity for{" "}
+              <strong>{editingItem?.product?.name}</strong> at{" "}
+              <strong>{editingItem?.warehouse?.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-3">
+            <div className="grid gap-1.5">
+              <label className="text-sm font-medium">
+                Reorder Level (Min Threshold)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="e.g. 50"
+                value={reorderLevelInput}
+                onChange={(e) => setReorderLevelInput(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                When available stock falls to or below this quantity, a <strong>Low Stock</strong> alert and Purchase Suggestion will trigger.
+              </p>
+            </div>
+
+            <div className="grid gap-1.5">
+              <label className="text-sm font-medium">
+                Default Reorder Quantity
+              </label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="e.g. 200 (Optional)"
+                value={reorderQuantityInput}
+                onChange={(e) => setReorderQuantityInput(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Suggested quantity to purchase when reordering this item.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingItem(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveReorderSettings} disabled={updateReorderMutation.isPending}>
+              {updateReorderMutation.isPending ? "Saving…" : "Save Settings"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Modal 2: Auto Purchase Suggestions Panel ───────────────────────── */}
+      <Dialog open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <ShoppingCart className="h-5 w-5 text-amber-500" />
+              Auto Purchase Suggestions ({suggestionsData?.summary?.totalSuggestions || 0})
+            </DialogTitle>
+            <DialogDescription>
+              Products requiring immediate replenishment based on configured reorder thresholds across warehouses.
+            </DialogDescription>
+          </DialogHeader>
+
+          {suggestionsData?.summary && suggestionsData.summary.totalSuggestions > 0 && (
+            <div className="grid grid-cols-3 gap-3 my-2 p-3 bg-muted/40 rounded-lg text-sm border">
+              <div>
+                <div className="text-xs text-muted-foreground">Total Suggestions</div>
+                <div className="font-semibold text-foreground text-base">
+                  {suggestionsData.summary.totalSuggestions} Items
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Critical Out of Stock</div>
+                <div className="font-semibold text-destructive text-base">
+                  {suggestionsData.summary.outOfStockCount} Items
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Total Est. Cost</div>
+                <div className="font-semibold text-brand text-base">
+                  ₹{suggestionsData.summary.totalEstimatedCost.toLocaleString()}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(!suggestionsData?.data || suggestionsData.data.length === 0) ? (
+            <div className="py-12 text-center">
+              <Check className="mx-auto h-12 w-12 text-emerald-500/60 mb-3" />
+              <h3 className="font-semibold text-lg text-foreground">Stock Levels Healthy!</h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+                No products are currently below their reorder threshold. All inventory levels meet or exceed required minimums.
+              </p>
+            </div>
+          ) : (
+            <div className="border rounded-md overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product & Warehouse</TableHead>
+                    <TableHead>Available / Min</TableHead>
+                    <TableHead>Suggested Order Qty</TableHead>
+                    <TableHead>Est. Unit Cost</TableHead>
+                    <TableHead>Total Cost</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {suggestionsData.data.map((item: PurchaseSuggestionItem) => (
+                    <TableRow key={item.stockLevelId}>
+                      <TableCell>
+                        <div className="font-medium text-foreground">{item.productName}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.productSku} · {item.warehouseName}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono">
+                        <span className={item.available <= 0 ? "text-destructive font-bold" : "text-amber-600 font-semibold"}>
+                          {item.available}
+                        </span>{" "}
+                        / {item.reorderLevel}
+                      </TableCell>
+                      <TableCell className="font-mono font-bold text-foreground">
+                        {item.suggestedOrderQty} Units
+                      </TableCell>
+                      <TableCell className="font-mono">
+                        ₹{item.estimatedUnitCost.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="font-mono font-semibold text-foreground">
+                        ₹{item.estimatedTotalCost.toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <HealthBadge status={item.health} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setSuggestionsOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
-
-

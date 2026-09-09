@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
 export type StockHealthStatus = "OK" | "LOW" | "OUT";
@@ -25,6 +25,35 @@ export interface StockItem {
   product?: { id: string; name: string; sku: string; costPrice: number | string } | null;
   variant?: { id: string; name: string; sku: string } | null;
   batch?: { id: string; batchNumber: string; expiryDate: string | null } | null;
+}
+
+export interface PurchaseSuggestionItem {
+  stockLevelId: string;
+  productId: string;
+  productName: string;
+  productSku: string;
+  variantId: string | null;
+  variantName: string;
+  warehouseId: string;
+  warehouseName: string;
+  onHand: number;
+  reserved: number;
+  available: number;
+  reorderLevel: number;
+  suggestedOrderQty: number;
+  estimatedUnitCost: number;
+  estimatedTotalCost: number;
+  health: "LOW" | "OUT";
+}
+
+export interface PurchaseSuggestionsResponse {
+  data: PurchaseSuggestionItem[];
+  summary: {
+    totalSuggestions: number;
+    outOfStockCount: number;
+    lowStockCount: number;
+    totalEstimatedCost: number;
+  };
 }
 
 export interface StockResponse {
@@ -87,8 +116,6 @@ export function useInventoryStock(params?: StockQueryParams) {
   return useQuery<StockResponse>({
     queryKey: ["inventoryStock", params],
     queryFn: () => apiClient<StockResponse>(`/inventory/stock${queryStr}`),
-    // Auto-refresh every 30 seconds so stock levels stay current
-    // without the user needing to manually reload the page.
     refetchInterval: 30_000,
     staleTime: 20_000,
   });
@@ -102,9 +129,41 @@ export function useInventoryStockById(id: string) {
   });
 }
 
+export function usePurchaseSuggestions() {
+  return useQuery<PurchaseSuggestionsResponse>({
+    queryKey: ["purchaseSuggestions"],
+    queryFn: () => apiClient<PurchaseSuggestionsResponse>("/inventory/purchase-suggestions"),
+    staleTime: 30_000,
+  });
+}
+
+export function useUpdateReorderSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      reorderLevel,
+      reorderQuantity,
+    }: {
+      id: string;
+      reorderLevel: number;
+      reorderQuantity: number | null;
+    }) =>
+      apiClient(`/inventory/stock/${id}/reorder-settings`, {
+        method: "PATCH",
+        body: JSON.stringify({ reorderLevel, reorderQuantity }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventoryStock"] });
+      queryClient.invalidateQueries({ queryKey: ["purchaseSuggestions"] });
+    },
+  });
+}
+
 export function downloadStockExport(format: "csv" | "pdf", params?: StockQueryParams) {
   const queryStr = buildStockQueryString(params);
   const endpoint = `/api/inventory/stock/export/${format}${queryStr}`;
   window.open(endpoint, "_blank");
 }
+
 
