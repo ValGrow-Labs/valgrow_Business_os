@@ -167,6 +167,25 @@ export class InventoryController {
   }
 
   @RequirePermissions("inventory.read")
+  @Get("timeline")
+  async getInventoryTimeline(
+    @CurrentOrg("id") organizationId: string,
+    @Query("productId") productId?: string,
+    @Query("warehouseId") warehouseId?: string,
+    @Query("locationId") locationId?: string,
+    @Query("batchId") batchId?: string,
+    @Query("limit") limit?: number,
+  ) {
+    return this.inventoryService.getInventoryTimeline(organizationId, {
+      productId,
+      warehouseId,
+      locationId,
+      batchId,
+      limit,
+    });
+  }
+
+  @RequirePermissions("inventory.read")
   @Get("stock/:id")
   async getStockById(
     @Param("id") id: string,

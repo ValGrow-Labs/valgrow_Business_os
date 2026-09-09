@@ -262,4 +262,109 @@ export class InventoryBatchesService {
       },
     });
   }
+
+  async createManufacturingLot(
+    organizationId: string,
+    data: {
+      productId: string;
+      variantId?: string;
+      batchNumber: string;
+      workOrderRef: string;
+      quantity: number;
+      unitCost: number;
+      warehouseId: string;
+      manufactureDate?: Date | string;
+      expiryDate?: Date | string;
+    },
+  ) {
+    await this.validateProductAndVariant(organizationId, data.productId, data.variantId);
+
+    const existing = await this.prisma.inventoryBatch.findFirst({
+      where: {
+        organizationId,
+        productId: data.productId,
+        variantId: data.variantId || null,
+        batchNumber: data.batchNumber,
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException("Batch number already exists for this product");
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const batch = await tx.inventoryBatch.create({
+        data: {
+          organizationId,
+          productId: data.productId,
+          variantId: data.variantId || null,
+          batchNumber: data.batchNumber,
+          batchType: "MANUFACTURING",
+          workOrderRef: data.workOrderRef,
+          manufactureDate: data.manufactureDate ? new Date(data.manufactureDate) : new Date(),
+          expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
+          costPrice: new Prisma.Decimal(data.unitCost),
+        },
+      });
+
+      const qty = Math.max(0, Number(data.quantity));
+
+      const defaultLoc = await tx.location.findFirst({
+        where: { warehouseId: data.warehouseId, organizationId },
+      });
+      const locationId = defaultLoc?.id;
+
+      if (locationId) {
+        await tx.stockMovement.create({
+          data: {
+            organizationId,
+            warehouseId: data.warehouseId,
+            locationId,
+            productId: data.productId,
+            variantId: data.variantId || null,
+            batchId: batch.id,
+            movementType: "PRODUCTION_RECEIPT",
+            quantity: new Prisma.Decimal(qty),
+            unitCost: new Prisma.Decimal(data.unitCost),
+            totalCost: new Prisma.Decimal(qty * data.unitCost),
+            referenceType: "WORK_ORDER",
+            referenceId: data.workOrderRef,
+          },
+        });
+      }
+
+      const stockLevel = await tx.stockLevel.findFirst({
+        where: {
+          organizationId,
+          warehouseId: data.warehouseId,
+          productId: data.productId,
+          variantId: data.variantId || null,
+          batchId: batch.id,
+        },
+      });
+
+      if (stockLevel) {
+        await tx.stockLevel.update({
+          where: { id: stockLevel.id },
+          data: { onHand: { increment: qty } },
+        });
+      } else if (locationId) {
+        await tx.stockLevel.create({
+          data: {
+            organizationId,
+            warehouseId: data.warehouseId,
+            locationId,
+            productId: data.productId,
+            variantId: data.variantId || null,
+            batchId: batch.id,
+            onHand: new Prisma.Decimal(qty),
+            reserved: new Prisma.Decimal(0),
+          },
+        });
+      }
+
+      return batch;
+    });
+  }
 }
+

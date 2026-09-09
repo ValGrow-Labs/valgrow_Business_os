@@ -30,6 +30,7 @@ import { Route as CrmTagsRouteImport } from './routes/crm-tags'
 import { Route as CustomerPaymentsRouteImport } from './routes/customer-payments'
 import { Route as CustomerSegmentsRouteImport } from './routes/customer-segments'
 import { Route as CustomersRouteImport } from './routes/customers'
+import { Route as CycleCountRouteImport } from './routes/cycle-count'
 import { Route as DeliveryNotesRouteImport } from './routes/delivery-notes'
 import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as FilesRouteImport } from './routes/files'
@@ -194,6 +195,11 @@ const CustomerSegmentsRoute = CustomerSegmentsRouteImport.update({
 const CustomersRoute = CustomersRouteImport.update({
   id: '/customers',
   path: '/customers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CycleCountRoute = CycleCountRouteImport.update({
+  id: '/cycle-count',
+  path: '/cycle-count',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeliveryNotesRoute = DeliveryNotesRouteImport.update({
@@ -519,6 +525,7 @@ export interface FileRoutesByFullPath {
   '/customer-payments': typeof CustomerPaymentsRoute
   '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
+  '/cycle-count': typeof CycleCountRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
@@ -602,6 +609,7 @@ export interface FileRoutesByTo {
   '/customer-payments': typeof CustomerPaymentsRoute
   '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
+  '/cycle-count': typeof CycleCountRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
@@ -686,6 +694,7 @@ export interface FileRoutesById {
   '/customer-payments': typeof CustomerPaymentsRoute
   '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
+  '/cycle-count': typeof CycleCountRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
@@ -771,6 +780,7 @@ export interface FileRouteTypes {
     | '/customer-payments'
     | '/customer-segments'
     | '/customers'
+    | '/cycle-count'
     | '/delivery-notes'
     | '/departments'
     | '/files'
@@ -854,6 +864,7 @@ export interface FileRouteTypes {
     | '/customer-payments'
     | '/customer-segments'
     | '/customers'
+    | '/cycle-count'
     | '/delivery-notes'
     | '/departments'
     | '/files'
@@ -937,6 +948,7 @@ export interface FileRouteTypes {
     | '/customer-payments'
     | '/customer-segments'
     | '/customers'
+    | '/cycle-count'
     | '/delivery-notes'
     | '/departments'
     | '/files'
@@ -1021,6 +1033,7 @@ export interface RootRouteChildren {
   CustomerPaymentsRoute: typeof CustomerPaymentsRoute
   CustomerSegmentsRoute: typeof CustomerSegmentsRoute
   CustomersRoute: typeof CustomersRoute
+  CycleCountRoute: typeof CycleCountRoute
   DeliveryNotesRoute: typeof DeliveryNotesRoute
   DepartmentsRoute: typeof DepartmentsRoute
   FilesRoute: typeof FilesRoute
@@ -1230,6 +1243,13 @@ declare module '@tanstack/react-router' {
       path: '/customers'
       fullPath: '/customers'
       preLoaderRoute: typeof CustomersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cycle-count': {
+      id: '/cycle-count'
+      path: '/cycle-count'
+      fullPath: '/cycle-count'
+      preLoaderRoute: typeof CycleCountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/delivery-notes': {
@@ -1677,6 +1697,7 @@ const rootRouteChildren: RootRouteChildren = {
   CustomerPaymentsRoute: CustomerPaymentsRoute,
   CustomerSegmentsRoute: CustomerSegmentsRoute,
   CustomersRoute: CustomersRoute,
+  CycleCountRoute: CycleCountRoute,
   DeliveryNotesRoute: DeliveryNotesRoute,
   DepartmentsRoute: DepartmentsRoute,
   FilesRoute: FilesRoute,

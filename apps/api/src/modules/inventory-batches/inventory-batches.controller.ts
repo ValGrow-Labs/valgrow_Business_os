@@ -96,4 +96,37 @@ export class InventoryBatchesController {
 
     return batch;
   }
+
+  @RequirePermissions("inventory.create")
+  @Post("manufacturing")
+  async createManufacturingLot(
+    @CurrentOrg("id") organizationId: string,
+    @CurrentUser("id") userId: string,
+    @Body()
+    body: {
+      productId: string;
+      variantId?: string;
+      batchNumber: string;
+      workOrderRef: string;
+      quantity: number;
+      unitCost: number;
+      warehouseId: string;
+      manufactureDate?: string;
+      expiryDate?: string;
+    },
+  ) {
+    const batch = await this.batchesService.createManufacturingLot(organizationId, body);
+
+    await this.activityLogsService.logEvent(
+      organizationId,
+      userId || null,
+      "CREATE_MANUFACTURING_LOT",
+      "InventoryBatch",
+      batch.id,
+      { batchNumber: batch.batchNumber, workOrderRef: batch.workOrderRef },
+    );
+
+    return batch;
+  }
 }
+

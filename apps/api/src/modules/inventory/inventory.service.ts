@@ -732,5 +732,80 @@ export class InventoryService {
       },
     };
   }
+
+  /**
+   * Returns a chronological inventory movement timeline with running balance calculation.
+   */
+  async getInventoryTimeline(
+    organizationId: string,
+    options: {
+      productId?: string;
+      warehouseId?: string;
+      locationId?: string;
+      batchId?: string;
+      limit?: number;
+    } = {},
+  ) {
+    const where: Prisma.StockMovementWhereInput = { organizationId };
+
+    if (options.productId) where.productId = options.productId;
+    if (options.warehouseId) where.warehouseId = options.warehouseId;
+    if (options.locationId) where.locationId = options.locationId;
+    if (options.batchId) where.batchId = options.batchId;
+
+    const limit = Math.min(200, Math.max(1, Number(options.limit) || 50));
+
+    const movements = await this.prisma.stockMovement.findMany({
+      where,
+      include: {
+        product: { select: { id: true, name: true, sku: true } },
+        variant: { select: { id: true, name: true, sku: true } },
+        warehouse: { select: { id: true, name: true } },
+        location: { select: { id: true, name: true } },
+        batch: { select: { id: true, batchNumber: true } },
+        actor: { select: { id: true, firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: "asc" },
+      take: limit,
+    });
+
+    let runningBalance = 0;
+    const timeline = movements.map((m) => {
+      const qty = Number(m.quantity);
+      runningBalance += qty;
+      const unitCost = Number(m.unitCost);
+      const totalCost = Number(m.totalCost);
+
+      return {
+        id: m.id,
+        createdAt: m.createdAt,
+        type: m.movementType,
+        quantity: qty,
+        unitCost,
+        totalCost,
+        referenceType: m.referenceType,
+        referenceId: m.referenceId,
+        runningBalance,
+        productId: m.productId,
+        productName: m.product?.name || "Unassigned",
+        productSku: m.product?.sku || "-",
+        warehouseName: m.warehouse?.name || "-",
+        locationName: m.location?.name || "-",
+        batchNumber: m.batch?.batchNumber || "-",
+        actorName: m.actor
+          ? `${m.actor.firstName || ""} ${m.actor.lastName || ""}`.trim()
+          : "System",
+      };
+    });
+
+    return {
+      data: timeline.reverse(),
+      summary: {
+        totalMovements: movements.length,
+        currentRunningBalance: runningBalance,
+      },
+    };
+  }
 }
+
 

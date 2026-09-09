@@ -41,7 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Download, Filter, Columns, ArrowUpDown, Settings2, ShoppingCart, AlertTriangle, Check, BarChart3 } from "lucide-react";
+import { Search, Download, Filter, Columns, ArrowUpDown, Settings2, ShoppingCart, AlertTriangle, Check, BarChart3, ClipboardCheck } from "lucide-react";
 import {
   useInventoryStock,
   usePurchaseSuggestions,
@@ -226,6 +226,12 @@ function InventoryStockPage() {
               <Link to="/inventory-analytics">
                 <BarChart3 className="mr-1.5 h-4 w-4" />
                 Analytics &amp; Intelligence
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
+              <Link to="/cycle-count">
+                <ClipboardCheck className="mr-1.5 h-4 w-4" />
+                Cycle Counting
               </Link>
             </Button>
             <Button
