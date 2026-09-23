@@ -10,8 +10,8 @@ type ThemeCtx = {
 };
 
 const ThemeContext = createContext<ThemeCtx>({
-  theme: "dark",
-  resolved: "dark",
+  theme: "light",
+  resolved: "light",
   setTheme: () => {},
   toggle: () => {},
 });
@@ -19,8 +19,8 @@ const ThemeContext = createContext<ThemeCtx>({
 const STORAGE_KEY = "valgrow-theme";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
-  const [resolved, setResolved] = useState<"light" | "dark">("dark");
+  const [theme, setThemeState] = useState<Theme>("light");
+  const [resolved, setResolved] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;

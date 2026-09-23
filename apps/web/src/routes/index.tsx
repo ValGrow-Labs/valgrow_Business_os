@@ -3,6 +3,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import {
   OverviewHeader,
   WelcomeHeroBanner,
+  OverviewMetricsSection,
   BusinessHubSection,
   FeatureCardsSection,
   HowItWorksSection,
@@ -29,6 +30,7 @@ function Overview() {
       <div className="space-y-8 pb-10">
         <OverviewHeader />
         <WelcomeHeroBanner />
+        <OverviewMetricsSection />
         <BusinessHubSection />
         <FeatureCardsSection />
         <HowItWorksSection />

@@ -21,9 +21,8 @@ export function useLocations(warehouseId?: string) {
   return useQuery<LocationItem[]>({
     queryKey: ["locations", warehouseId],
     queryFn: () =>
-      apiClient<LocationItem[]>(
-        warehouseId ? `/warehouses/${warehouseId}/locations` : "/locations",
-      ),
+      apiClient<LocationItem[]>(`/warehouses/${warehouseId}/locations`),
+    enabled: Boolean(warehouseId),
   });
 }
 

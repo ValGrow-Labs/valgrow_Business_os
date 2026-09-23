@@ -4,156 +4,336 @@ export function HeroIllustration({ className }: { className?: string }) {
   return (
     <div className={`relative flex items-center justify-center w-full ${className || ""}`}>
       <svg
-        viewBox="0 0 520 280"
+        viewBox="0 0 660 320"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-auto max-w-[520px] select-none"
+        className="w-full h-auto max-w-[660px] select-none"
       >
         <defs>
-          <filter id="heroShadow" x="-10%" y="-10%" width="120%" height="120%">
-            <feDropShadow dx="0" dy="8" stdDeviation="12" floodColor="#4C1D95" floodOpacity="0.15" />
+          {/* Filters for glows and soft shadows */}
+          <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="6" result="blur1" />
+            <feDropShadow dx="0" dy="4" stdDeviation="10" floodColor="#8B5CF6" floodOpacity="0.5" />
+            <feDropShadow dx="0" dy="10" stdDeviation="16" floodColor="#6D28D9" floodOpacity="0.3" />
           </filter>
-          <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#1E1B4B" floodOpacity="0.12" />
+          <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#311078" floodOpacity="0.12" />
+            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#311078" floodOpacity="0.06" />
           </filter>
-          <linearGradient id="laptopBody" x1="0" y1="0" x2="0" y2="100%">
-            <stop offset="0%" stopColor="#1E293B" />
-            <stop offset="100%" stopColor="#0F172A" />
+          <filter id="orbLightGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="16" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+
+          {/* Gradients */}
+          <radialGradient id="orbBody" cx="35%" cy="30%" r="70%">
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="45%" stopColor="#F7F1FF" />
+            <stop offset="80%" stopColor="#E6D3FF" />
+            <stop offset="100%" stopColor="#D8B4FE" />
+          </radialGradient>
+          <linearGradient id="pedestalBase" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#6D28D9" />
+            <stop offset="40%" stopColor="#4C1D95" />
+            <stop offset="100%" stopColor="#2E1065" />
           </linearGradient>
-          <linearGradient id="laptopScreen" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#F8FAFC" />
-            <stop offset="100%" stopColor="#EEF2FF" />
+          <linearGradient id="ringNeonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#C084FC" />
+            <stop offset="50%" stopColor="#38BDF8" />
+            <stop offset="100%" stopColor="#F472B6" />
           </linearGradient>
-          <linearGradient id="chartBarGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#818CF8" />
-            <stop offset="100%" stopColor="#4F46E5" />
+          <linearGradient id="barGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#C084FC" />
+            <stop offset="100%" stopColor="#7C3AED" />
+          </linearGradient>
+          <linearGradient id="barGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#A855F7" />
+            <stop offset="100%" stopColor="#5B21B6" />
           </linearGradient>
         </defs>
 
-        {/* Script Text top right: Smarter Business Together */}
-        <g transform="translate(450, 45)" textAnchor="end">
+        {/* Floating Top-Right Pill: Smarter Business Together */}
+        <g filter="url(#cardShadow)" transform="translate(425, 12)">
+          <rect x="0" y="0" width="128" height="52" rx="14" fill="#FFFFFF" />
           <text
-            fill="#5B21B6"
-            fontSize="18"
+            x="64"
+            y="21"
+            textAnchor="middle"
+            fill="#6D28D9"
+            fontSize="12"
             fontWeight="700"
-            fontFamily="Georgia, 'Times New Roman', serif"
             fontStyle="italic"
+            fontFamily="Georgia, 'Times New Roman', serif"
           >
             Smarter
           </text>
           <text
-            y="20"
-            fill="#5B21B6"
-            fontSize="18"
+            x="64"
+            y="34"
+            textAnchor="middle"
+            fill="#6D28D9"
+            fontSize="12"
             fontWeight="700"
-            fontFamily="Georgia, 'Times New Roman', serif"
             fontStyle="italic"
+            fontFamily="Georgia, 'Times New Roman', serif"
           >
             Business
           </text>
           <text
-            y="40"
-            fill="#5B21B6"
-            fontSize="18"
+            x="64"
+            y="46"
+            textAnchor="middle"
+            fill="#6D28D9"
+            fontSize="11"
             fontWeight="700"
-            fontFamily="Georgia, 'Times New Roman', serif"
             fontStyle="italic"
+            fontFamily="Georgia, 'Times New Roman', serif"
           >
             Together
           </text>
         </g>
 
-        {/* Laptop Graphics */}
-        <g filter="url(#heroShadow)" transform="translate(130, 80)">
-          {/* Outer Bezel */}
-          <rect x="0" y="0" width="220" height="140" rx="10" fill="url(#laptopBody)" />
-          {/* Camera Notch */}
-          <circle cx="110" cy="5" r="2" fill="#64748B" />
-          {/* Inner Screen */}
-          <rect x="8" y="10" width="204" height="122" rx="4" fill="url(#laptopScreen)" />
-          
-          {/* Screen Content: Dashboard UI Mockup */}
-          {/* Top nav inside mockup */}
-          <rect x="8" y="10" width="204" height="16" fill="#FFFFFF" />
-          <circle cx="18" cy="18" r="3" fill="#E2E8F0" />
-          <rect x="26" y="16" width="30" height="4" rx="2" fill="#94A3B8" />
-          <circle cx="195" cy="18" r="4" fill="#818CF8" />
-          <circle cx="204" cy="18" r="4" fill="#CBD5E1" />
-
-          {/* Sidebar inside mockup */}
-          <rect x="8" y="26" width="40" height="106" fill="#F1F5F9" />
-          <rect x="14" y="34" width="28" height="4" rx="2" fill="#818CF8" />
-          <rect x="14" y="44" width="28" height="3" rx="1.5" fill="#CBD5E1" />
-          <rect x="14" y="52" width="28" height="3" rx="1.5" fill="#CBD5E1" />
-          <rect x="14" y="60" width="28" height="3" rx="1.5" fill="#CBD5E1" />
-
-          {/* Main content inside mockup */}
-          {/* Bar Chart */}
-          <rect x="56" y="34" width="70" height="50" rx="4" fill="#FFFFFF" />
-          <rect x="64" y="60" width="8" height="18" rx="2" fill="#E2E8F0" />
-          <rect x="76" y="50" width="8" height="28" rx="2" fill="url(#chartBarGrad)" />
-          <rect x="88" y="44" width="8" height="34" rx="2" fill="#818CF8" />
-          <rect x="100" y="54" width="8" height="24" rx="2" fill="url(#chartBarGrad)" />
-          <rect x="112" y="40" width="8" height="38" rx="2" fill="#4F46E5" />
-
-          {/* Pie Chart / Stat Box */}
-          <rect x="132" y="34" width="72" height="50" rx="4" fill="#FFFFFF" />
-          <circle cx="168" cy="59" r="16" fill="none" stroke="#E2E8F0" strokeWidth="6" />
-          <path d="M168 43 A16 16 0 0 1 184 59" fill="none" stroke="#4F46E5" strokeWidth="6" />
-
-          {/* Bottom Table inside mockup */}
-          <rect x="56" y="90" width="148" height="36" rx="4" fill="#FFFFFF" />
-          <rect x="64" y="96" width="50" height="4" rx="2" fill="#CBD5E1" />
-          <rect x="64" y="104" width="80" height="3" rx="1.5" fill="#E2E8F0" />
-          <rect x="64" y="112" width="60" height="3" rx="1.5" fill="#E2E8F0" />
-          <rect x="170" y="96" width="26" height="4" rx="2" fill="#818CF8" />
-
-          {/* Laptop Hinge Base */}
-          <path d="M-15 140 H235 L225 150 H-5 Z" fill="#94A3B8" />
-          <rect x="-20" y="148" width="260" height="6" rx="3" fill="#CBD5E1" />
+        {/* Far Right Script Text: Ideas Today Growth Tomorrow */}
+        <g transform="translate(530, 115)" textAnchor="start">
+          <text
+            fill="#6D28D9"
+            fontSize="14"
+            fontWeight="700"
+            fontStyle="italic"
+            fontFamily="Georgia, cursive, serif"
+          >
+            Ideas
+          </text>
+          <text
+            y="18"
+            fill="#6D28D9"
+            fontSize="14"
+            fontWeight="700"
+            fontStyle="italic"
+            fontFamily="Georgia, cursive, serif"
+          >
+            Today
+          </text>
+          <text
+            y="36"
+            fill="#6D28D9"
+            fontSize="14"
+            fontWeight="700"
+            fontStyle="italic"
+            fontFamily="Georgia, cursive, serif"
+          >
+            Growth
+          </text>
+          <text
+            y="54"
+            fill="#6D28D9"
+            fontSize="14"
+            fontWeight="700"
+            fontStyle="italic"
+            fontFamily="Georgia, cursive, serif"
+          >
+            Tomorrow
+          </text>
+          {/* Decorative underline flare */}
+          <path d="M-2 64 Q22 70 42 64 T72 66" fill="none" stroke="#A855F7" strokeWidth="2.5" strokeLinecap="round" />
         </g>
 
-        {/* 3D Floating Card 1: Business */}
-        <g filter="url(#cardShadow)" transform="translate(30, 75)">
-          <rect x="0" y="0" width="85" height="70" rx="14" fill="#FFFFFF" />
-          {/* Purple Icon Box */}
-          <rect x="25" y="10" width="35" height="32" rx="10" fill="#F3E8FF" />
-          <path d="M35 34 V24 M42 34 V18 M49 34 V28" stroke="#7C3AED" strokeWidth="2.5" strokeLinecap="round" />
-          <text x="42" y="56" textAnchor="middle" fill="#1E1B4B" fontSize="10" fontWeight="700" fontFamily="sans-serif">Business</text>
+        {/* Main Central Platform & Pedestal */}
+        <g transform="translate(350, 248)">
+          {/* Soft outer glow under pedestal base */}
+          <ellipse cx="0" cy="20" rx="140" ry="35" fill="#C084FC" opacity="0.25" filter="url(#orbLightGlow)" />
+
+          {/* Bottom circular platform shadow */}
+          <ellipse cx="0" cy="20" rx="130" ry="30" fill="#2B1066" opacity="0.2" />
+
+          {/* Multi-layered metallic pedestal base */}
+          <ellipse cx="0" cy="20" rx="120" ry="28" fill="#3B1578" />
+          <path d="M -120 20 C -120 35, 120 35, 120 20 L 110 32 C 110 44, -110 44, -110 32 Z" fill="#2E1065" />
+          <ellipse cx="0" cy="14" rx="105" ry="24" fill="url(#pedestalBase)" />
+
+          {/* Glowing Purple LED Ring on Pedestal Base */}
+          <ellipse cx="0" cy="14" rx="105" ry="24" fill="none" stroke="#C084FC" strokeWidth="4" filter="url(#neonGlow)" />
+          <ellipse cx="0" cy="10" rx="90" ry="20" fill="#4C1D95" />
+
+          {/* Upper metallic cylinder stack */}
+          <ellipse cx="0" cy="5" rx="75" ry="16" fill="#6D28D9" />
+          <path d="M -75 5 C -75 16, 75 16, 75 5 L 68 14 C 68 22, -68 22, -68 14 Z" fill="#3B1578" />
+          <ellipse cx="0" cy="0" rx="68" ry="14" fill="#A855F7" opacity="0.8" />
+          <ellipse cx="0" cy="0" rx="65" ry="13" fill="#2E1065" />
+          {/* Top bright LED ring */}
+          <ellipse cx="0" cy="0" rx="65" ry="13" fill="none" stroke="#38BDF8" strokeWidth="3" filter="url(#neonGlow)" />
         </g>
 
-        {/* 3D Floating Card 2: Marketing */}
-        <g filter="url(#cardShadow)" transform="translate(85, 160)">
-          <rect x="0" y="0" width="90" height="70" rx="14" fill="#FFFFFF" />
-          {/* Pink Icon Box */}
-          <rect x="27" y="10" width="35" height="32" rx="10" fill="#FFE4E6" />
-          {/* Megaphone icon */}
-          <path d="M37 20 L47 16 V32 L37 28 H34 V20 H37 Z" fill="#E11D48" />
-          <text x="45" y="56" textAnchor="middle" fill="#1E1B4B" fontSize="10" fontWeight="700" fontFamily="sans-serif">Marketing</text>
+        {/* Central Orb Network Orbit Lines */}
+        <g transform="translate(350, 160)">
+          {/* Back Orbiting Line Ring 1 */}
+          <ellipse cx="0" cy="0" rx="115" ry="42" fill="none" stroke="#E9D8FF" strokeWidth="1.5" strokeDasharray="6 4" opacity="0.8" transform="rotate(-15)" />
+          {/* Back Orbiting Line Ring 2 */}
+          <ellipse cx="0" cy="0" rx="100" ry="50" fill="none" stroke="#C084FC" strokeWidth="1.5" opacity="0.7" transform="rotate(25)" />
         </g>
 
-        {/* 3D Floating Card 3: Suppliers */}
-        <g filter="url(#cardShadow)" transform="translate(305, 165)">
-          <rect x="0" y="0" width="85" height="70" rx="14" fill="#FFFFFF" />
-          {/* Green Icon Box */}
-          <rect x="25" y="10" width="35" height="32" rx="10" fill="#DCFCE7" />
-          {/* Users icon */}
-          <circle cx="38" cy="22" r="3.5" fill="#16A34A" />
-          <path d="M32 32 C32 28.5 35 27 38 27 C41 27 44 28.5 44 32" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" />
-          <circle cx="47" cy="22" r="2.5" fill="#16A34A" opacity="0.7" />
-          <text x="42" y="56" textAnchor="middle" fill="#1E1B4B" fontSize="10" fontWeight="700" fontFamily="sans-serif">Suppliers</text>
+        {/* Central VG Orb */}
+        <g transform="translate(350, 155)">
+          {/* Soft backlight aura */}
+          <circle cx="0" cy="0" r="70" fill="#A855F7" opacity="0.35" filter="url(#neonGlow)" />
+
+          {/* Glowing Outer Translucent Ring around Orb */}
+          <circle cx="0" cy="0" r="64" fill="none" stroke="url(#ringNeonGrad)" strokeWidth="3.5" filter="url(#neonGlow)" />
+
+          {/* Main 3D Sphere Body */}
+          <circle cx="0" cy="0" r="58" fill="url(#orbBody)" filter="url(#cardShadow)" />
+
+          {/* Inner Highlight Ring */}
+          <circle cx="0" cy="0" r="56" fill="none" stroke="#FFFFFF" strokeWidth="1.5" opacity="0.8" />
+
+          {/* Text inside central orb */}
+          <text
+            x="0"
+            y="-8"
+            textAnchor="middle"
+            fill="#5B21B6"
+            fontSize="32"
+            fontWeight="900"
+            fontFamily="system-ui, -apple-system, sans-serif"
+            letterSpacing="-0.5"
+          >
+            VG
+          </text>
+          <text
+            x="0"
+            y="14"
+            textAnchor="middle"
+            fill="#4C1D95"
+            fontSize="15"
+            fontWeight="800"
+            fontFamily="system-ui, -apple-system, sans-serif"
+          >
+            ValGrow
+          </text>
+          <text
+            x="0"
+            y="28"
+            textAnchor="middle"
+            fill="#7C3AED"
+            fontSize="8"
+            fontWeight="800"
+            fontFamily="system-ui, -apple-system, sans-serif"
+            letterSpacing="1.5"
+          >
+            BUSINESS OS
+          </text>
         </g>
 
-        {/* Potted Plant on Far Right */}
-        <g filter="url(#cardShadow)" transform="translate(425, 160)">
-          {/* Plant Leaves */}
-          <path d="M30 35 C20 15 10 18 12 5 C25 15 28 30 30 35 Z" fill="#15803D" />
-          <path d="M30 35 C38 10 48 12 45 0 C38 12 34 28 30 35 Z" fill="#22C55E" />
-          <path d="M30 35 C12 25 5 35 0 25 C12 32 24 34 30 35 Z" fill="#16A34A" />
-          <path d="M30 35 C48 25 55 35 60 25 C48 32 36 34 30 35 Z" fill="#4ADE80" />
-          {/* Pot */}
-          <path d="M18 35 H42 L38 70 H22 Z" fill="#FFFFFF" />
-          <ellipse cx="30" cy="35" rx="12" ry="3" fill="#E2E8F0" />
+        {/* Front Orbit Line Ring & Small Node Points */}
+        <g transform="translate(350, 155)">
+          <ellipse cx="0" cy="0" rx="125" ry="38" fill="none" stroke="#FFFFFF" strokeWidth="2" opacity="0.9" transform="rotate(-8)" />
+          {/* Orbital Nodes */}
+          <circle cx="-120" cy="14" r="4.5" fill="#38BDF8" filter="url(#neonGlow)" />
+          <circle cx="115" cy="-12" r="4.5" fill="#C084FC" filter="url(#neonGlow)" />
+          <circle cx="20" cy="38" r="3.5" fill="#F472B6" filter="url(#neonGlow)" />
+        </g>
+
+        {/* 5 FLOATING CARDS SURROUNDING THE CENTRAL ORB */}
+
+        {/* Card 1: POS (Top Center) */}
+        <g filter="url(#cardShadow)" transform="translate(320, 22)">
+          <rect x="0" y="0" width="60" height="58" rx="14" fill="#FFFFFF" />
+          {/* Icon Box */}
+          <rect x="14" y="8" width="32" height="28" rx="8" fill="#F3E8FF" />
+          {/* Store Front Icon */}
+          <path d="M21 16 H39 V28 H21 Z" fill="none" stroke="#7C3AED" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M19 16 L23 11 H37 L41 16" fill="none" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" />
+          <rect x="27" y="22" width="6" height="6" fill="#7C3AED" />
+          <text x="30" y="49" textAnchor="middle" fill="#374151" fontSize="9" fontWeight="800" fontFamily="sans-serif">
+            POS
+          </text>
+        </g>
+
+        {/* Card 2: Inventory (Left) */}
+        <g filter="url(#cardShadow)" transform="translate(200, 110)">
+          <rect x="0" y="0" width="70" height="65" rx="14" fill="#FFFFFF" />
+          {/* Icon Box */}
+          <rect x="17" y="8" width="36" height="32" rx="9" fill="#E0F2FE" />
+          {/* 3D Blue Cube Icon */}
+          <path d="M35 14 L46 19.5 V30.5 L35 36 L24 30.5 V19.5 Z" fill="#38BDF8" opacity="0.3" />
+          <path d="M35 14 L46 19.5 L35 25 L24 19.5 Z" fill="#0284C7" />
+          <path d="M24 19.5 L35 25 V36 L24 30.5 Z" fill="#0369A1" />
+          <path d="M46 19.5 L35 25 V36 L46 30.5 Z" fill="#38BDF8" />
+          <text x="35" y="54" textAnchor="middle" fill="#374151" fontSize="9" fontWeight="800" fontFamily="sans-serif">
+            Inventory
+          </text>
+        </g>
+
+        {/* Card 3: Purchasing (Bottom-Left) */}
+        <g filter="url(#cardShadow)" transform="translate(225, 205)">
+          <rect x="0" y="0" width="70" height="62" rx="14" fill="#FFFFFF" />
+          {/* Icon Box */}
+          <rect x="17" y="7" width="36" height="30" rx="9" fill="#DCFCE7" />
+          {/* Shopping Cart Icon */}
+          <path d="M25 14 H28 L31 26 H41 L43 18 H29" fill="none" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="32" cy="30" r="2" fill="#16A34A" />
+          <circle cx="39" cy="30" r="2" fill="#16A34A" />
+          <text x="35" y="52" textAnchor="middle" fill="#374151" fontSize="9" fontWeight="800" fontFamily="sans-serif">
+            Purchasing
+          </text>
+        </g>
+
+        {/* Card 4: Customers (Right) */}
+        <g filter="url(#cardShadow)" transform="translate(440, 118)">
+          <rect x="0" y="0" width="68" height="60" rx="14" fill="#FFFFFF" />
+          {/* Icon Box */}
+          <rect x="17" y="7" width="34" height="30" rx="9" fill="#FFE4E6" />
+          {/* User Profile Icon */}
+          <circle cx="34" cy="18" r="4" fill="#E11D48" />
+          <path d="M26 29 C26 25 29 24 34 24 C39 24 42 25 42 29" stroke="#E11D48" strokeWidth="2" strokeLinecap="round" fill="none" />
+          <text x="34" y="50" textAnchor="middle" fill="#374151" fontSize="9" fontWeight="800" fontFamily="sans-serif">
+            Customers
+          </text>
+        </g>
+
+        {/* Card 5: Reports (Bottom-Right) - Independent & Uncluttered */}
+        <g filter="url(#cardShadow)" transform="translate(445, 205)">
+          <rect x="0" y="0" width="68" height="60" rx="14" fill="#FFFFFF" />
+          {/* Icon Box */}
+          <rect x="17" y="7" width="34" height="30" rx="9" fill="#FEF3C7" />
+          {/* Bar Chart Icon */}
+          <rect x="23" y="22" width="4" height="9" rx="1" fill="#D97706" />
+          <rect x="31" y="16" width="4" height="15" rx="1" fill="#F59E0B" />
+          <rect x="39" y="12" width="4" height="19" rx="1" fill="#D97706" />
+          <text x="34" y="50" textAnchor="middle" fill="#374151" fontSize="9" fontWeight="800" fontFamily="sans-serif">
+            Reports
+          </text>
+        </g>
+
+        {/* INDEPENDENT FAR-RIGHT GRAPHIC: Potted Plant & 3D Growth Bar Chart */}
+        {/* Positioned at x=530 to guarantee clear separation & zero overlap */}
+        <g transform="translate(530, 195)">
+          {/* Potted Plant */}
+          <g transform="translate(0, 15)" filter="url(#cardShadow)">
+            <path d="M12 20 C5 5 -5 8 0 -5 C10 5 12 15 12 20 Z" fill="#15803D" />
+            <path d="M12 20 C18 0 26 2 24 -10 C18 0 15 15 12 20 Z" fill="#22C55E" />
+            <path d="M12 20 C-2 12 -8 20 -12 12 C-2 18 8 19 12 20 Z" fill="#16A34A" />
+            <path d="M12 20 C24 12 30 20 34 12 C24 18 16 19 12 20 Z" fill="#4ADE80" />
+            {/* White Pot */}
+            <path d="M2 20 H22 L19 46 H5 Z" fill="#FFFFFF" />
+            <ellipse cx="12" cy="20" rx="10" ry="2.5" fill="#E2E8F0" />
+          </g>
+
+          {/* 3D Growth Bar Columns & Upward Purple Arrow */}
+          <g transform="translate(35, -5)" filter="url(#cardShadow)">
+            {/* Column 1 (Short) */}
+            <rect x="0" y="45" width="12" height="25" rx="3" fill="#C084FC" />
+            {/* Column 2 (Medium) */}
+            <rect x="16" y="30" width="14" height="40" rx="3" fill="url(#barGrad1)" />
+            {/* Column 3 (Tall) */}
+            <rect x="34" y="10" width="16" height="60" rx="4" fill="url(#barGrad2)" />
+
+            {/* Glowing Arrow pointing up on top of tallest column */}
+            <g transform="translate(34, -14)">
+              <path d="M8 0 L16 14 H11 V24 H5 V14 H0 Z" fill="#6D28D9" filter="url(#neonGlow)" />
+              <path d="M8 2 L14 13 H10 V22 H6 V13 H2 Z" fill="#C084FC" />
+            </g>
+          </g>
         </g>
       </svg>
     </div>

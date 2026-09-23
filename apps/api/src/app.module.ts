@@ -58,6 +58,7 @@ import { ArApModule } from "./modules/ar-ap/ar-ap.module";
 import { BankAccountingModule } from "./modules/bank-accounting/bank-accounting.module";
 import { TaxAccountingModule } from "./modules/tax-accounting/tax-accounting.module";
 import { FinancialReportsModule } from "./modules/financial-reports/financial-reports.module";
+import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
@@ -123,6 +124,7 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     BankAccountingModule,
     TaxAccountingModule,
     FinancialReportsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

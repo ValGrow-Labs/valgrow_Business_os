@@ -68,6 +68,7 @@ export const navGroups: NavGroup[] = [
     label: "OPERATIONS",
     items: [
       { title: "POS", url: "/pos", icon: ShoppingBag },
+      { title: "Products", url: "/products", icon: Package },
       { title: "Inventory", url: "/inventory", icon: Boxes },
       { title: "Purchasing", url: "/purchasing", icon: ShoppingCart },
       { title: "Customers", url: "/customers", icon: Contact },

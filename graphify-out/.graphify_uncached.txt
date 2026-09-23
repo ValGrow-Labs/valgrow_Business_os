@@ -1,0 +1,12 @@
+D:\github_project\valgrow_Business_os\README.md
+D:\github_project\valgrow_Business_os\apps\web\public\robots.txt
+D:\github_project\valgrow_Business_os\apps\web\src\routes\README.md
+D:\github_project\valgrow_Business_os\docker-compose.yml
+D:\github_project\valgrow_Business_os\implementation_plan.md
+D:\github_project\valgrow_Business_os\apps\web\public\illustrations\customers.jpg
+D:\github_project\valgrow_Business_os\apps\web\public\illustrations\hero.jpg
+D:\github_project\valgrow_Business_os\apps\web\public\illustrations\inventory.jpg
+D:\github_project\valgrow_Business_os\apps\web\public\illustrations\pos.jpg
+D:\github_project\valgrow_Business_os\apps\web\public\illustrations\purchasing.jpg
+D:\github_project\valgrow_Business_os\apps\web\public\illustrations\reports.jpg
+D:\github_project\valgrow_Business_os\apps\web\src\assets\valgrow-logo.png

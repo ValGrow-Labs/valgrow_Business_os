@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   ArrowRight,
   BarChart3,
   Boxes,
@@ -9,15 +10,22 @@ import {
   ChevronDown,
   Contact,
   Database,
+  FileText,
+  Lightbulb,
+  Mic,
   Receipt,
+  RefreshCw,
   Settings2,
   ShoppingCart,
   Sparkles,
   Target,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useDashboardOverview } from "@/hooks/queries/useDashboardOverview";
+import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import {
   HeroIllustration,
   PosCardIllustration,
@@ -29,23 +37,197 @@ import {
 } from "./overview-illustrations";
 
 export function OverviewHeader() {
+  const { data: currentUser } = useCurrentUser();
+  const firstName = currentUser?.user?.firstName || "Team";
+
+  const todayStr = new Date().toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 pb-1">
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
-          Good morning, John! <span className="text-2xl">👋</span>
+          Good day, {firstName}! <span className="text-2xl">👋</span>
         </h1>
         <p className="mt-1 text-xs sm:text-sm text-slate-500 font-medium">
-          Here's what's happening in your business today.
+          Here is your live organization overview for today.
         </p>
       </div>
 
       <div className="flex items-center gap-2">
-        <button className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50/50 transition-colors">
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-2xs">
           <Calendar className="h-4 w-4 text-slate-400" />
-          <span>21 May 2026 - 27 May 2026</span>
-          <ChevronDown className="h-3.5 w-3.5 text-slate-400 ml-1" />
-        </button>
+          <span>{todayStr}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function OverviewMetricsSection() {
+  const { data, isLoading, isError, refetch } = useDashboardOverview();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-extrabold text-slate-900">Live Business Metrics</h2>
+          <span className="text-xs text-slate-400">Fetching real-time API metrics...</span>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs animate-pulse space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <div className="h-9 w-9 rounded-xl bg-slate-100" />
+                <div className="h-4 w-12 rounded-full bg-slate-100" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="h-3 w-20 rounded bg-slate-100" />
+                <div className="h-6 w-24 rounded bg-slate-200" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4 text-xs text-rose-800 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+          <span className="font-medium">
+            Failed to load live dashboard overview metrics from the API endpoint.
+          </span>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => refetch()}
+          className="h-8 gap-1.5 border-rose-300 text-rose-800 hover:bg-rose-100 font-semibold"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Retry Request
+        </Button>
+      </div>
+    );
+  }
+
+  const metrics = [
+    {
+      title: "Today's Sales",
+      value: `₹${Number(data.todaysTotalPosSales).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
+      subtitle: `${data.todaysOrderCount} completed order(s)`,
+      icon: Receipt,
+      iconBg: "bg-emerald-100 text-emerald-700",
+      badge: "Today",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      url: "/pos",
+    },
+    {
+      title: "Today's Orders",
+      value: String(data.todaysOrderCount),
+      subtitle: "POS sales completed",
+      icon: ShoppingCart,
+      iconBg: "bg-purple-100 text-purple-700",
+      badge: "Completed",
+      badgeClass: "bg-purple-50 text-purple-700 border-purple-200",
+      url: "/pos",
+    },
+    {
+      title: "Active Products",
+      value: String(data.totalActiveProducts),
+      subtitle: "Items in catalog",
+      icon: Boxes,
+      iconBg: "bg-blue-100 text-blue-700",
+      badge: "Catalog",
+      badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
+      url: "/products",
+    },
+    {
+      title: "Low Stock Items",
+      value: String(data.lowStockProductCount),
+      subtitle: "At/below reorder level",
+      icon: AlertTriangle,
+      iconBg: data.lowStockProductCount > 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600",
+      badge: data.lowStockProductCount > 0 ? "Alert" : "Normal",
+      badgeClass: data.lowStockProductCount > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-600 border-slate-200",
+      url: "/inventory",
+    },
+    {
+      title: "Open POs",
+      value: String(data.openPurchaseOrderCount),
+      subtitle: `${data.pendingGoodsReceiptsCount} pending GRN(s)`,
+      icon: FileText,
+      iconBg: "bg-indigo-100 text-indigo-700",
+      badge: "Procurement",
+      badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200",
+      url: "/purchase-orders",
+    },
+    {
+      title: "Active Customers",
+      value: String(data.activeCustomerCount),
+      subtitle: "Registered profiles",
+      icon: Users,
+      iconBg: "bg-rose-100 text-rose-700",
+      badge: "Directory",
+      badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+      url: "/customers",
+    },
+  ];
+
+  return (
+    <div className="space-y-3 pt-2">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-extrabold text-slate-900">Live Business Overview</h2>
+        <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          Live API Data
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {metrics.map((m) => {
+          const IconComp = m.icon;
+          return (
+            <Link
+              key={m.title}
+              to={m.url}
+              className="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs transition-all hover:border-purple-300 hover:shadow-md"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${m.iconBg} shadow-2xs`}>
+                    <IconComp className="h-5 w-5" />
+                  </div>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${m.badgeClass}`}>
+                    {m.badge}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">{m.title}</p>
+                  <p className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-0.5 truncate">
+                    {m.value}
+                  </p>
+                  <p className="mt-1 text-[11px] font-medium text-slate-400 truncate">
+                    {m.subtitle}
+                  </p>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
@@ -54,51 +236,119 @@ export function OverviewHeader() {
 export function WelcomeHeroBanner() {
   const [searchValue, setSearchValue] = useState("");
 
+  const quickSuggestions = [
+    {
+      label: "Boost sales ideas",
+      icon: Lightbulb,
+      bg: "bg-purple-50/90 border-purple-200/80 text-purple-900 hover:bg-purple-100",
+      iconColor: "text-purple-600",
+    },
+    {
+      label: "Check low stock",
+      icon: TrendingUp,
+      bg: "bg-sky-50/90 border-sky-200/80 text-sky-900 hover:bg-sky-100",
+      iconColor: "text-sky-600",
+    },
+    {
+      label: "Find new customers",
+      icon: Users,
+      bg: "bg-emerald-50/90 border-emerald-200/80 text-emerald-900 hover:bg-emerald-100",
+      iconColor: "text-emerald-600",
+    },
+    {
+      label: "Review this week",
+      icon: FileText,
+      bg: "bg-amber-50/90 border-amber-200/80 text-amber-900 hover:bg-amber-100",
+      iconColor: "text-amber-600",
+    },
+  ];
+
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#EDE5FF] via-[#E4D9FF] to-[#F2EBFF] p-6 sm:p-8 lg:p-10 border border-purple-100/60 shadow-2xs">
-      {/* Decorative Orbs */}
-      <div className="pointer-events-none absolute -left-12 -top-12 h-64 w-64 rounded-full bg-purple-300/30 blur-3xl" />
-      <div className="pointer-events-none absolute right-1/4 bottom-0 h-48 w-48 rounded-full bg-indigo-300/20 blur-3xl" />
+    <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-[#EDE6FF] via-[#E7DBFF] to-[#F3EBFF] p-6 sm:p-8 lg:p-10 border border-purple-100/80 shadow-xs">
+      <div className="pointer-events-none absolute -left-16 -top-16 h-72 w-72 rounded-full bg-purple-300/35 blur-3xl" />
+      <div className="pointer-events-none absolute right-1/3 bottom-0 h-56 w-56 rounded-full bg-indigo-300/25 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-fuchsia-300/20 blur-3xl" />
 
       <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12">
-        {/* Left Content */}
-        <div className="lg:col-span-7 space-y-4 sm:space-y-5">
-          <div className="flex items-center gap-2 text-purple-700 font-semibold text-xs uppercase tracking-wider">
-            <Sparkles className="h-4.5 w-4.5 text-purple-600" />
-            <span>Welcome to</span>
+        <div className="lg:col-span-7 space-y-4 sm:space-y-5 z-10">
+          <div className="flex items-center gap-1.5 text-[#7C3AED] font-bold text-xs uppercase tracking-wider">
+            <Sparkles className="h-4 w-4 text-[#7C3AED]" />
+            <span>WELCOME TO</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-[#2B1266] leading-tight">
-            ValGrow Business OS
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-[#2B1066] leading-tight">
+            ValGrow <span className="text-[#6D28D9]">Business OS</span>
           </h2>
           <p className="text-sm sm:text-base text-[#4C2694] font-medium max-w-xl leading-relaxed">
             Manage your business, marketing and suppliers in one place.
           </p>
 
-          {/* Search Box inside Hero */}
-          <div className="pt-2">
-            <div className="relative flex items-center max-w-xl rounded-full bg-white p-1.5 pl-4 shadow-sm border border-purple-100/80">
-              <Sparkles className="h-5 w-5 shrink-0 text-purple-600 mr-2" />
-              <input
-                type="text"
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="Ask ValGrow: What should I focus on today?"
-                className="w-full bg-transparent py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none font-medium"
-              />
+          <div className="pt-2 max-w-2xl">
+            <div className="relative flex items-center gap-2 rounded-full bg-white p-2 pl-3 border border-purple-200/80 shadow-[0_0_25px_rgba(147,51,234,0.22)] ring-4 ring-purple-300/20 focus-within:ring-purple-400/30 transition-all">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#7C3AED] to-[#9333EA] text-white shadow-sm shadow-purple-500/40">
+                <Sparkles className="h-4.5 w-4.5" />
+              </div>
+
+              <div className="flex flex-1 items-center overflow-hidden">
+                {!searchValue && (
+                  <span className="font-bold text-[#6D28D9] text-xs sm:text-sm shrink-0 mr-1 select-none">
+                    Ask ValGrow:
+                  </span>
+                )}
+                <input
+                  type="text"
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  placeholder={searchValue ? "" : "What should I focus on today?"}
+                  className="w-full bg-transparent py-1 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none font-medium"
+                />
+              </div>
+
               <button
                 type="button"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5B21B6] text-white shadow-sm hover:bg-purple-800 transition-colors"
+                className="hidden sm:flex items-center gap-1 rounded-full bg-purple-50 border border-purple-100 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 transition-colors shrink-0"
+              >
+                <Lightbulb className="h-3.5 w-3.5 text-purple-600" />
+                <span>Get smart insights</span>
+                <ChevronDown className="h-3 w-3 text-purple-500" />
+              </button>
+
+              <button
+                type="button"
+                className="p-1.5 text-slate-400 hover:text-purple-600 transition-colors shrink-0"
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#6D28D9] to-[#5B21B6] text-white shadow-md shadow-purple-600/30 hover:scale-105 active:scale-95 transition-all"
               >
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           </div>
+
+          <div className="pt-2 flex flex-wrap items-center gap-2.5">
+            {quickSuggestions.map((item) => {
+              const IconComp = item.icon;
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => setSearchValue(item.label)}
+                  className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-2xs transition-all hover:scale-[1.02] ${item.bg}`}
+                >
+                  <IconComp className={`h-3.5 w-3.5 ${item.iconColor}`} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Right Graphic Illustration */}
         <div className="lg:col-span-5 flex justify-center relative">
-          <HeroIllustration className="w-full max-w-md lg:max-w-none" />
+          <HeroIllustration className="w-full max-w-lg lg:max-w-none" />
         </div>
       </div>
     </div>
@@ -348,7 +598,6 @@ export function FeatureCardsSection() {
               className={`rounded-3xl border ${card.cardClass} p-6 sm:p-7 shadow-xs flex flex-col justify-between`}
             >
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
-                {/* Content Side */}
                 <div className="sm:col-span-7 space-y-3">
                   <div className="flex items-center gap-3">
                     <div className={`flex h-9 w-9 items-center justify-center rounded-full ${card.iconBg}`}>
@@ -387,7 +636,6 @@ export function FeatureCardsSection() {
                   </div>
                 </div>
 
-                {/* Illustration Side */}
                 <div className="sm:col-span-5 flex justify-center">
                   <Illustration />
                 </div>
@@ -451,7 +699,6 @@ export function HowItWorksSection() {
           return (
             <div key={step.num} className="relative flex flex-col justify-between bg-white rounded-2xl p-5 border border-purple-100/60 shadow-2xs">
               <div className="space-y-4">
-                {/* Top badges */}
                 <div className="flex items-center gap-3">
                   <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${step.numBg}`}>
                     {step.num}
@@ -469,7 +716,6 @@ export function HowItWorksSection() {
                 </div>
               </div>
 
-              {/* Connecting Arrow for desktop */}
               {idx < steps.length - 1 ? (
                 <div className="hidden lg:block absolute -right-4 top-1/2 -translate-y-1/2 z-10 text-purple-300">
                   <ArrowRight className="h-5 w-5" />

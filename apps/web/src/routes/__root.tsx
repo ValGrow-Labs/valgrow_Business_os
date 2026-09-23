@@ -16,7 +16,7 @@ const noFlashThemeScript = `
 (function () {
   try {
     var stored = localStorage.getItem("valgrow-theme");
-    var theme = stored === "light" || stored === "dark" ? stored : "dark";
+    var theme = stored === "light" || stored === "dark" ? stored : "light";
     if (theme === "system") {
       theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }

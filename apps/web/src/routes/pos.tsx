@@ -81,11 +81,12 @@ export const Route = createFileRoute("/pos")({
 
 function POSRegisterPage() {
   const { data: currentUser } = useCurrentUser();
+  const isOwner = currentUser?.role?.name === "Owner";
   const permissions = currentUser?.permissions || [];
-  const canOpenSession = permissions.includes("pos.session");
-  const canCloseSession = permissions.includes("pos.close");
-  const canCheckout = permissions.includes("pos.checkout");
-  const canRefund = permissions.includes("pos.refund");
+  const canOpenSession = isOwner || permissions.includes("pos.session");
+  const canCloseSession = isOwner || permissions.includes("pos.close");
+  const canCheckout = isOwner || permissions.includes("pos.checkout");
+  const canRefund = isOwner || permissions.includes("pos.refund");
 
   // Masters
   const { data: branchesRes } = useBranches();
@@ -105,6 +106,19 @@ function POSRegisterPage() {
   const [openSessionWarehouseId, setOpenSessionWarehouseId] = useState("");
   const [openSessionTerminalId, setOpenSessionTerminalId] = useState("REG-01");
   const [openSessionOpeningCash, setOpenSessionOpeningCash] = useState("1000");
+
+  // Auto-initialize branch and warehouse selection when master data loads
+  useEffect(() => {
+    if (!openSessionBranchId && branches.length > 0 && branches[0]?.id) {
+      setOpenSessionBranchId(branches[0].id);
+    }
+  }, [branches, openSessionBranchId]);
+
+  useEffect(() => {
+    if (!openSessionWarehouseId && warehouses.length > 0 && warehouses[0]?.id) {
+      setOpenSessionWarehouseId(warehouses[0].id);
+    }
+  }, [warehouses, openSessionWarehouseId]);
 
   const openSessionMutation = useOpenPOSSession();
   const closeSessionMutation = useClosePOSSession();
@@ -189,7 +203,7 @@ function POSRegisterPage() {
               productId: match.product.id,
               variantId: match.variant?.id || undefined,
               quantity: 1,
-              unitPrice: match.price,
+              unitPrice: Number(match.price || 0),
             },
           });
         } else if (activeCartId) {
@@ -199,7 +213,7 @@ function POSRegisterPage() {
               productId: match.product.id,
               variantId: match.variant?.id || undefined,
               quantity: 1,
-              unitPrice: match.price,
+              unitPrice: Number(match.price || 0),
             },
           });
         }
@@ -230,7 +244,7 @@ function POSRegisterPage() {
       setActiveCartId(newCart.id);
     }
 
-    const price = product.retailPrice || product.costPrice;
+    const price = Number(product.retailPrice || product.costPrice || 0);
     await addItemMutation.mutateAsync({
       cartId: targetCartId,
       dto: {
@@ -448,7 +462,7 @@ function POSRegisterPage() {
               <span>POS Register — {activeSession.terminalId}</span>
               <Badge
                 variant="outline"
-                className="border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                className="border-emerald-500 bg-emerald-50 text-emerald-700"
               >
                 {activeSession.status}
               </Badge>
@@ -584,7 +598,7 @@ function POSRegisterPage() {
                       </div>
                       <div className="mt-3 flex items-center justify-between border-t pt-2 text-xs">
                         <span className="font-bold text-primary">
-                          ₹{(prod.retailPrice || prod.costPrice).toFixed(2)}
+                          ₹{Number(prod.retailPrice || prod.costPrice || 0).toFixed(2)}
                         </span>
                         <span className="text-muted-foreground">
                           Stk: {prod.availableStock ?? 0}
@@ -652,7 +666,7 @@ function POSRegisterPage() {
                         <div className="text-muted-foreground">{item.variant.name}</div>
                       )}
                       <div className="text-muted-foreground">
-                        ₹{item.unitPrice.toFixed(2)} / unit
+                        ₹{Number(item.unitPrice || 0).toFixed(2)} / unit
                       </div>
                     </div>
 
@@ -697,7 +711,7 @@ function POSRegisterPage() {
                       </div>
 
                       <div className="w-16 text-right font-bold text-foreground">
-                        ₹{item.totalAmount.toFixed(2)}
+                        ₹{Number(item.totalAmount || 0).toFixed(2)}
                       </div>
 
                       <Button
@@ -721,23 +735,23 @@ function POSRegisterPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-mono">
-                  ₹{activeCart?.subtotalAmount.toFixed(2) || "0.00"}
+                  ₹{Number(activeCart?.subtotalAmount || 0).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Discount</span>
                 <span className="font-mono text-destructive">
-                  -₹{activeCart?.discountAmount.toFixed(2) || "0.00"}
+                  -₹{Number(activeCart?.discountAmount || 0).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tax</span>
-                <span className="font-mono">₹{activeCart?.taxAmount.toFixed(2) || "0.00"}</span>
+                <span className="font-mono">₹{Number(activeCart?.taxAmount || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between border-t pt-2 text-base font-bold">
                 <span>Grand Total</span>
                 <span className="text-primary font-mono">
-                  ₹{activeCart?.totalAmount.toFixed(2) || "0.00"}
+                  ₹{Number(activeCart?.totalAmount || 0).toFixed(2)}
                 </span>
               </div>
 
@@ -788,17 +802,17 @@ function POSRegisterPage() {
                 <div className="flex justify-between">
                   <span>Subtotal</span>
                   <span>
-                    ₹{activeCart?.subtotalAmount ? activeCart.subtotalAmount.toFixed(2) : "0.00"}
+                    ₹{Number(activeCart?.subtotalAmount || 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Tax</span>
-                  <span>₹{activeCart?.taxAmount ? activeCart.taxAmount.toFixed(2) : "0.00"}</span>
+                  <span>₹{Number(activeCart?.taxAmount || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between border-t pt-1 font-bold text-sm">
                   <span>Total Amount Due</span>
                   <span className="text-primary font-mono">
-                    ₹{activeCart?.totalAmount ? activeCart.totalAmount.toFixed(2) : "0.00"}
+                    ₹{Number(activeCart?.totalAmount || 0).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -903,15 +917,19 @@ function POSRegisterPage() {
                 (p) =>
                   p.paymentMethod === "CASH" && p.receivedAmount && p.receivedAmount > p.amount,
               ) && (
-                <div className="rounded-lg border bg-emerald-50 border-emerald-200 p-3 text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200">
+                <div className="rounded-lg border bg-emerald-50 border-emerald-200 p-3 text-emerald-800">
                   <div className="flex justify-between font-bold text-sm">
                     <span>Cash Change Due to Customer:</span>
                     <span className="font-mono">
                       ₹
-                      {payments
-                        .filter((p) => p.paymentMethod === "CASH")
-                        .reduce((sum, p) => sum + ((p.receivedAmount || p.amount) - p.amount), 0)
-                        .toFixed(2)}
+                      {Number(
+                        payments
+                          .filter((p) => p.paymentMethod === "CASH")
+                          .reduce(
+                            (sum, p) => sum + ((p.receivedAmount || p.amount) - p.amount),
+                            0,
+                          ),
+                      ).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -957,9 +975,7 @@ function POSRegisterPage() {
                 <span>Total Paid Amount</span>
                 <span className="font-bold font-mono">
                   ₹
-                  {completedSale?.sale.totalAmount
-                    ? completedSale.sale.totalAmount.toFixed(2)
-                    : "0.00"}
+                  {Number(completedSale?.sale.totalAmount || 0).toFixed(2)}
                 </span>
               </div>
 
@@ -968,9 +984,7 @@ function POSRegisterPage() {
                   <span>Change Returned</span>
                   <span className="font-mono">
                     ₹
-                    {completedSale?.sale.changeAmount
-                      ? completedSale.sale.changeAmount.toFixed(2)
-                      : "0.00"}
+                    {Number(completedSale?.sale.changeAmount || 0).toFixed(2)}
                   </span>
                 </div>
               )}
@@ -980,7 +994,7 @@ function POSRegisterPage() {
                 {completedSale?.sale.payments.map((p) => (
                   <div key={p.id} className="flex justify-between text-muted-foreground">
                     <span>{p.paymentMethod}</span>
-                    <span className="font-mono">₹{p.amount.toFixed(2)}</span>
+                    <span className="font-mono">₹{Number(p.amount || 0).toFixed(2)}</span>
                   </div>
                 ))}
               </div>

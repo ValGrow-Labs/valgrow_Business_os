@@ -181,7 +181,7 @@ function FinancialReportsPage() {
                     </div>
                   </div>
 
-                  <div className="flex justify-between font-extrabold text-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 p-4 rounded-md border border-emerald-500/30">
+                  <div className="flex justify-between font-extrabold text-lg bg-emerald-500/10 text-emerald-700 p-4 rounded-md border border-emerald-500/30">
                     <span>NET OPERATING PROFIT</span>
                     <span className="font-mono">₹{pnlData?.netProfit.toLocaleString("en-IN")}</span>
                   </div>

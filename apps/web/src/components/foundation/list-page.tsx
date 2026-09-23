@@ -31,6 +31,7 @@ export function ListPage({
   description,
   eyebrow,
   actionLabel = "New record",
+  onAction,
   stats = [],
   columns,
   rows,
@@ -40,6 +41,7 @@ export function ListPage({
   description: string;
   eyebrow?: string;
   actionLabel?: string;
+  onAction?: () => void;
   stats?: { label: string; value: string; hint?: string }[];
   columns: Column<ListRow>[];
   rows: ListRow[];
@@ -54,7 +56,7 @@ export function ListPage({
         actions={
           <>
             <Button variant="outline">Export</Button>
-            <Button>
+            <Button onClick={onAction}>
               <Plus className="mr-2 h-4 w-4" />
               {actionLabel}
             </Button>

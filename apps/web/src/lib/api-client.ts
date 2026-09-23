@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env["VITE_API_URL"] || "http://localhost:3001";
+const API_BASE_URL =
+  (typeof import.meta !== "undefined" && import.meta?.env ? import.meta.env["VITE_API_URL"] : undefined) ||
+  "http://localhost:3001";
 
 export class ApiError extends Error {
   constructor(
@@ -12,6 +14,7 @@ export class ApiError extends Error {
 }
 
 let activeOrgId: string | null = null;
+let refreshTokenPromise: Promise<boolean> | null = null;
 
 export function setActiveOrgId(orgId: string | null) {
   activeOrgId = orgId;
@@ -30,7 +33,37 @@ export function getActiveOrgId(): string | null {
   return null;
 }
 
-export async function apiClient<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function refreshAuthTokens(): Promise<boolean> {
+  if (refreshTokenPromise) {
+    return refreshTokenPromise;
+  }
+
+  refreshTokenPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+
+      return response.ok;
+    } catch {
+      return false;
+    } finally {
+      refreshTokenPromise = null;
+    }
+  })();
+
+  return refreshTokenPromise;
+}
+
+export async function apiClient<T = any>(
+  endpoint: string,
+  options: RequestInit = {},
+  isRetry = false,
+): Promise<T> {
   const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
   const orgId = getActiveOrgId();
 
@@ -48,6 +81,23 @@ export async function apiClient<T = any>(endpoint: string, options: RequestInit 
     headers,
     credentials: "include", // Sends httpOnly cookies
   });
+
+  const isAuthEndpoint =
+    endpoint.includes("/auth/login") ||
+    endpoint.includes("/auth/refresh") ||
+    endpoint.includes("/auth/logout");
+
+  if (response.status === 401 && !isRetry && !isAuthEndpoint) {
+    const refreshed = await refreshAuthTokens();
+    if (refreshed) {
+      return apiClient<T>(endpoint, options, true);
+    } else {
+      setActiveOrgId(null);
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
+      }
+    }
+  }
 
   if (response.status === 204) {
     return {} as T;
