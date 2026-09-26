@@ -226,16 +226,10 @@ function PurchaseOrdersPage() {
         description={description}
         eyebrow="Purchasing"
         actionLabel="New purchase order"
+        onAction={() => setIsAddOpen(true)}
         stats={stats}
         columns={columns}
         rows={rows}
-        children={
-          <div className="mb-4 flex justify-end">
-            <Button onClick={() => setIsAddOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Create Order
-            </Button>
-          </div>
-        }
       />
 
       {/* Create PO Dialog */}
@@ -311,8 +305,13 @@ function PurchaseOrdersPage() {
                   className="w-full h-9 px-2 rounded border text-xs"
                   value={selectedProduct}
                   onChange={(e) => {
-                    setSelectedProduct(e.target.value);
+                    const pId = e.target.value;
+                    setSelectedProduct(pId);
                     setSelectedVariant("");
+                    const p = productsList.find((prod: ProductItem) => prod.id === pId);
+                    if (p) {
+                      setUnitPrice(Number(p.costPrice || 0));
+                    }
                   }}
                 >
                   <option value="">Select Product</option>
@@ -412,6 +411,150 @@ function PurchaseOrdersPage() {
               }
             >
               Save PO (Draft)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View PO Details Dialog */}
+      <Dialog
+        open={Boolean(selectedPO)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPO(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle className="text-xl">
+                Purchase Order Details: {selectedPO?.orderNumber}
+              </DialogTitle>
+              {selectedPO?.status && <StatusBadge value={selectedPO.status} />}
+            </div>
+            <DialogDescription>
+              View order items, vendor terms, and financial summary.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPO && (
+            <div className="space-y-4 py-2 text-sm">
+              <div className="grid grid-cols-2 gap-4 border-b pb-4 sm:grid-cols-4">
+                <div>
+                  <div className="text-xs text-muted-foreground">Supplier</div>
+                  <div className="font-semibold text-foreground">
+                    {selectedPO.supplier?.name || "N/A"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Target Warehouse</div>
+                  <div className="font-semibold text-foreground">
+                    {selectedPO.warehouse?.name || "N/A"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Order Date</div>
+                  <div className="font-semibold text-foreground">
+                    {new Date(selectedPO.orderDate).toLocaleDateString()}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Payment Terms</div>
+                  <div className="font-semibold text-foreground">
+                    {selectedPO.paymentTerms || "N/A"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Line Items Table */}
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">Line Items</h4>
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-muted text-muted-foreground border-b font-medium">
+                      <tr>
+                        <th className="p-2.5">Product</th>
+                        <th className="p-2.5 text-right">Qty</th>
+                        <th className="p-2.5 text-right">Unit Price</th>
+                        <th className="p-2.5 text-right">Tax Rate</th>
+                        <th className="p-2.5 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {selectedPO.items && selectedPO.items.length > 0 ? (
+                        selectedPO.items.map((it, idx) => {
+                          const productName =
+                            it.product?.name ||
+                            productsList.find((p: ProductItem) => p.id === it.productId)?.name ||
+                            "Product";
+                          const qtyVal = Number(it.orderedQty || 0);
+                          const priceVal = Number(it.unitPrice || 0);
+                          const taxRateVal = Number(it.taxRate || 0);
+                          const lineTotalVal = Number(
+                            it.totalAmount || qtyVal * priceVal * (1 + taxRateVal / 100),
+                          );
+
+                          return (
+                            <tr key={it.id || idx}>
+                              <td className="p-2.5 font-medium">{productName}</td>
+                              <td className="p-2.5 text-right">{qtyVal}</td>
+                              <td className="p-2.5 text-right">
+                                ₹{priceVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="p-2.5 text-right">{taxRateVal}%</td>
+                              <td className="p-2.5 text-right font-medium">
+                                ₹{lineTotalVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                            No line items found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Financial Totals */}
+              <div className="flex flex-col items-end space-y-1 text-xs pt-2">
+                <div className="flex justify-between w-48">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>
+                    ₹
+                    {Number(selectedPO.subtotalAmount || 0).toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </span>
+                </div>
+                <div className="flex justify-between w-48">
+                  <span className="text-muted-foreground">Tax Amount:</span>
+                  <span>
+                    ₹
+                    {Number(selectedPO.taxAmount || 0).toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </span>
+                </div>
+                <div className="flex justify-between w-48 font-semibold text-sm border-t pt-1">
+                  <span>Total Amount:</span>
+                  <span>
+                    ₹
+                    {Number(selectedPO.totalAmount || 0).toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedPO(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
