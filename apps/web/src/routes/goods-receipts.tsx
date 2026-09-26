@@ -74,20 +74,30 @@ function GoodsReceiptsPage() {
   const handleCreateGRN = async () => {
     if (!selectedPO) return;
     const itemsToReceive = selectedPO.items
-      .filter((i) => Boolean(i.id) && (receivingItems[i.id || ""]?.receivingQty || 0) > 0)
       .map((i) => {
         const itemId = i.id || "";
+        const ordered = Number(i.orderedQty);
+        const rec = Number(i.receivedQty || 0);
+        const remaining = Math.max(0, ordered - rec);
+
         const itemState = receivingItems[itemId];
+        const receivingQty =
+          itemState !== undefined ? Number(itemState.receivingQty) : remaining;
+        const locationId = itemState?.locationId || locations?.[0]?.id || "";
+
+        if (receivingQty <= 0 || !locationId) return null;
+
         return {
           purchaseOrderItemId: itemId,
           productId: i.productId,
           ...(i.variantId ? { variantId: i.variantId } : {}),
-          locationId: itemState?.locationId || locations?.[0]?.id || "",
+          locationId,
           ...(itemState?.batchNumber ? { batchNumber: itemState.batchNumber } : {}),
-          receivedQty: itemState?.receivingQty || 0,
+          receivedQty: receivingQty,
           unitCost: Number(i.unitPrice),
         };
-      });
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
 
     if (itemsToReceive.length === 0) return;
 
@@ -188,16 +198,10 @@ function GoodsReceiptsPage() {
         description={description}
         eyebrow="Purchasing & Inventory Receiving"
         actionLabel="New Goods Receipt"
+        onAction={() => setIsAddOpen(true)}
         stats={stats}
         columns={columns}
         rows={rows}
-        children={
-          <div className="mb-4 flex justify-end">
-            <Button onClick={() => setIsAddOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> New Goods Receipt
-            </Button>
-          </div>
-        }
       />
 
       {/* Create GRN Modal */}

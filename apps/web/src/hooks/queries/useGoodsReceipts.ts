@@ -102,7 +102,9 @@ export function usePostGoodsReceipt() {
       queryClient.invalidateQueries({ queryKey: ["goods-receipt", id] });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["stock"] });
+      queryClient.invalidateQueries({ queryKey: ["inventoryStock"] });
       queryClient.invalidateQueries({ queryKey: ["movements"] });
+      queryClient.invalidateQueries({ queryKey: ["inventoryMovements"] });
     },
   });
 }
