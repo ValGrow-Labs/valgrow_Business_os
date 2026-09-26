@@ -11,12 +11,16 @@ import { InventoryTransfersService } from "./inventory-transfers.service";
 import { CurrentOrg } from "../../common/decorators/current-org.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { RequirePermissions } from "../../common/decorators/require-permissions.decorator";
+import { ActivityLogsService } from "../activity-logs/activity-logs.service";
 import { CreateTransferDto } from "./dto/create-transfer.dto";
 import { UpdateTransferDto } from "./dto/update-transfer.dto";
 
 @Controller("inventory/transfers")
 export class InventoryTransfersController {
-  constructor(private readonly transfersService: InventoryTransfersService) {}
+  constructor(
+    private readonly transfersService: InventoryTransfersService,
+    private readonly activityLogsService: ActivityLogsService,
+  ) {}
 
   @RequirePermissions("inventory.read")
   @Get()
@@ -43,11 +47,22 @@ export class InventoryTransfersController {
     @CurrentUser("id") createdById: string,
     @Body() dto: CreateTransferDto,
   ) {
-    return this.transfersService.createTransfer(
+    const transfer = await this.transfersService.createTransfer(
       organizationId,
       createdById,
       dto,
     );
+
+    await this.activityLogsService.logEvent(
+      organizationId,
+      createdById || null,
+      "CREATE_TRANSFER",
+      "StockTransfer",
+      transfer.id,
+      { transferNumber: transfer.transferNumber, sourceWarehouseId: transfer.sourceWarehouseId, destWarehouseId: transfer.destWarehouseId },
+    );
+
+    return transfer;
   }
 
   @RequirePermissions("inventory.transfer")
@@ -58,11 +73,27 @@ export class InventoryTransfersController {
     @CurrentUser("id") actorId: string,
     @Body() dto: UpdateTransferDto,
   ) {
-    return this.transfersService.updateTransfer(
+    const transfer = await this.transfersService.updateTransfer(
       id,
       organizationId,
       actorId,
       dto,
     );
+
+    let action = "UPDATE_TRANSFER";
+    if (dto.status === "IN_TRANSIT") action = "SHIP_TRANSFER";
+    else if (dto.status === "COMPLETED") action = "RECEIVE_TRANSFER";
+    else if (dto.status === "CANCELLED") action = "CANCEL_TRANSFER";
+
+    await this.activityLogsService.logEvent(
+      organizationId,
+      actorId || null,
+      action,
+      "StockTransfer",
+      id,
+      { status: transfer.status, dto },
+    );
+
+    return transfer;
   }
 }

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum } from "class-validator";
+import { IsString, IsNotEmpty, IsOptional, IsEnum, IsDateString } from "class-validator";
 import { SerialStatus } from "@prisma/client";
 
 export class CreateSerialDto {
@@ -25,4 +25,24 @@ export class CreateSerialDto {
   @IsEnum(SerialStatus)
   @IsOptional()
   status?: SerialStatus;
+
+  @IsDateString()
+  @IsOptional()
+  warrantyEndDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  soldAt?: string;
+
+  @IsString()
+  @IsOptional()
+  salesOrderId?: string;
+
+  @IsString()
+  @IsOptional()
+  salesInvoiceId?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
 }

@@ -1,6 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
+export interface LocationItem {
+  id: string;
+  name: string;
+  code: string;
+  aisle?: string | null;
+  rack?: string | null;
+  shelf?: string | null;
+  bin?: string | null;
+  status: string;
+}
+
+export interface WarehouseStockSummary {
+  totalProducts: number;
+  totalOnHand: number;
+  totalReserved: number;
+  totalAvailable: number;
+}
+
 export interface WarehouseItem {
   id: string;
   organizationId: string;
@@ -14,15 +32,25 @@ export interface WarehouseItem {
   createdAt: string;
   updatedAt: string;
   branch?: { id: string; name: string; code: string | null; city: string } | null;
+  locations?: LocationItem[];
+  stockSummary?: WarehouseStockSummary;
   _count?: { locations: number };
 }
 
-export function useWarehouses() {
+export function useWarehouses(params?: { branchId?: string | undefined; status?: string | undefined }) {
+
+  const queryParams = new URLSearchParams();
+  if (params?.branchId && params.branchId !== "ALL") queryParams.set("branchId", params.branchId);
+  if (params?.status && params.status !== "ALL") queryParams.set("status", params.status);
+
+  const queryStr = queryParams.toString() ? `?${queryParams.toString()}` : "";
+
   return useQuery<WarehouseItem[]>({
-    queryKey: ["warehouses"],
-    queryFn: () => apiClient<WarehouseItem[]>("/warehouses"),
+    queryKey: ["warehouses", params],
+    queryFn: () => apiClient<WarehouseItem[]>(`/warehouses${queryStr}`),
   });
 }
+
 
 export function useWarehouse(id: string) {
   return useQuery<WarehouseItem>({

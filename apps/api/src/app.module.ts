@@ -32,6 +32,7 @@ import { InventoryModule } from "./modules/inventory/inventory.module";
 import { InventoryTransfersModule } from "./modules/inventory-transfers/inventory-transfers.module";
 import { InventoryAdjustmentsModule } from "./modules/inventory-adjustments/inventory-adjustments.module";
 import { InventoryReservationsModule } from "./modules/inventory-reservations/inventory-reservations.module";
+import { CycleCountsModule } from "./modules/cycle-counts/cycle-counts.module";
 import { SuppliersModule } from "./modules/suppliers/suppliers.module";
 import { PurchaseRequestsModule } from "./modules/purchase-requests/purchase-requests.module";
 import { PurchaseOrdersModule } from "./modules/purchase-orders/purchase-orders.module";
@@ -98,6 +99,7 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     InventoryTransfersModule,
     InventoryAdjustmentsModule,
     InventoryReservationsModule,
+    CycleCountsModule,
     SuppliersModule,
     PurchaseRequestsModule,
     PurchaseOrdersModule,

@@ -11,6 +11,9 @@ import { Prisma } from "@prisma/client";
 export interface BatchQueryOptions {
   productId?: string;
   variantId?: string;
+  batchType?: string;
+  status?: string;
+  search?: string;
   expired?: boolean;
   expiringSoonDays?: number;
 }
@@ -54,27 +57,81 @@ export class InventoryBatchesService {
   }
 
   async getBatches(organizationId: string, options: BatchQueryOptions = {}) {
-    const where: any = { organizationId };
+    const where: Prisma.InventoryBatchWhereInput = { organizationId };
 
     if (options.productId) where.productId = options.productId;
     if (options.variantId) where.variantId = options.variantId;
-
-    const now = new Date();
-    if (options.expired) {
-      where.expiryDate = { lt: now };
-    } else if (options.expiringSoonDays) {
-      const soon = new Date();
-      soon.setDate(soon.getDate() + Number(options.expiringSoonDays));
-      where.expiryDate = { gte: now, lte: soon };
+    if (options.batchType && options.batchType !== "ALL") {
+      where.batchType = options.batchType;
     }
 
-    return this.prisma.inventoryBatch.findMany({
+    if (options.search) {
+      const term = options.search.trim();
+      where.OR = [
+        { batchNumber: { contains: term, mode: "insensitive" } },
+        { workOrderRef: { contains: term, mode: "insensitive" } },
+        { product: { name: { contains: term, mode: "insensitive" } } },
+        { product: { sku: { contains: term, mode: "insensitive" } } },
+      ];
+    }
+
+    const now = new Date();
+    const soon = new Date();
+    soon.setDate(soon.getDate() + (options.expiringSoonDays || 30));
+
+    if (options.status === "EXPIRED" || options.expired) {
+      where.expiryDate = { lt: now };
+    } else if (options.status === "EXPIRING_SOON" || options.expiringSoonDays) {
+      where.expiryDate = { gte: now, lte: soon };
+    } else if (options.status === "ACTIVE") {
+      where.OR = [
+        ...(where.OR || []),
+        { expiryDate: null },
+        { expiryDate: { gt: soon } },
+      ];
+    }
+
+    const batches = await this.prisma.inventoryBatch.findMany({
       where,
       include: {
         product: { select: { id: true, name: true, sku: true } },
         variant: { select: { id: true, name: true, sku: true } },
+        stockLevels: {
+          include: {
+            warehouse: { select: { id: true, name: true, code: true } },
+          },
+        },
       },
       orderBy: { expiryDate: "asc" },
+    });
+
+    return batches.map((batch) => {
+      const quantityRemaining = batch.stockLevels.reduce((sum, sl) => {
+        const onHand = Number(sl.onHand) || 0;
+        const reserved = Number(sl.reserved) || 0;
+        return sum + Math.max(0, onHand - reserved);
+      }, 0);
+
+      const warehouseMap = new Map<
+        string,
+        { id: string; name: string; code: string }
+      >();
+      batch.stockLevels.forEach((sl) => {
+        if (sl.warehouse) {
+          warehouseMap.set(sl.warehouse.id, {
+            id: sl.warehouse.id,
+            name: sl.warehouse.name,
+            code: sl.warehouse.code,
+          });
+        }
+      });
+
+      const { stockLevels, ...rest } = batch;
+      return {
+        ...rest,
+        quantityRemaining,
+        warehouses: Array.from(warehouseMap.values()),
+      };
     });
   }
 
@@ -84,6 +141,11 @@ export class InventoryBatchesService {
       include: {
         product: true,
         variant: true,
+        stockLevels: {
+          include: {
+            warehouse: { select: { id: true, name: true, code: true } },
+          },
+        },
       },
     });
 
@@ -93,7 +155,32 @@ export class InventoryBatchesService {
       );
     }
 
-    return batch;
+    const quantityRemaining = batch.stockLevels.reduce((sum, sl) => {
+      const onHand = Number(sl.onHand) || 0;
+      const reserved = Number(sl.reserved) || 0;
+      return sum + Math.max(0, onHand - reserved);
+    }, 0);
+
+    const warehouseMap = new Map<
+      string,
+      { id: string; name: string; code: string }
+    >();
+    batch.stockLevels.forEach((sl) => {
+      if (sl.warehouse) {
+        warehouseMap.set(sl.warehouse.id, {
+          id: sl.warehouse.id,
+          name: sl.warehouse.name,
+          code: sl.warehouse.code,
+        });
+      }
+    });
+
+    const { stockLevels, ...rest } = batch;
+    return {
+      ...rest,
+      quantityRemaining,
+      warehouses: Array.from(warehouseMap.values()),
+    };
   }
 
   async createBatch(organizationId: string, dto: CreateBatchDto) {
@@ -124,6 +211,8 @@ export class InventoryBatchesService {
         productId: dto.productId,
         variantId: dto.variantId || null,
         batchNumber: dto.batchNumber,
+        batchType: dto.batchType || "STANDARD",
+        workOrderRef: dto.workOrderRef || null,
         manufactureDate: dto.manufactureDate
           ? new Date(dto.manufactureDate)
           : null,
@@ -131,8 +220,8 @@ export class InventoryBatchesService {
         costPrice: new Prisma.Decimal(dto.costPrice),
       },
       include: {
-        product: { select: { id: true, name: true } },
-        variant: { select: { id: true, name: true } },
+        product: { select: { id: true, name: true, sku: true } },
+        variant: { select: { id: true, name: true, sku: true } },
       },
     });
   }
@@ -160,14 +249,122 @@ export class InventoryBatchesService {
     if (dto.expiryDate !== undefined) {
       updateData.expiryDate = dto.expiryDate ? new Date(dto.expiryDate) : null;
     }
+    if (dto.workOrderRef !== undefined) {
+      updateData.workOrderRef = dto.workOrderRef || null;
+    }
 
     return this.prisma.inventoryBatch.update({
       where: { id },
       data: updateData,
       include: {
-        product: { select: { id: true, name: true } },
-        variant: { select: { id: true, name: true } },
+        product: { select: { id: true, name: true, sku: true } },
+        variant: { select: { id: true, name: true, sku: true } },
       },
     });
   }
+
+  async createManufacturingLot(
+    organizationId: string,
+    data: {
+      productId: string;
+      variantId?: string;
+      batchNumber: string;
+      workOrderRef: string;
+      quantity: number;
+      unitCost: number;
+      warehouseId: string;
+      manufactureDate?: Date | string;
+      expiryDate?: Date | string;
+    },
+  ) {
+    await this.validateProductAndVariant(organizationId, data.productId, data.variantId);
+
+    const existing = await this.prisma.inventoryBatch.findFirst({
+      where: {
+        organizationId,
+        productId: data.productId,
+        variantId: data.variantId || null,
+        batchNumber: data.batchNumber,
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException("Batch number already exists for this product");
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const batch = await tx.inventoryBatch.create({
+        data: {
+          organizationId,
+          productId: data.productId,
+          variantId: data.variantId || null,
+          batchNumber: data.batchNumber,
+          batchType: "MANUFACTURING",
+          workOrderRef: data.workOrderRef,
+          manufactureDate: data.manufactureDate ? new Date(data.manufactureDate) : new Date(),
+          expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
+          costPrice: new Prisma.Decimal(data.unitCost),
+        },
+      });
+
+      const qty = Math.max(0, Number(data.quantity));
+
+      const defaultLoc = await tx.location.findFirst({
+        where: { warehouseId: data.warehouseId, organizationId },
+      });
+      const locationId = defaultLoc?.id;
+
+      if (locationId) {
+        await tx.stockMovement.create({
+          data: {
+            organizationId,
+            warehouseId: data.warehouseId,
+            locationId,
+            productId: data.productId,
+            variantId: data.variantId || null,
+            batchId: batch.id,
+            movementType: "PRODUCTION_RECEIPT",
+            quantity: new Prisma.Decimal(qty),
+            unitCost: new Prisma.Decimal(data.unitCost),
+            totalCost: new Prisma.Decimal(qty * data.unitCost),
+            referenceType: "WORK_ORDER",
+            referenceId: data.workOrderRef,
+          },
+        });
+      }
+
+      const stockLevel = await tx.stockLevel.findFirst({
+        where: {
+          organizationId,
+          warehouseId: data.warehouseId,
+          productId: data.productId,
+          variantId: data.variantId || null,
+          batchId: batch.id,
+        },
+      });
+
+      if (stockLevel) {
+        await tx.stockLevel.update({
+          where: { id: stockLevel.id },
+          data: { onHand: { increment: qty } },
+        });
+      } else if (locationId) {
+        await tx.stockLevel.create({
+          data: {
+            organizationId,
+            warehouseId: data.warehouseId,
+            locationId,
+            productId: data.productId,
+            variantId: data.variantId || null,
+            batchId: batch.id,
+            onHand: new Prisma.Decimal(qty),
+            reserved: new Prisma.Decimal(0),
+          },
+        });
+      }
+
+      return batch;
+    });
+  }
 }
+

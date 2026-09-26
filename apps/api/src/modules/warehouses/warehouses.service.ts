@@ -24,9 +24,13 @@ export class WarehousesService {
     }
   }
 
-  async getWarehouses(organizationId: string) {
+  async getWarehouses(organizationId: string, branchId?: string, status?: string) {
+    const where: any = { organizationId, deletedAt: null };
+    if (branchId) where.branchId = branchId;
+    if (status) where.status = status;
+
     return this.prisma.warehouse.findMany({
-      where: { organizationId, deletedAt: null },
+      where,
       include: {
         branch: { select: { id: true, name: true, code: true, city: true } },
         _count: { select: { locations: true } },
@@ -40,7 +44,7 @@ export class WarehousesService {
       where: { id, organizationId, deletedAt: null },
       include: {
         branch: { select: { id: true, name: true, code: true, city: true } },
-        locations: { where: { deletedAt: null } },
+        locations: { where: { deletedAt: null }, orderBy: { code: "asc" } },
       },
     });
 
@@ -48,8 +52,36 @@ export class WarehousesService {
       throw new NotFoundException("Warehouse not found in this organization");
     }
 
-    return warehouse;
+    const stockLevels = await this.prisma.stockLevel.findMany({
+      where: { warehouseId: id, organizationId },
+      select: { onHand: true, reserved: true, productId: true },
+    });
+
+    let totalOnHand = 0;
+    let totalReserved = 0;
+    let totalAvailable = 0;
+    const uniqueProducts = new Set<string>();
+
+    for (const sl of stockLevels) {
+      const oh = Number(sl.onHand);
+      const res = Number(sl.reserved);
+      totalOnHand += oh;
+      totalReserved += res;
+      totalAvailable += oh - res;
+      if (sl.productId) uniqueProducts.add(sl.productId);
+    }
+
+    return {
+      ...warehouse,
+      stockSummary: {
+        totalProducts: uniqueProducts.size,
+        totalOnHand,
+        totalReserved,
+        totalAvailable,
+      },
+    };
   }
+
 
   async createWarehouse(organizationId: string, dto: CreateWarehouseDto) {
     await this.validateBranch(organizationId, dto.branchId);

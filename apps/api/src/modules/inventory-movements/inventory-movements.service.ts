@@ -9,9 +9,11 @@ import { Prisma } from "@prisma/client";
 
 export interface MovementQueryOptions {
   locationId?: string;
+  warehouseId?: string;
   productId?: string;
   variantId?: string;
   movementType?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }
@@ -104,16 +106,39 @@ export class InventoryMovementsService {
     const skip = (page - 1) * limit;
 
     const where: any = { organizationId };
-    if (options.locationId) where.locationId = options.locationId;
+    if (options.locationId && options.locationId !== "ALL") where.locationId = options.locationId;
+    if (options.warehouseId && options.warehouseId !== "ALL") where.warehouseId = options.warehouseId;
     if (options.productId) where.productId = options.productId;
     if (options.variantId) where.variantId = options.variantId;
-    if (options.movementType) where.movementType = options.movementType;
+    if (options.movementType && options.movementType !== "ALL") where.movementType = options.movementType;
+
+    if (options.search) {
+      const term = options.search.trim();
+      where.OR = [
+        { product: { name: { contains: term, mode: "insensitive" } } },
+        { product: { sku: { contains: term, mode: "insensitive" } } },
+        { referenceId: { contains: term, mode: "insensitive" } },
+        { serialNumber: { contains: term, mode: "insensitive" } },
+        { notes: { contains: term, mode: "insensitive" } },
+        { actor: { firstName: { contains: term, mode: "insensitive" } } },
+        { actor: { lastName: { contains: term, mode: "insensitive" } } },
+      ];
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.stockMovement.findMany({
         where,
         skip,
         take: limit,
+        include: {
+          product: { select: { id: true, name: true, sku: true } },
+          variant: { select: { id: true, name: true, sku: true } },
+          warehouse: { select: { id: true, name: true, code: true } },
+          location: { select: { id: true, name: true, code: true } },
+          batch: { select: { id: true, batchNumber: true, batchType: true } },
+          serial: { select: { id: true, serialNumber: true } },
+          actor: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.stockMovement.count({ where }),
@@ -133,6 +158,15 @@ export class InventoryMovementsService {
   async getMovementById(id: string, organizationId: string) {
     const movement = await this.prisma.stockMovement.findFirst({
       where: { id, organizationId },
+      include: {
+        product: { select: { id: true, name: true, sku: true } },
+        variant: { select: { id: true, name: true, sku: true } },
+        warehouse: { select: { id: true, name: true, code: true } },
+        location: { select: { id: true, name: true, code: true } },
+        batch: { select: { id: true, batchNumber: true, batchType: true } },
+        serial: { select: { id: true, serialNumber: true } },
+        actor: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
     });
 
     if (!movement) {
@@ -153,10 +187,35 @@ export class InventoryMovementsService {
 
     const qtyDecimal = new Prisma.Decimal(dto.quantity);
     const costDecimal = new Prisma.Decimal(dto.unitCost);
-    const totalCostDecimal = qtyDecimal.mul(costDecimal);
+    const totalCostDecimal = qtyDecimal.mul(costDecimal).abs();
+    const isOutbound = qtyDecimal.isNegative();
+
+    // ── Pre-transaction guard for outbound movements ─────────────────────────
+    // We read available stock BEFORE entering the transaction to give a fast
+    // early rejection. The final check inside the transaction is authoritative.
+    if (isOutbound) {
+      const snapshot = await this.prisma.stockLevel.findFirst({
+        where: {
+          organizationId,
+          locationId: dto.locationId,
+          productId: dto.productId,
+          variantId: dto.variantId || null,
+          batchId: dto.batchId || null,
+        },
+        select: { onHand: true, reserved: true },
+      });
+      const available = snapshot
+        ? snapshot.onHand.sub(snapshot.reserved)
+        : new Prisma.Decimal(0);
+      if (available.lt(qtyDecimal.abs())) {
+        throw new BadRequestException(
+          `Insufficient available stock (${available}) for requested deduction (${qtyDecimal.abs()})`,
+        );
+      }
+    }
 
     return this.prisma.$transaction(async (tx) => {
-      // 1. Check existing StockLevel
+      // ── 1. Find or prepare StockLevel row ──────────────────────────────────
       const stockLevel = await tx.stockLevel.findFirst({
         where: {
           organizationId,
@@ -167,25 +226,21 @@ export class InventoryMovementsService {
         },
       });
 
-      const currentOnHand = stockLevel
-        ? stockLevel.onHand
-        : new Prisma.Decimal(0);
-      const currentReserved = stockLevel
-        ? stockLevel.reserved
-        : new Prisma.Decimal(0);
-      const currentAvailable = currentOnHand.sub(currentReserved);
-
-      // 2. Reject negative stock if available stock is insufficient for outbound movements
-      if (qtyDecimal.isNegative()) {
-        const requiredQty = qtyDecimal.abs();
-        if (currentAvailable.lt(requiredQty)) {
+      // ── 2. Final authoritative stock check inside transaction ─────────────
+      if (isOutbound && stockLevel) {
+        const available = stockLevel.onHand.sub(stockLevel.reserved);
+        if (available.lt(qtyDecimal.abs())) {
           throw new BadRequestException(
-            `Insufficient available stock (${currentAvailable}) for requested deduction (${requiredQty})`,
+            `Insufficient available stock (${available}) for requested deduction (${qtyDecimal.abs()})`,
           );
         }
+      } else if (isOutbound && !stockLevel) {
+        throw new BadRequestException(
+          "No stock exists at this location for the specified product",
+        );
       }
 
-      // 3. Create immutable StockMovement
+      // ── 3. Create immutable StockMovement ledger row ──────────────────────
       const movement = await tx.stockMovement.create({
         data: {
           organizationId,
@@ -208,17 +263,19 @@ export class InventoryMovementsService {
         },
       });
 
-      // 4. Upsert StockLevel snapshot
-      const newOnHand = currentOnHand.add(qtyDecimal);
+      // ── 4. Atomic StockLevel upsert ───────────────────────────────────────
+      // Using { increment } ensures NO read-modify-write race condition.
+      // Two concurrent transactions increment atomically — safe at DB level.
       if (stockLevel) {
         await tx.stockLevel.update({
           where: { id: stockLevel.id },
           data: {
-            onHand: newOnHand,
+            onHand: { increment: qtyDecimal.toNumber() },
             version: { increment: 1 },
           },
         });
       } else {
+        // First movement for this product-location: create a new StockLevel row
         await tx.stockLevel.create({
           data: {
             organizationId,
@@ -227,14 +284,14 @@ export class InventoryMovementsService {
             productId: dto.productId,
             variantId: dto.variantId || null,
             batchId: dto.batchId || null,
-            onHand: newOnHand,
+            onHand: qtyDecimal,
             reserved: new Prisma.Decimal(0),
           },
         });
       }
 
-      // 5. Create InventoryCostLayer if inbound receipt
-      if (qtyDecimal.isPositive()) {
+      // ── 5. Add InventoryCostLayer only for true inbound quantities ────────
+      if (!isOutbound) {
         await tx.inventoryCostLayer.create({
           data: {
             organizationId,

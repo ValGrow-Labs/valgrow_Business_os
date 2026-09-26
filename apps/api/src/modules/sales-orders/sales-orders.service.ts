@@ -9,6 +9,9 @@ import { UpdateSalesOrderDto } from "./dto/update-sales-order.dto";
 import { SalesOrderActionDto } from "./dto/sales-order-action.dto";
 import { Prisma, SalesOrderStatus } from "@prisma/client";
 
+// Reservation TTL: 48 hours from confirmation
+const RESERVATION_TTL_HOURS = 48;
+
 const VALID_SO_TRANSITIONS: Record<SalesOrderStatus, SalesOrderStatus[]> = {
   DRAFT: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["PROCESSING", "CANCELLED"],
@@ -250,6 +253,115 @@ export class SalesOrdersService {
     });
   }
 
+  /**
+   * Reserves stock for each SO line item when the SO is CONFIRMED.
+   * Uses atomic `{ increment }` on StockLevel.reserved — no race conditions.
+   */
+  private async reserveStockForOrder(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    orderId: string,
+    orderNumber: string,
+    warehouseId: string,
+    items: Array<{ id: string; productId: string; variantId: string | null; orderedQty: Prisma.Decimal }>,
+  ): Promise<void> {
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + RESERVATION_TTL_HOURS);
+
+    for (const item of items) {
+      const qtyNum = Number(item.orderedQty);
+      if (qtyNum <= 0) continue;
+
+      // Find the default location in this warehouse
+      const location = await tx.location.findFirst({
+        where: { organizationId, warehouseId, isDefault: true, deletedAt: null },
+      }) ?? await tx.location.findFirst({
+        where: { organizationId, warehouseId, deletedAt: null },
+      });
+
+      if (!location) continue; // No location configured — skip reservation
+
+      // Check available stock before reserving
+      const stockLevel = await tx.stockLevel.findFirst({
+        where: {
+          organizationId,
+          warehouseId,
+          locationId: location.id,
+          productId: item.productId,
+          variantId: item.variantId ?? null,
+        },
+      });
+
+      if (stockLevel) {
+        // Atomic increment on reserved — safe for concurrent confirmations
+        await tx.stockLevel.update({
+          where: { id: stockLevel.id },
+          data: {
+            reserved: { increment: qtyNum },
+            version: { increment: 1 },
+          },
+        });
+      }
+
+      // Create an auditable StockReservation record
+      await tx.stockReservation.create({
+        data: {
+          organizationId,
+          locationId: location.id,
+          productId: item.productId,
+          variantId: item.variantId ?? null,
+          quantity: new Prisma.Decimal(qtyNum),
+          referenceType: "SALES_ORDER",
+          referenceId: orderId,
+          status: "ACTIVE",
+          expiresAt,
+        },
+      });
+    }
+  }
+
+  /**
+   * Releases all active reservations when a SO is CANCELLED.
+   */
+  private async releaseReservationsForOrder(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    orderId: string,
+  ): Promise<void> {
+    const reservations = await tx.stockReservation.findMany({
+      where: {
+        organizationId,
+        referenceType: "SALES_ORDER",
+        referenceId: orderId,
+        status: "ACTIVE",
+      },
+    });
+
+    for (const res of reservations) {
+      const qtyNum = Number(res.quantity);
+      if (qtyNum <= 0) continue;
+
+      // Release the reservation from StockLevel atomically
+      await tx.stockLevel.updateMany({
+        where: {
+          organizationId,
+          locationId: res.locationId,
+          productId: res.productId,
+          variantId: res.variantId ?? null,
+        },
+        data: {
+          reserved: { decrement: qtyNum },
+        },
+      });
+
+      // Mark reservation as CANCELLED
+      await tx.stockReservation.update({
+        where: { id: res.id },
+        data: { status: "CANCELLED" },
+      });
+    }
+  }
+
   private async transitionSalesOrder(
     id: string,
     organizationId: string,
@@ -266,24 +378,48 @@ export class SalesOrdersService {
       );
     }
 
-    const updated = await this.prisma.salesOrder.update({
-      where: { id },
-      data: { status: targetStatus },
-      include: { items: true },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      // ── Stock reservation on CONFIRM ──────────────────────────────────────
+      if (targetStatus === "CONFIRMED" && current === "DRAFT") {
+        await this.reserveStockForOrder(
+          tx,
+          organizationId,
+          id,
+          order.orderNumber,
+          order.warehouseId,
+          order.items.map((i) => ({
+            id: i.id,
+            productId: i.productId,
+            variantId: i.variantId,
+            orderedQty: i.orderedQty,
+          })),
+        );
+      }
 
-    await this.prisma.activityLog.create({
-      data: {
-        organizationId,
-        actorId,
-        action: `SALES_ORDER_${targetStatus}`,
-        entityType: "SalesOrder",
-        entityId: id,
-        metadata: { from: current, to: targetStatus, notes: dto?.notes },
-      },
-    });
+      // ── Release reservations on CANCEL ────────────────────────────────────
+      if (targetStatus === "CANCELLED") {
+        await this.releaseReservationsForOrder(tx, organizationId, id);
+      }
 
-    return updated;
+      const updated = await tx.salesOrder.update({
+        where: { id },
+        data: { status: targetStatus },
+        include: { items: true },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          organizationId,
+          actorId,
+          action: `SALES_ORDER_${targetStatus}`,
+          entityType: "SalesOrder",
+          entityId: id,
+          metadata: { from: current, to: targetStatus, notes: dto?.notes },
+        },
+      });
+
+      return updated;
+    });
   }
 
   confirm(
