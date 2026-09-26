@@ -5,16 +5,14 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { JournalEntriesService } from "../journal-entries/journal-entries.service";
-import { StockValuationService } from "../inventory/stock-valuation.service";
 import { CreateAdjustmentDto } from "./dto/create-adjustment.dto";
-import { Prisma, ValuationMethod } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class InventoryAdjustmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly journalEntriesService: JournalEntriesService,
-    private readonly stockValuationService: StockValuationService,
   ) {}
 
   private async validateAdjustmentSetup(
@@ -72,39 +70,11 @@ export class InventoryAdjustmentsService {
     }
   }
 
-  async getAdjustments(
-    organizationId: string,
-    search?: string,
-    reason?: string,
-    warehouseId?: string,
-  ) {
-    const where: Prisma.StockAdjustmentWhereInput = { organizationId };
-
-    if (reason) {
-      where.reason = reason as any;
-    }
-    if (warehouseId) {
-      where.warehouseId = warehouseId;
-    }
-    if (search) {
-      where.OR = [
-        { adjustmentNumber: { contains: search, mode: "insensitive" } },
-        { notes: { contains: search, mode: "insensitive" } },
-        { warehouse: { name: { contains: search, mode: "insensitive" } } },
-      ];
-    }
-
+  async getAdjustments(organizationId: string) {
     return this.prisma.stockAdjustment.findMany({
-      where,
+      where: { organizationId },
       include: {
-        warehouse: true,
-        items: {
-          include: {
-            product: true,
-            variant: true,
-            location: true,
-          },
-        },
+        items: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -114,14 +84,7 @@ export class InventoryAdjustmentsService {
     const adjustment = await this.prisma.stockAdjustment.findFirst({
       where: { id, organizationId },
       include: {
-        warehouse: true,
-        items: {
-          include: {
-            product: true,
-            variant: true,
-            location: true,
-          },
-        },
+        items: true,
       },
     });
 
@@ -133,9 +96,6 @@ export class InventoryAdjustmentsService {
 
     return adjustment;
   }
-
-  // NOTE: Valuation engine logic has been moved to the shared StockValuationService.
-  // This service now delegates all FIFO/LIFO/WA computation to that shared service.
 
   async createAdjustment(
     organizationId: string,
@@ -153,59 +113,7 @@ export class InventoryAdjustmentsService {
       );
     }
 
-    const org = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: { valuationMethod: true },
-    });
-    const valuationMethod: ValuationMethod = org?.valuationMethod || "FIFO";
-
     return this.prisma.$transaction(async (tx) => {
-      // 1. Process line item valuations
-      const processedItems: Array<{
-        locationId: string;
-        productId: string;
-        variantId: string | null;
-        batchId: string | null;
-        currentQty: number;
-        adjustedQty: number;
-        newQty: number;
-        calculatedUnitCost: number;
-        costImpact: number;
-      }> = [];
-
-      for (const item of dto.items) {
-        const diffQty = Number(item.adjustedQty);
-        const fallbackCost = Number(item.unitCost || 0);
-
-        const { calculatedUnitCost, totalCostImpact } =
-          await this.stockValuationService.calculateItemValuationCost(
-            tx,
-            organizationId,
-            valuationMethod,
-            {
-              productId: item.productId,
-              variantId: item.variantId,
-              locationId: item.locationId,
-              batchId: item.batchId,
-              adjustedQty: diffQty,
-              fallbackUnitCost: fallbackCost,
-            },
-          );
-
-        processedItems.push({
-          locationId: item.locationId,
-          productId: item.productId,
-          variantId: item.variantId || null,
-          batchId: item.batchId || null,
-          currentQty: Number(item.currentQty),
-          adjustedQty: diffQty,
-          newQty: Number(item.newQty),
-          calculatedUnitCost,
-          costImpact: totalCostImpact,
-        });
-      }
-
-      // 2. Create StockAdjustment header & lines
       const adjustment = await tx.stockAdjustment.create({
         data: {
           organizationId,
@@ -215,50 +123,45 @@ export class InventoryAdjustmentsService {
           notes: dto.notes,
           createdById,
           items: {
-            create: processedItems.map((pi) => ({
-              locationId: pi.locationId,
-              productId: pi.productId,
-              variantId: pi.variantId,
-              batchId: pi.batchId,
-              currentQty: new Prisma.Decimal(pi.currentQty),
-              adjustedQty: new Prisma.Decimal(pi.adjustedQty),
-              newQty: new Prisma.Decimal(pi.newQty),
-              unitCost: new Prisma.Decimal(pi.calculatedUnitCost),
+            create: dto.items.map((i) => ({
+              locationId: i.locationId,
+              productId: i.productId,
+              variantId: i.variantId || null,
+              batchId: i.batchId || null,
+              currentQty: new Prisma.Decimal(i.currentQty),
+              adjustedQty: new Prisma.Decimal(i.adjustedQty),
+              newQty: new Prisma.Decimal(i.newQty),
+              unitCost: new Prisma.Decimal(i.unitCost),
             })),
           },
         },
-        include: {
-          warehouse: true,
-          items: {
-            include: {
-              product: true,
-              variant: true,
-              location: true,
-            },
-          },
-        },
+        include: { items: true },
       });
 
-      // 3. Update Stock Levels, post Movements, and add Cost Layers for positive deltas
-      for (const pi of processedItems) {
-        if (pi.adjustedQty === 0) continue;
+      for (const item of dto.items) {
+        const diffDecimal = new Prisma.Decimal(item.adjustedQty);
+        const costDecimal = new Prisma.Decimal(item.unitCost);
 
-        const diffDecimal = new Prisma.Decimal(pi.adjustedQty);
-        const costDecimal = new Prisma.Decimal(pi.calculatedUnitCost);
-        const movementType = pi.adjustedQty > 0 ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT";
+        if (diffDecimal.isZero()) continue;
+
+        const movementType = diffDecimal.isPositive()
+          ? "ADJUSTMENT_IN"
+          : "ADJUSTMENT_OUT";
 
         // Upsert StockLevel
         const stockLevel = await tx.stockLevel.findFirst({
           where: {
             organizationId,
-            locationId: pi.locationId,
-            productId: pi.productId,
-            variantId: pi.variantId,
-            batchId: pi.batchId,
+            locationId: item.locationId,
+            productId: item.productId,
+            variantId: item.variantId || null,
+            batchId: item.batchId || null,
           },
         });
 
-        const currentOnHand = stockLevel ? stockLevel.onHand : new Prisma.Decimal(0);
+        const currentOnHand = stockLevel
+          ? stockLevel.onHand
+          : new Prisma.Decimal(0);
         const newOnHand = currentOnHand.add(diffDecimal);
 
         if (stockLevel) {
@@ -271,46 +174,46 @@ export class InventoryAdjustmentsService {
             data: {
               organizationId,
               warehouseId: dto.warehouseId,
-              locationId: pi.locationId,
-              productId: pi.productId,
-              variantId: pi.variantId,
-              batchId: pi.batchId,
+              locationId: item.locationId,
+              productId: item.productId,
+              variantId: item.variantId || null,
+              batchId: item.batchId || null,
               onHand: newOnHand,
               reserved: new Prisma.Decimal(0),
             },
           });
         }
 
-        // Post immutable Movement ledger row
+        // Post immutable Movement
         await tx.stockMovement.create({
           data: {
             organizationId,
             warehouseId: dto.warehouseId,
-            locationId: pi.locationId,
-            productId: pi.productId,
-            variantId: pi.variantId,
-            batchId: pi.batchId,
+            locationId: item.locationId,
+            productId: item.productId,
+            variantId: item.variantId || null,
+            batchId: item.batchId || null,
             movementType,
             quantity: diffDecimal,
             unitCost: costDecimal,
-            totalCost: new Prisma.Decimal(pi.costImpact),
+            totalCost: diffDecimal.mul(costDecimal),
             referenceType: "STOCK_ADJUSTMENT",
             referenceId: adjustment.id,
             actorId: createdById,
-            notes: `Adjustment: ${dto.reason} (${valuationMethod} Valuation)`,
+            notes: `Adjustment: ${dto.reason}`,
           },
         });
 
-        // Create new Cost Layer if positive adjustment (stock gain)
-        if (pi.adjustedQty > 0) {
+        // Add Cost Layer if ADJUSTMENT_IN
+        if (diffDecimal.isPositive()) {
           await tx.inventoryCostLayer.create({
             data: {
               organizationId,
               warehouseId: dto.warehouseId,
-              locationId: pi.locationId,
-              productId: pi.productId,
-              variantId: pi.variantId,
-              batchId: pi.batchId,
+              locationId: item.locationId,
+              productId: item.productId,
+              variantId: item.variantId || null,
+              batchId: item.batchId || null,
               initialQty: diffDecimal,
               remainingQty: diffDecimal,
               unitCost: costDecimal,
@@ -320,46 +223,25 @@ export class InventoryAdjustmentsService {
         }
       }
 
-      // 4. Post GL Journal Entry for Inventory Adjustment
+      // Post GL Journal Entry for Inventory Adjustment
       let netAdjustmentCost = 0;
-      for (const pi of processedItems) {
-        netAdjustmentCost += pi.costImpact;
+      for (const item of dto.items) {
+        netAdjustmentCost += Number(item.adjustedQty) * Number(item.unitCost || 0);
       }
 
       if (Math.abs(netAdjustmentCost) > 0.0001) {
-        const inventoryAssetId =
-          await this.journalEntriesService.getMappedAccountId(
-            tx,
-            organizationId,
-            "INVENTORY_ASSET",
-            "1030",
-          );
-        const adjustmentWriteoffId =
-          await this.journalEntriesService.getMappedAccountId(
-            tx,
-            organizationId,
-            "INVENTORY_ADJUSTMENT",
-            "5020",
-          );
+        const inventoryAssetId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "INVENTORY_ASSET", "1030");
+        const adjustmentWriteoffId = await this.journalEntriesService.getMappedAccountId(tx, organizationId, "INVENTORY_ADJUSTMENT", "5020");
 
-        const lines =
-          netAdjustmentCost > 0
-            ? [
-                { accountId: inventoryAssetId, debit: netAdjustmentCost, credit: 0 },
-                { accountId: adjustmentWriteoffId, debit: 0, credit: netAdjustmentCost },
-              ]
-            : [
-                {
-                  accountId: adjustmentWriteoffId,
-                  debit: Math.abs(netAdjustmentCost),
-                  credit: 0,
-                },
-                {
-                  accountId: inventoryAssetId,
-                  debit: 0,
-                  credit: Math.abs(netAdjustmentCost),
-                },
-              ];
+        const lines = netAdjustmentCost > 0
+          ? [
+              { accountId: inventoryAssetId, debit: netAdjustmentCost, credit: 0 },
+              { accountId: adjustmentWriteoffId, debit: 0, credit: netAdjustmentCost },
+            ]
+          : [
+              { accountId: adjustmentWriteoffId, debit: Math.abs(netAdjustmentCost), credit: 0 },
+              { accountId: inventoryAssetId, debit: 0, credit: Math.abs(netAdjustmentCost) },
+            ];
 
         await this.journalEntriesService.postOperationalJournal(tx, {
           orgId: organizationId,
@@ -367,7 +249,7 @@ export class InventoryAdjustmentsService {
           sourceModule: "INVENTORY",
           referenceType: "StockAdjustment",
           referenceId: adjustment.id,
-          description: `Stock Adjustment: ${dto.reason} (${valuationMethod} Valuation)`,
+          description: `Stock Adjustment: ${dto.reason}`,
           postingDate: new Date(),
           lines,
         });

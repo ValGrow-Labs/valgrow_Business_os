@@ -259,6 +259,9 @@ function POSRegisterPage() {
   // Held Carts Modal State
   const [showHeldModal, setShowHeldModal] = useState(false);
 
+  // Selected Customer State
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("walkin");
+
   // Checkout Modal State
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [payments, setPayments] = useState<
@@ -301,6 +304,7 @@ function POSRegisterPage() {
       {
         sessionId: activeSession.id,
         cartId: activeCartId,
+        customerId: selectedCustomerId !== "walkin" ? selectedCustomerId : undefined,
         payments: payments.map((p) => ({
           paymentMethod: p.paymentMethod,
           amount: Number(p.amount),
@@ -316,6 +320,7 @@ function POSRegisterPage() {
           setShowCheckoutModal(false);
           setShowSuccessModal(true);
           setActiveCartId(null);
+          setSelectedCustomerId("walkin");
         },
       },
     );
@@ -625,12 +630,8 @@ function POSRegisterPage() {
 
               <div className="w-44">
                 <Select
-                  value={activeCart?.customerId || "walkin"}
-                  onValueChange={(val) => {
-                    if (activeCartId) {
-                      // Customer select
-                    }
-                  }}
+                  value={selectedCustomerId}
+                  onValueChange={(val) => setSelectedCustomerId(val)}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Walk-in Customer" />

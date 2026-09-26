@@ -15,75 +15,55 @@ export interface LocationItem {
   status: "ACTIVE" | "INACTIVE";
   createdAt: string;
   updatedAt: string;
-  warehouse?: { id: string; name: string; code: string } | null;
 }
 
-export function useLocations(
-  warehouseIdOrParams?: string | { warehouseId?: string | undefined; status?: string | undefined }
-) {
-  const params = typeof warehouseIdOrParams === "string" ? { warehouseId: warehouseIdOrParams } : warehouseIdOrParams;
-  const queryParams = new URLSearchParams();
-  if (params?.warehouseId && params.warehouseId !== "ALL") queryParams.set("warehouseId", params.warehouseId);
-  if (params?.status && params.status !== "ALL") queryParams.set("status", params.status);
-
-  const queryStr = queryParams.toString() ? `?${queryParams.toString()}` : "";
-
+export function useLocations(warehouseId?: string) {
   return useQuery<LocationItem[]>({
-    queryKey: ["locations", params],
-    queryFn: () => apiClient<LocationItem[]>(`/locations${queryStr}`),
+    queryKey: ["locations", warehouseId],
+    queryFn: () =>
+      apiClient<LocationItem[]>(`/warehouses/${warehouseId}/locations`),
+    enabled: Boolean(warehouseId),
   });
 }
 
-
-export function useCreateLocation() {
+export function useCreateLocation(warehouseId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ warehouseId, data }: { warehouseId: string; data: Partial<LocationItem> }) =>
+    mutationFn: (data: Partial<LocationItem>) =>
       apiClient<LocationItem>(`/warehouses/${warehouseId}/locations`, {
         method: "POST",
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["locations"] });
+      queryClient.invalidateQueries({ queryKey: ["locations", warehouseId] });
       queryClient.invalidateQueries({ queryKey: ["warehouses"] });
     },
   });
 }
 
-export function useUpdateLocation() {
+export function useUpdateLocation(warehouseId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      warehouseId,
-      id,
-      data,
-    }: {
-      warehouseId: string;
-      id: string;
-      data: Partial<LocationItem>;
-    }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<LocationItem> }) =>
       apiClient<LocationItem>(`/warehouses/${warehouseId}/locations/${id}`, {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["locations"] });
-      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+      queryClient.invalidateQueries({ queryKey: ["locations", warehouseId] });
     },
   });
 }
 
-export function useDeleteLocation() {
+export function useDeleteLocation(warehouseId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ warehouseId, id }: { warehouseId: string; id: string }) =>
+    mutationFn: (id: string) =>
       apiClient(`/warehouses/${warehouseId}/locations/${id}`, {
         method: "DELETE",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["locations"] });
-      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+      queryClient.invalidateQueries({ queryKey: ["locations", warehouseId] });
     },
   });
 }
-

@@ -21,12 +21,6 @@ export interface MovementItem {
   actorId: string | null;
   notes: string | null;
   createdAt: string;
-  product?: { id: string; name: string; sku: string } | null;
-  variant?: { id: string; name: string; sku: string } | null;
-  warehouse?: { id: string; name: string; code: string } | null;
-  location?: { id: string; name: string; code: string } | null;
-  batch?: { id: string; batchNumber: string; batchType?: string } | null;
-  actor?: { id: string; firstName: string; lastName: string; email: string } | null;
 }
 
 export interface MovementResponse {
@@ -40,27 +34,20 @@ export interface MovementResponse {
 }
 
 export interface MovementQueryParams {
-  locationId?: string | undefined;
-  warehouseId?: string | undefined;
-  productId?: string | undefined;
-  variantId?: string | undefined;
-  movementType?: string | undefined;
-  search?: string | undefined;
-  page?: number | undefined;
-  limit?: number | undefined;
+  locationId?: string;
+  productId?: string;
+  variantId?: string;
+  movementType?: string;
+  page?: number;
+  limit?: number;
 }
 
 export function useInventoryMovements(params?: MovementQueryParams) {
   const queryParams = new URLSearchParams();
-  if (params?.locationId && params.locationId !== "ALL")
-    queryParams.set("locationId", params.locationId);
-  if (params?.warehouseId && params.warehouseId !== "ALL")
-    queryParams.set("warehouseId", params.warehouseId);
+  if (params?.locationId) queryParams.set("locationId", params.locationId);
   if (params?.productId) queryParams.set("productId", params.productId);
   if (params?.variantId) queryParams.set("variantId", params.variantId);
-  if (params?.movementType && params.movementType !== "ALL")
-    queryParams.set("movementType", params.movementType);
-  if (params?.search) queryParams.set("search", params.search);
+  if (params?.movementType) queryParams.set("movementType", params.movementType);
   if (params?.page) queryParams.set("page", String(params.page));
   if (params?.limit) queryParams.set("limit", String(params.limit));
 

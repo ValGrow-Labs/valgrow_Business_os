@@ -30,7 +30,6 @@ import { Route as CrmTagsRouteImport } from './routes/crm-tags'
 import { Route as CustomerPaymentsRouteImport } from './routes/customer-payments'
 import { Route as CustomerSegmentsRouteImport } from './routes/customer-segments'
 import { Route as CustomersRouteImport } from './routes/customers'
-import { Route as CycleCountRouteImport } from './routes/cycle-count'
 import { Route as DeliveryNotesRouteImport } from './routes/delivery-notes'
 import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as FilesRouteImport } from './routes/files'
@@ -41,7 +40,6 @@ import { Route as GoodsReceiptsRouteImport } from './routes/goods-receipts'
 import { Route as GradientBlurDemoRouteImport } from './routes/gradient-blur-demo'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as InventoryRouteImport } from './routes/inventory'
-import { Route as InventoryAnalyticsRouteImport } from './routes/inventory-analytics'
 import { Route as JournalEntriesRouteImport } from './routes/journal-entries'
 import { Route as LandedCostsRouteImport } from './routes/landed-costs'
 import { Route as LeadSourcesRouteImport } from './routes/lead-sources'
@@ -63,6 +61,7 @@ import { Route as PurchaseOrdersRouteImport } from './routes/purchase-orders'
 import { Route as PurchaseRequestsRouteImport } from './routes/purchase-requests'
 import { Route as PurchasingRouteImport } from './routes/purchasing'
 import { Route as QuotationsRouteImport } from './routes/quotations'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ReservationsRouteImport } from './routes/reservations'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RolesRouteImport } from './routes/roles'
@@ -197,11 +196,6 @@ const CustomersRoute = CustomersRouteImport.update({
   path: '/customers',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CycleCountRoute = CycleCountRouteImport.update({
-  id: '/cycle-count',
-  path: '/cycle-count',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DeliveryNotesRoute = DeliveryNotesRouteImport.update({
   id: '/delivery-notes',
   path: '/delivery-notes',
@@ -250,11 +244,6 @@ const HelpRoute = HelpRouteImport.update({
 const InventoryRoute = InventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InventoryAnalyticsRoute = InventoryAnalyticsRouteImport.update({
-  id: '/inventory-analytics',
-  path: '/inventory-analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JournalEntriesRoute = JournalEntriesRouteImport.update({
@@ -360,6 +349,11 @@ const PurchasingRoute = PurchasingRouteImport.update({
 const QuotationsRoute = QuotationsRouteImport.update({
   id: '/quotations',
   path: '/quotations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReservationsRoute = ReservationsRouteImport.update({
@@ -525,7 +519,6 @@ export interface FileRoutesByFullPath {
   '/customer-payments': typeof CustomerPaymentsRoute
   '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
-  '/cycle-count': typeof CycleCountRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
@@ -536,7 +529,6 @@ export interface FileRoutesByFullPath {
   '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/inventory': typeof InventoryRoute
-  '/inventory-analytics': typeof InventoryAnalyticsRoute
   '/journal-entries': typeof JournalEntriesRoute
   '/landed-costs': typeof LandedCostsRoute
   '/lead-sources': typeof LeadSourcesRoute
@@ -558,6 +550,7 @@ export interface FileRoutesByFullPath {
   '/purchase-requests': typeof PurchaseRequestsRoute
   '/purchasing': typeof PurchasingRoute
   '/quotations': typeof QuotationsRoute
+  '/reports': typeof ReportsRoute
   '/reservations': typeof ReservationsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/roles': typeof RolesRoute
@@ -609,7 +602,6 @@ export interface FileRoutesByTo {
   '/customer-payments': typeof CustomerPaymentsRoute
   '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
-  '/cycle-count': typeof CycleCountRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
@@ -620,7 +612,6 @@ export interface FileRoutesByTo {
   '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/inventory': typeof InventoryRoute
-  '/inventory-analytics': typeof InventoryAnalyticsRoute
   '/journal-entries': typeof JournalEntriesRoute
   '/landed-costs': typeof LandedCostsRoute
   '/lead-sources': typeof LeadSourcesRoute
@@ -642,6 +633,7 @@ export interface FileRoutesByTo {
   '/purchase-requests': typeof PurchaseRequestsRoute
   '/purchasing': typeof PurchasingRoute
   '/quotations': typeof QuotationsRoute
+  '/reports': typeof ReportsRoute
   '/reservations': typeof ReservationsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/roles': typeof RolesRoute
@@ -694,7 +686,6 @@ export interface FileRoutesById {
   '/customer-payments': typeof CustomerPaymentsRoute
   '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
-  '/cycle-count': typeof CycleCountRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
@@ -705,7 +696,6 @@ export interface FileRoutesById {
   '/gradient-blur-demo': typeof GradientBlurDemoRoute
   '/help': typeof HelpRoute
   '/inventory': typeof InventoryRoute
-  '/inventory-analytics': typeof InventoryAnalyticsRoute
   '/journal-entries': typeof JournalEntriesRoute
   '/landed-costs': typeof LandedCostsRoute
   '/lead-sources': typeof LeadSourcesRoute
@@ -727,6 +717,7 @@ export interface FileRoutesById {
   '/purchase-requests': typeof PurchaseRequestsRoute
   '/purchasing': typeof PurchasingRoute
   '/quotations': typeof QuotationsRoute
+  '/reports': typeof ReportsRoute
   '/reservations': typeof ReservationsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/roles': typeof RolesRoute
@@ -780,7 +771,6 @@ export interface FileRouteTypes {
     | '/customer-payments'
     | '/customer-segments'
     | '/customers'
-    | '/cycle-count'
     | '/delivery-notes'
     | '/departments'
     | '/files'
@@ -791,7 +781,6 @@ export interface FileRouteTypes {
     | '/gradient-blur-demo'
     | '/help'
     | '/inventory'
-    | '/inventory-analytics'
     | '/journal-entries'
     | '/landed-costs'
     | '/lead-sources'
@@ -813,6 +802,7 @@ export interface FileRouteTypes {
     | '/purchase-requests'
     | '/purchasing'
     | '/quotations'
+    | '/reports'
     | '/reservations'
     | '/reset-password'
     | '/roles'
@@ -864,7 +854,6 @@ export interface FileRouteTypes {
     | '/customer-payments'
     | '/customer-segments'
     | '/customers'
-    | '/cycle-count'
     | '/delivery-notes'
     | '/departments'
     | '/files'
@@ -875,7 +864,6 @@ export interface FileRouteTypes {
     | '/gradient-blur-demo'
     | '/help'
     | '/inventory'
-    | '/inventory-analytics'
     | '/journal-entries'
     | '/landed-costs'
     | '/lead-sources'
@@ -897,6 +885,7 @@ export interface FileRouteTypes {
     | '/purchase-requests'
     | '/purchasing'
     | '/quotations'
+    | '/reports'
     | '/reservations'
     | '/reset-password'
     | '/roles'
@@ -948,7 +937,6 @@ export interface FileRouteTypes {
     | '/customer-payments'
     | '/customer-segments'
     | '/customers'
-    | '/cycle-count'
     | '/delivery-notes'
     | '/departments'
     | '/files'
@@ -959,7 +947,6 @@ export interface FileRouteTypes {
     | '/gradient-blur-demo'
     | '/help'
     | '/inventory'
-    | '/inventory-analytics'
     | '/journal-entries'
     | '/landed-costs'
     | '/lead-sources'
@@ -981,6 +968,7 @@ export interface FileRouteTypes {
     | '/purchase-requests'
     | '/purchasing'
     | '/quotations'
+    | '/reports'
     | '/reservations'
     | '/reset-password'
     | '/roles'
@@ -1033,7 +1021,6 @@ export interface RootRouteChildren {
   CustomerPaymentsRoute: typeof CustomerPaymentsRoute
   CustomerSegmentsRoute: typeof CustomerSegmentsRoute
   CustomersRoute: typeof CustomersRoute
-  CycleCountRoute: typeof CycleCountRoute
   DeliveryNotesRoute: typeof DeliveryNotesRoute
   DepartmentsRoute: typeof DepartmentsRoute
   FilesRoute: typeof FilesRoute
@@ -1044,7 +1031,6 @@ export interface RootRouteChildren {
   GradientBlurDemoRoute: typeof GradientBlurDemoRoute
   HelpRoute: typeof HelpRoute
   InventoryRoute: typeof InventoryRoute
-  InventoryAnalyticsRoute: typeof InventoryAnalyticsRoute
   JournalEntriesRoute: typeof JournalEntriesRoute
   LandedCostsRoute: typeof LandedCostsRoute
   LeadSourcesRoute: typeof LeadSourcesRoute
@@ -1066,6 +1052,7 @@ export interface RootRouteChildren {
   PurchaseRequestsRoute: typeof PurchaseRequestsRoute
   PurchasingRoute: typeof PurchasingRoute
   QuotationsRoute: typeof QuotationsRoute
+  ReportsRoute: typeof ReportsRoute
   ReservationsRoute: typeof ReservationsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RolesRoute: typeof RolesRoute
@@ -1245,13 +1232,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CustomersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/cycle-count': {
-      id: '/cycle-count'
-      path: '/cycle-count'
-      fullPath: '/cycle-count'
-      preLoaderRoute: typeof CycleCountRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/delivery-notes': {
       id: '/delivery-notes'
       path: '/delivery-notes'
@@ -1320,13 +1300,6 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof InventoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inventory-analytics': {
-      id: '/inventory-analytics'
-      path: '/inventory-analytics'
-      fullPath: '/inventory-analytics'
-      preLoaderRoute: typeof InventoryAnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/journal-entries': {
@@ -1474,6 +1447,13 @@ declare module '@tanstack/react-router' {
       path: '/quotations'
       fullPath: '/quotations'
       preLoaderRoute: typeof QuotationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reservations': {
@@ -1697,7 +1677,6 @@ const rootRouteChildren: RootRouteChildren = {
   CustomerPaymentsRoute: CustomerPaymentsRoute,
   CustomerSegmentsRoute: CustomerSegmentsRoute,
   CustomersRoute: CustomersRoute,
-  CycleCountRoute: CycleCountRoute,
   DeliveryNotesRoute: DeliveryNotesRoute,
   DepartmentsRoute: DepartmentsRoute,
   FilesRoute: FilesRoute,
@@ -1708,7 +1687,6 @@ const rootRouteChildren: RootRouteChildren = {
   GradientBlurDemoRoute: GradientBlurDemoRoute,
   HelpRoute: HelpRoute,
   InventoryRoute: InventoryRoute,
-  InventoryAnalyticsRoute: InventoryAnalyticsRoute,
   JournalEntriesRoute: JournalEntriesRoute,
   LandedCostsRoute: LandedCostsRoute,
   LeadSourcesRoute: LeadSourcesRoute,
@@ -1730,6 +1708,7 @@ const rootRouteChildren: RootRouteChildren = {
   PurchaseRequestsRoute: PurchaseRequestsRoute,
   PurchasingRoute: PurchasingRoute,
   QuotationsRoute: QuotationsRoute,
+  ReportsRoute: ReportsRoute,
   ReservationsRoute: ReservationsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RolesRoute: RolesRoute,

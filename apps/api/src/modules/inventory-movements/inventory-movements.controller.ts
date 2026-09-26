@@ -14,23 +14,19 @@ export class InventoryMovementsController {
   async getMovements(
     @CurrentOrg("id") organizationId: string,
     @Query("locationId") locationId?: string,
-    @Query("warehouseId") warehouseId?: string,
     @Query("productId") productId?: string,
     @Query("variantId") variantId?: string,
     @Query("movementType") movementType?: string,
-    @Query("search") search?: string,
     @Query("page") page?: number,
     @Query("limit") limit?: number,
   ) {
     return this.movementsService.getMovements(organizationId, {
       locationId,
-      warehouseId,
       productId,
       variantId,
       movementType,
-      search,
-      page: page ? Number(page) : undefined,
-      limit: limit ? Number(limit) : undefined,
+      page,
+      limit,
     });
   }
 

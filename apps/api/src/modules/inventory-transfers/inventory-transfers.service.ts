@@ -98,21 +98,14 @@ export class InventoryTransfersService {
 
   async getTransfers(organizationId: string, status?: string) {
     const where: any = { organizationId };
-    if (status && status !== "ALL") where.status = status;
+    if (status) where.status = status;
 
     return this.prisma.stockTransfer.findMany({
       where,
       include: {
         sourceWarehouse: { select: { id: true, name: true, code: true } },
         destWarehouse: { select: { id: true, name: true, code: true } },
-        items: {
-          include: {
-            product: { select: { id: true, name: true, sku: true } },
-            variant: { select: { id: true, name: true, sku: true } },
-            sourceLocation: { select: { id: true, name: true, code: true } },
-            destLocation: { select: { id: true, name: true, code: true } },
-          },
-        },
+        items: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -124,14 +117,7 @@ export class InventoryTransfersService {
       include: {
         sourceWarehouse: true,
         destWarehouse: true,
-        items: {
-          include: {
-            product: { select: { id: true, name: true, sku: true } },
-            variant: { select: { id: true, name: true, sku: true } },
-            sourceLocation: { select: { id: true, name: true, code: true } },
-            destLocation: { select: { id: true, name: true, code: true } },
-          },
-        },
+        items: true,
       },
     });
 
@@ -180,18 +166,7 @@ export class InventoryTransfersService {
           })),
         },
       },
-      include: {
-        sourceWarehouse: { select: { id: true, name: true, code: true } },
-        destWarehouse: { select: { id: true, name: true, code: true } },
-        items: {
-          include: {
-            product: { select: { id: true, name: true, sku: true } },
-            variant: { select: { id: true, name: true, sku: true } },
-            sourceLocation: { select: { id: true, name: true, code: true } },
-            destLocation: { select: { id: true, name: true, code: true } },
-          },
-        },
-      },
+      include: { items: true },
     });
   }
 
@@ -209,38 +184,10 @@ export class InventoryTransfersService {
       );
     }
 
-    // Status transition: DRAFT -> IN_TRANSIT
-    if (dto.status === "IN_TRANSIT") {
-      return this.prisma.$transaction(async (tx) => {
-        for (const item of transfer.items) {
-          await tx.stockTransferItem.update({
-            where: { id: item.id },
-            data: { shippedQty: item.requestedQty },
-          });
-        }
-
-        return tx.stockTransfer.update({
-          where: { id },
-          data: { status: "IN_TRANSIT", shippedAt: new Date() },
-          include: {
-            sourceWarehouse: { select: { id: true, name: true, code: true } },
-            destWarehouse: { select: { id: true, name: true, code: true } },
-            items: {
-              include: {
-                product: { select: { id: true, name: true, sku: true } },
-                variant: { select: { id: true, name: true, sku: true } },
-                sourceLocation: { select: { id: true, name: true, code: true } },
-                destLocation: { select: { id: true, name: true, code: true } },
-              },
-            },
-          },
-        });
-      });
-    }
-
-    // Status transition: IN_TRANSIT / DRAFT -> COMPLETED (Atomic double movement posting)
+    // Process completion atomically in transaction
     if (dto.status === "COMPLETED") {
       return this.prisma.$transaction(async (tx) => {
+        // 1. Process items: create TRANSFER_OUT and TRANSFER_IN movements
         for (const item of transfer.items) {
           const qty = item.requestedQty;
           const product = await tx.product.findUnique({
@@ -248,7 +195,7 @@ export class InventoryTransfersService {
           });
           const unitCost = product ? product.costPrice : new Prisma.Decimal(0);
 
-          // 1. TRANSFER_OUT from source location
+          // TRANSFER_OUT from source location
           const srcStock = await tx.stockLevel.findFirst({
             where: {
               organizationId,
@@ -273,6 +220,7 @@ export class InventoryTransfersService {
             );
           }
 
+          // Deduct source
           await tx.stockLevel.update({
             where: { id: srcStock!.id },
             data: {
@@ -296,11 +244,11 @@ export class InventoryTransfersService {
               referenceType: "STOCK_TRANSFER",
               referenceId: transfer.id,
               actorId,
-              notes: `Transfer OUT (${transfer.transferNumber}) to Warehouse ${transfer.destWarehouseId}`,
+              notes: `Transfer OUT to Warehouse ${transfer.destWarehouseId}`,
             },
           });
 
-          // 2. TRANSFER_IN to destination location
+          // TRANSFER_IN to destination location
           const destStock = await tx.stockLevel.findFirst({
             where: {
               organizationId,
@@ -351,11 +299,11 @@ export class InventoryTransfersService {
               referenceType: "STOCK_TRANSFER",
               referenceId: transfer.id,
               actorId,
-              notes: `Transfer IN (${transfer.transferNumber}) from Warehouse ${transfer.sourceWarehouseId}`,
+              notes: `Transfer IN from Warehouse ${transfer.sourceWarehouseId}`,
             },
           });
 
-          // 3. Create Inbound Cost Layer for destination
+          // Create Inbound Cost Layer for destination
           await tx.inventoryCostLayer.create({
             data: {
               organizationId,
@@ -380,18 +328,7 @@ export class InventoryTransfersService {
         return tx.stockTransfer.update({
           where: { id },
           data: { status: "COMPLETED", receivedAt: new Date() },
-          include: {
-            sourceWarehouse: { select: { id: true, name: true, code: true } },
-            destWarehouse: { select: { id: true, name: true, code: true } },
-            items: {
-              include: {
-                product: { select: { id: true, name: true, sku: true } },
-                variant: { select: { id: true, name: true, sku: true } },
-                sourceLocation: { select: { id: true, name: true, code: true } },
-                destLocation: { select: { id: true, name: true, code: true } },
-              },
-            },
-          },
+          include: { items: true },
         });
       });
     }
@@ -399,18 +336,7 @@ export class InventoryTransfersService {
     return this.prisma.stockTransfer.update({
       where: { id },
       data: dto,
-      include: {
-        sourceWarehouse: { select: { id: true, name: true, code: true } },
-        destWarehouse: { select: { id: true, name: true, code: true } },
-        items: {
-          include: {
-            product: { select: { id: true, name: true, sku: true } },
-            variant: { select: { id: true, name: true, sku: true } },
-            sourceLocation: { select: { id: true, name: true, code: true } },
-            destLocation: { select: { id: true, name: true, code: true } },
-          },
-        },
-      },
+      include: { items: true },
     });
   }
 }

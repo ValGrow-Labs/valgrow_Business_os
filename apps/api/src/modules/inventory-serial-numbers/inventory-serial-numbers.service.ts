@@ -7,14 +7,6 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CreateSerialDto } from "./dto/create-serial.dto";
 import { UpdateSerialDto } from "./dto/update-serial.dto";
 
-export interface SerialQueryOptions {
-  productId?: string;
-  status?: string;
-  warehouseId?: string;
-  locationId?: string;
-  search?: string;
-}
-
 @Injectable()
 export class InventorySerialNumbersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -76,57 +68,22 @@ export class InventorySerialNumbersService {
 
   async getSerialNumbers(
     organizationId: string,
-    options: SerialQueryOptions = {},
+    productId?: string,
+    status?: string,
   ) {
     const where: any = { organizationId };
+    if (productId) where.productId = productId;
+    if (status) where.status = status;
 
-    if (options.productId) where.productId = options.productId;
-    if (options.status && options.status !== "ALL") where.status = options.status;
-    if (options.locationId) where.locationId = options.locationId;
-    if (options.warehouseId) {
-      where.location = { warehouseId: options.warehouseId };
-    }
-
-    if (options.search) {
-      const term = options.search.trim();
-      where.OR = [
-        { serialNumber: { contains: term, mode: "insensitive" } },
-        { product: { name: { contains: term, mode: "insensitive" } } },
-        { product: { sku: { contains: term, mode: "insensitive" } } },
-        { notes: { contains: term, mode: "insensitive" } },
-      ];
-    }
-
-    const serials = await this.prisma.inventorySerialNumber.findMany({
+    return this.prisma.inventorySerialNumber.findMany({
       where,
       include: {
         product: { select: { id: true, name: true, sku: true } },
         variant: { select: { id: true, name: true, sku: true } },
-        location: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            warehouse: { select: { id: true, name: true, code: true } },
-          },
-        },
-        salesOrder: { select: { id: true, orderNumber: true } },
-        salesInvoice: { select: { id: true, invoiceNumber: true } },
+        location: { select: { id: true, name: true, code: true } },
       },
       orderBy: { createdAt: "desc" },
     });
-
-    if (options.search) {
-      const termLower = options.search.trim().toLowerCase();
-      serials.sort((a, b) => {
-        const aExact = a.serialNumber.toLowerCase() === termLower ? 1 : 0;
-        const bExact = b.serialNumber.toLowerCase() === termLower ? 1 : 0;
-        if (aExact !== bExact) return bExact - aExact;
-        return 0;
-      });
-    }
-
-    return serials;
   }
 
   async getSerialById(id: string, organizationId: string) {
@@ -135,13 +92,7 @@ export class InventorySerialNumbersService {
       include: {
         product: true,
         variant: true,
-        location: {
-          include: {
-            warehouse: { select: { id: true, name: true, code: true } },
-          },
-        },
-        salesOrder: true,
-        salesInvoice: true,
+        location: true,
         movements: true,
       },
     });
@@ -182,25 +133,11 @@ export class InventorySerialNumbersService {
         locationId: dto.locationId,
         serialNumber: dto.serialNumber,
         status: dto.status || "AVAILABLE",
-        warrantyEndDate: dto.warrantyEndDate ? new Date(dto.warrantyEndDate) : null,
-        soldAt: dto.soldAt ? new Date(dto.soldAt) : null,
-        salesOrderId: dto.salesOrderId || null,
-        salesInvoiceId: dto.salesInvoiceId || null,
-        notes: dto.notes || null,
       },
       include: {
-        product: { select: { id: true, name: true, sku: true } },
-        variant: { select: { id: true, name: true, sku: true } },
-        location: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            warehouse: { select: { id: true, name: true, code: true } },
-          },
-        },
-        salesOrder: { select: { id: true, orderNumber: true } },
-        salesInvoice: { select: { id: true, invoiceNumber: true } },
+        product: { select: { id: true, name: true } },
+        variant: { select: { id: true, name: true } },
+        location: { select: { id: true, name: true } },
       },
     });
   }
@@ -239,33 +176,9 @@ export class InventorySerialNumbersService {
       }
     }
 
-    const updateData: any = { ...dto };
-    if (dto.warrantyEndDate !== undefined) {
-      updateData.warrantyEndDate = dto.warrantyEndDate
-        ? new Date(dto.warrantyEndDate)
-        : null;
-    }
-    if (dto.soldAt !== undefined) {
-      updateData.soldAt = dto.soldAt ? new Date(dto.soldAt) : null;
-    }
-
     return this.prisma.inventorySerialNumber.update({
       where: { id },
-      data: updateData,
-      include: {
-        product: { select: { id: true, name: true, sku: true } },
-        variant: { select: { id: true, name: true, sku: true } },
-        location: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            warehouse: { select: { id: true, name: true, code: true } },
-          },
-        },
-        salesOrder: { select: { id: true, orderNumber: true } },
-        salesInvoice: { select: { id: true, invoiceNumber: true } },
-      },
+      data: dto,
     });
   }
 }

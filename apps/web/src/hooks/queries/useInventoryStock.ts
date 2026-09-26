@@ -1,7 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-
-export type StockHealthStatus = "OK" | "LOW" | "OUT";
 
 export interface StockItem {
   id: string;
@@ -16,56 +14,18 @@ export interface StockItem {
   available: number;
   reorderLevel: number | null;
   reorderQuantity: number | null;
-  stockHealth?: StockHealthStatus;
   version: number;
   createdAt: string;
   updatedAt: string;
-  warehouse?: { id: string; name: string; code: string; branchId?: string } | null;
+  warehouse?: { id: string; name: string; code: string } | null;
   location?: { id: string; name: string; code: string } | null;
   product?: { id: string; name: string; sku: string; costPrice: number | string } | null;
   variant?: { id: string; name: string; sku: string } | null;
   batch?: { id: string; batchNumber: string; expiryDate: string | null } | null;
 }
 
-export interface PurchaseSuggestionItem {
-  stockLevelId: string;
-  productId: string;
-  productName: string;
-  productSku: string;
-  variantId: string | null;
-  variantName: string;
-  warehouseId: string;
-  warehouseName: string;
-  onHand: number;
-  reserved: number;
-  available: number;
-  reorderLevel: number;
-  suggestedOrderQty: number;
-  estimatedUnitCost: number;
-  estimatedTotalCost: number;
-  health: "LOW" | "OUT";
-}
-
-export interface PurchaseSuggestionsResponse {
-  data: PurchaseSuggestionItem[];
-  summary: {
-    totalSuggestions: number;
-    outOfStockCount: number;
-    lowStockCount: number;
-    totalEstimatedCost: number;
-  };
-}
-
 export interface StockResponse {
   data: StockItem[];
-  summary?: {
-    totalOnHand: number;
-    totalReserved: number;
-    totalAvailable: number;
-    lowStockCount: number;
-    outOfStockCount: number;
-    totalRecords: number;
-  };
   meta: {
     total: number;
     page: number;
@@ -75,49 +35,34 @@ export interface StockResponse {
 }
 
 export interface StockQueryParams {
-  warehouseId?: string | undefined;
-  branchId?: string | undefined;
-  locationId?: string | undefined;
-  productId?: string | undefined;
-  variantId?: string | undefined;
-  batchId?: string | undefined;
-  lowStock?: boolean | undefined;
-  health?: StockHealthStatus | undefined;
-  search?: string | undefined;
-  sortBy?: string | undefined;
-  sortOrder?: "asc" | "desc" | undefined;
-  page?: number | undefined;
-  limit?: number | undefined;
+  warehouseId?: string;
+  locationId?: string;
+  productId?: string;
+  variantId?: string;
+  batchId?: string;
+  lowStock?: boolean;
+  search?: string;
+  page?: number;
+  limit?: number;
 }
 
-
-export function buildStockQueryString(params?: StockQueryParams): string {
+export function useInventoryStock(params?: StockQueryParams) {
   const queryParams = new URLSearchParams();
   if (params?.warehouseId) queryParams.set("warehouseId", params.warehouseId);
-  if (params?.branchId) queryParams.set("branchId", params.branchId);
   if (params?.locationId) queryParams.set("locationId", params.locationId);
   if (params?.productId) queryParams.set("productId", params.productId);
   if (params?.variantId) queryParams.set("variantId", params.variantId);
   if (params?.batchId) queryParams.set("batchId", params.batchId);
   if (params?.lowStock) queryParams.set("lowStock", "true");
-  if (params?.health) queryParams.set("health", params.health);
   if (params?.search) queryParams.set("search", params.search);
-  if (params?.sortBy) queryParams.set("sortBy", params.sortBy);
-  if (params?.sortOrder) queryParams.set("sortOrder", params.sortOrder);
   if (params?.page) queryParams.set("page", String(params.page));
   if (params?.limit) queryParams.set("limit", String(params.limit));
 
-  return queryParams.toString() ? `?${queryParams.toString()}` : "";
-}
-
-export function useInventoryStock(params?: StockQueryParams) {
-  const queryStr = buildStockQueryString(params);
+  const queryStr = queryParams.toString() ? `?${queryParams.toString()}` : "";
 
   return useQuery<StockResponse>({
     queryKey: ["inventoryStock", params],
     queryFn: () => apiClient<StockResponse>(`/inventory/stock${queryStr}`),
-    refetchInterval: 30_000,
-    staleTime: 20_000,
   });
 }
 
@@ -128,42 +73,3 @@ export function useInventoryStockById(id: string) {
     enabled: Boolean(id),
   });
 }
-
-export function usePurchaseSuggestions() {
-  return useQuery<PurchaseSuggestionsResponse>({
-    queryKey: ["purchaseSuggestions"],
-    queryFn: () => apiClient<PurchaseSuggestionsResponse>("/inventory/purchase-suggestions"),
-    staleTime: 30_000,
-  });
-}
-
-export function useUpdateReorderSettings() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      id,
-      reorderLevel,
-      reorderQuantity,
-    }: {
-      id: string;
-      reorderLevel: number;
-      reorderQuantity: number | null;
-    }) =>
-      apiClient(`/inventory/stock/${id}/reorder-settings`, {
-        method: "PATCH",
-        body: JSON.stringify({ reorderLevel, reorderQuantity }),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventoryStock"] });
-      queryClient.invalidateQueries({ queryKey: ["purchaseSuggestions"] });
-    },
-  });
-}
-
-export function downloadStockExport(format: "csv" | "pdf", params?: StockQueryParams) {
-  const queryStr = buildStockQueryString(params);
-  const endpoint = `/api/inventory/stock/export/${format}${queryStr}`;
-  window.open(endpoint, "_blank");
-}
-
-

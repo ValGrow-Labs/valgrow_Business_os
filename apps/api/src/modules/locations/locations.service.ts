@@ -23,28 +23,11 @@ export class LocationsService {
     return warehouse;
   }
 
-  async getAllLocations(organizationId: string, warehouseId?: string, status?: string) {
-    const where: any = { organizationId, deletedAt: null };
-    if (warehouseId) where.warehouseId = warehouseId;
-    if (status) where.status = status;
-
-    return this.prisma.location.findMany({
-      where,
-      include: {
-        warehouse: { select: { id: true, name: true, code: true } },
-      },
-      orderBy: [{ warehouse: { name: "asc" } }, { code: "asc" }],
-    });
-  }
-
   async getLocations(warehouseId: string, organizationId: string) {
     await this.verifyWarehouse(warehouseId, organizationId);
 
     return this.prisma.location.findMany({
       where: { warehouseId, organizationId, deletedAt: null },
-      include: {
-        warehouse: { select: { id: true, name: true, code: true } },
-      },
       orderBy: { createdAt: "asc" },
     });
   }
@@ -58,9 +41,6 @@ export class LocationsService {
 
     const location = await this.prisma.location.findFirst({
       where: { id, warehouseId, organizationId, deletedAt: null },
-      include: {
-        warehouse: { select: { id: true, name: true, code: true } },
-      },
     });
 
     if (!location) {
@@ -106,9 +86,6 @@ export class LocationsService {
         isDefault: dto.isDefault ?? false,
         status: dto.status || "ACTIVE",
       },
-      include: {
-        warehouse: { select: { id: true, name: true, code: true } },
-      },
     });
   }
 
@@ -152,9 +129,6 @@ export class LocationsService {
     return this.prisma.location.update({
       where: { id },
       data: dto,
-      include: {
-        warehouse: { select: { id: true, name: true, code: true } },
-      },
     });
   }
 
@@ -171,4 +145,3 @@ export class LocationsService {
     });
   }
 }
-
