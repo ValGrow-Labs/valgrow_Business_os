@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiClient, setActiveOrgId } from "@/lib/api-client";
+import { apiClient, setActiveOrgId, getActiveOrgId } from "@/lib/api-client";
 
 export interface UserMeResponse {
   user: {
@@ -42,8 +42,9 @@ export interface UserMeResponse {
 }
 
 export function useCurrentUser() {
+  const currentOrgId = getActiveOrgId();
   return useQuery<UserMeResponse>({
-    queryKey: ["currentUser"],
+    queryKey: ["currentUser", currentOrgId],
     queryFn: async () => {
       const res = await apiClient<UserMeResponse>("/auth/me");
       if (res.activeOrganization?.id) {

@@ -6,7 +6,7 @@ export interface GoodsReceiptItemData {
   purchaseOrderItemId: string;
   productId: string;
   variantId?: string | null;
-  locationId: string;
+  locationId?: string | null;
   batchNumber?: string | null;
   manufactureDate?: string | null;
   expiryDate?: string | null;
@@ -69,7 +69,7 @@ export function useCreateGoodsReceipt() {
         purchaseOrderItemId: string;
         productId: string;
         variantId?: string | undefined;
-        locationId: string;
+        locationId?: string | undefined;
         batchNumber?: string | undefined;
         manufactureDate?: string | undefined;
         expiryDate?: string | undefined;

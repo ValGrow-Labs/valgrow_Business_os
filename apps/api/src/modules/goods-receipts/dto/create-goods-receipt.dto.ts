@@ -24,8 +24,8 @@ export class CreateGoodsReceiptItemDto {
   variantId?: string;
 
   @IsString()
-  @IsNotEmpty()
-  locationId: string;
+  @IsOptional()
+  locationId?: string;
 
   @IsString()
   @IsOptional()

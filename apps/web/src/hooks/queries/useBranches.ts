@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, getActiveOrgId } from "@/lib/api-client";
 
 export interface BranchItem {
   id: string;
@@ -18,9 +18,10 @@ export interface BranchItem {
   } | null;
 }
 
-export function useBranches() {
+export function useBranches(orgId?: string) {
+  const effectiveOrgId = orgId || getActiveOrgId();
   return useQuery<BranchItem[]>({
-    queryKey: ["branches"],
+    queryKey: ["branches", effectiveOrgId],
     queryFn: () => apiClient<BranchItem[]>("/branches"),
   });
 }

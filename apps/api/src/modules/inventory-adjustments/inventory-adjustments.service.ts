@@ -54,18 +54,50 @@ export class InventoryAdjustmentsService {
         }
       }
 
-      const location = await this.prisma.location.findFirst({
-        where: {
-          id: item.locationId,
-          warehouseId: dto.warehouseId,
-          organizationId,
-          deletedAt: null,
-        },
-      });
-      if (!location) {
-        throw new BadRequestException(
-          `Location ${item.locationId} does not belong to warehouse ${dto.warehouseId}`,
-        );
+      if (item.locationId) {
+        const location = await this.prisma.location.findFirst({
+          where: {
+            id: item.locationId,
+            warehouseId: dto.warehouseId,
+            organizationId,
+            deletedAt: null,
+          },
+        });
+        if (!location) {
+          throw new BadRequestException(
+            `Location ${item.locationId} does not belong to warehouse ${dto.warehouseId}`,
+          );
+        }
+      } else {
+        let defaultLocation = await this.prisma.location.findFirst({
+          where: {
+            warehouseId: dto.warehouseId,
+            organizationId,
+            isDefault: true,
+            deletedAt: null,
+          },
+        });
+        if (!defaultLocation) {
+          defaultLocation = await this.prisma.location.findFirst({
+            where: {
+              warehouseId: dto.warehouseId,
+              organizationId,
+              deletedAt: null,
+            },
+          });
+        }
+        if (!defaultLocation) {
+          defaultLocation = await this.prisma.location.create({
+            data: {
+              organizationId,
+              warehouseId: dto.warehouseId,
+              name: "Default Bin",
+              code: "LOC-MAIN",
+              isDefault: true,
+            },
+          });
+        }
+        item.locationId = defaultLocation.id;
       }
     }
   }
@@ -124,7 +156,7 @@ export class InventoryAdjustmentsService {
           createdById,
           items: {
             create: dto.items.map((i) => ({
-              locationId: i.locationId,
+              locationId: i.locationId!,
               productId: i.productId,
               variantId: i.variantId || null,
               batchId: i.batchId || null,
@@ -152,7 +184,7 @@ export class InventoryAdjustmentsService {
         const stockLevel = await tx.stockLevel.findFirst({
           where: {
             organizationId,
-            locationId: item.locationId,
+            locationId: item.locationId!,
             productId: item.productId,
             variantId: item.variantId || null,
             batchId: item.batchId || null,
@@ -174,7 +206,7 @@ export class InventoryAdjustmentsService {
             data: {
               organizationId,
               warehouseId: dto.warehouseId,
-              locationId: item.locationId,
+              locationId: item.locationId!,
               productId: item.productId,
               variantId: item.variantId || null,
               batchId: item.batchId || null,
@@ -189,7 +221,7 @@ export class InventoryAdjustmentsService {
           data: {
             organizationId,
             warehouseId: dto.warehouseId,
-            locationId: item.locationId,
+            locationId: item.locationId!,
             productId: item.productId,
             variantId: item.variantId || null,
             batchId: item.batchId || null,
@@ -210,7 +242,7 @@ export class InventoryAdjustmentsService {
             data: {
               organizationId,
               warehouseId: dto.warehouseId,
-              locationId: item.locationId,
+              locationId: item.locationId!,
               productId: item.productId,
               variantId: item.variantId || null,
               batchId: item.batchId || null,

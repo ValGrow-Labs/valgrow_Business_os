@@ -12,8 +12,8 @@ import { AdjustmentReason } from "@prisma/client";
 
 export class AdjustmentItemDto {
   @IsString()
-  @IsNotEmpty()
-  locationId: string;
+  @IsOptional()
+  locationId?: string;
 
   @IsString()
   @IsNotEmpty()

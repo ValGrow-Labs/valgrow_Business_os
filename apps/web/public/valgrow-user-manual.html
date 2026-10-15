@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ValGrow Business OS — User Manual & Testing Guide</title>
+  <meta name="description" content="Official end-to-end user manual and testing guide for ValGrow Business OS." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --primary-light: #eeef2f6;
+      --primary-soft: rgba(79, 70, 229, 0.08);
+      --bg-body: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-sidebar: #ffffff;
+      --border: #e2e8f0;
+      --border-dark: #cbd5e1;
+      --text-heading: #0f172a;
+      --text-body: #334155;
+      --text-muted: #64748b;
+      --success: #10b981;
+      --success-soft: rgba(16, 185, 129, 0.1);
+      --warning: #f59e0b;
+      --warning-soft: rgba(245, 158, 11, 0.1);
+      --danger: #ef4444;
+      --danger-soft: rgba(239, 68, 68, 0.1);
+      --info: #3b82f6;
+      --info-soft: rgba(59, 130, 246, 0.1);
+      --radius: 10px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+      --sidebar-width: 280px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-body);
+      color: var(--text-body);
+      line-height: 1.6;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--primary), #818cf8);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 18px;
+      box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3);
+    }
+
+    .brand-title h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-heading);
+      line-height: 1.2;
+    }
+
+    .brand-title p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .search-container {
+      position: relative;
+      width: 260px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 8px 12px 8px 34px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      background: #f1f5f9;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .search-input:focus {
+      background: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+    .btn-primary:hover { background-color: var(--primary-hover); }
+
+    .btn-outline {
+      background-color: white;
+      border-color: var(--border);
+      color: var(--text-heading);
+    }
+    .btn-outline:hover { background-color: #f1f5f9; }
+
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    .app-container {
+      display: flex;
+      min-height: calc(100vh - 61px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      padding: 20px 16px;
+      position: sticky;
+      top: 61px;
+      height: calc(100vh - 61px);
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .nav-group-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin: 16px 0 8px 8px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      color: var(--text-body);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+      margin-bottom: 2px;
+    }
+
+    .nav-link:hover {
+      background-color: #f1f5f9;
+      color: var(--text-heading);
+    }
+
+    .nav-link.active {
+      background-color: var(--primary-soft);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .nav-icon {
+      font-size: 15px;
+      width: 20px;
+      text-align: center;
+    }
+
+    /* Progress Widget */
+    .progress-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .progress-bar-bg {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      padding: 32px 40px;
+      max-width: 1100px;
+      overflow-y: auto;
+    }
+
+    .section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow-sm);
+      scroll-margin-top: 80px;
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-heading);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .section-title .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    .badge-primary { background: var(--primary-soft); color: var(--primary); }
+    .badge-success { background: var(--success-soft); color: var(--success); }
+    .badge-warning { background: var(--warning-soft); color: var(--warning); }
+    .badge-danger { background: var(--danger-soft); color: var(--danger); }
+    .badge-info { background: var(--info-soft); color: var(--info); }
+    .badge-muted { background: #f1f5f9; color: var(--text-muted); }
+
+    .subsection-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-heading);
+      margin: 20px 0 10px 0;
+    }
+
+    p { margin-bottom: 12px; }
+
+    /* Flow Diagrams */
+    .flow-container {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1px dashed var(--border-dark);
+      padding: 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+    }
+
+    .flow-step {
+      background: white;
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--primary);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    .flow-arrow {
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    /* Info Cards & Callouts */
+    .callout {
+      padding: 14px 16px;
+      border-left: 4px solid var(--primary);
+      background: #f8fafc;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+      font-size: 13px;
+    }
+
+    .callout-warning {
+      border-left-color: var(--warning);
+      background: rgba(245, 158, 11, 0.05);
+    }
+
+    .callout-info {
+      border-left-color: var(--info);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    /* Example Box */
+    .example-box {
+      background: #fafafa;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 16px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+    }
+
+    .example-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    /* Tables */
+    .doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13px;
+    }
+
+    .doc-table th, .doc-table td {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .doc-table th {
+      background-color: #f8fafc;
+      font-weight: 600;
+      color: var(--text-heading);
+    }
+
+    /* Checklists */
+    .checklist {
+      list-style: none;
+      margin: 12px 0;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+
+    .checklist-item:hover {
+      background: #f1f5f9;
+    }
+
+    .checklist-item input[type="checkbox"] {
+      margin-top: 3px;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .checklist-item.completed {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    /* Floating Back To Top */
+    .back-to-top {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--shadow-md);
+      border: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+      z-index: 40;
+    }
+
+    .back-to-top.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* Mobile Responsive */
+    .mobile-menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-heading);
+    }
+
+    @media (max-width: 900px) {
+      .mobile-menu-toggle { display: block; }
+      .app-header { padding: 12px 16px; }
+      .search-container { width: 160px; }
+      .sidebar {
+        position: fixed;
+        left: -100%;
+        top: 61px;
+        z-index: 100;
+        transition: left 0.3s ease;
+        box-shadow: var(--shadow-md);
+      }
+      .sidebar.open { left: 0; }
+      .main-content { padding: 20px 16px; }
+      .section { padding: 18px; }
+      .header-actions .btn-span { display: none; }
+    }
+
+    /* Print Styles */
+    @media print {
+      .app-header, .sidebar, .back-to-top, .header-actions { display: none !important; }
+      .main-content { padding: 0; max-width: 100%; }
+      .section { border: none; box-shadow: none; padding: 0; margin-bottom: 24px; page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <button class="mobile-menu-toggle" id="mobileMenuBtn" aria-label="Toggle navigation">☰</button>
+      <div class="brand-logo">VG</div>
+      <div class="brand-title">
+        <h1>ValGrow Business OS</h1>
+        <p>User Manual & Testing Guide</p>
+      </div>
+    </div>
+
+    <div class="search-container">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="manualSearch" class="search-input" placeholder="Search manual topics..." />
+    </div>
+
+    <div class="header-actions">
+      <a href="#section-1" class="btn btn-outline btn-sm">⚡ <span class="btn-span">Start Here</span></a>
+      <button onclick="window.print()" class="btn btn-outline btn-sm">🖨️ <span class="btn-span">Print</span></button>
+      <a href="https://valgrow-business-os-t6x9-nine.vercel.app/login" target="_blank" rel="noopener" class="btn btn-primary btn-sm">🚀 Open App ↗</a>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="progress-card">
+        <div class="progress-header">
+          <span>Testing Checklist</span>
+          <span id="progressText">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressBar"></div>
+        </div>
+      </div>
+
+      <div class="nav-group-title">Overview</div>
+      <a href="#section-1" class="nav-link active"><span class="nav-icon">🚀</span> 1. Getting Started</a>
+      <a href="#section-2" class="nav-link"><span class="nav-icon">📊</span> 2. Dashboard Overview</a>
+
+      <div class="nav-group-title">Core Operations</div>
+      <a href="#section-3" class="nav-link"><span class="nav-icon">📦</span> 3. Products Catalog</a>
+      <a href="#section-4" class="nav-link"><span class="nav-icon">🏢</span> 4. Branches & Warehouses</a>
+      <a href="#section-5" class="nav-link"><span class="nav-icon">📥</span> 5. Inventory & Stock</a>
+      <a href="#section-6" class="nav-link"><span class="nav-icon">🛒</span> 6. Purchasing & POs</a>
+      <a href="#section-7" class="nav-link"><span class="nav-icon">📋</span> 7. Goods Receipts (GRN)</a>
+      <a href="#section-8" class="nav-link"><span class="nav-icon">💳</span> 8. POS Register & Barcode</a>
+
+      <div class="nav-group-title">Sales & Analytics</div>
+      <a href="#section-9" class="nav-link"><span class="nav-icon">👥</span> 9. Customers</a>
+      <a href="#section-10" class="nav-link"><span class="nav-icon">🧾</span> 10. Sales Management</a>
+      <a href="#section-11" class="nav-link"><span class="nav-icon">📈</span> 11. Reports & Analytics</a>
+      <a href="#section-12" class="nav-link"><span class="nav-icon">📄</span> 12. CSV Exports</a>
+
+      <div class="nav-group-title">Testing & Verification</div>
+      <a href="#section-13" class="nav-link"><span class="nav-icon">🔄</span> 13. Complete Business Flow</a>
+      <a href="#section-14" class="nav-link"><span class="nav-icon">✅</span> 14. Daily User Checklist</a>
+      <a href="#section-15" class="nav-link"><span class="nav-icon">🛠️</span> 15. Troubleshooting</a>
+      <a href="#section-16" class="nav-link"><span class="nav-icon">🐞</span> 16. Bug Reporting Format</a>
+
+      <div style="margin-top: 24px; padding: 12px; background: #f1f5f9; border-radius: 8px; font-size: 11px; color: var(--text-muted);">
+        <div><strong>Manual Version:</strong> v1.2.0</div>
+        <div id="generatedDate">Generated: 2026-10-08</div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content" id="mainContent">
+
+      <!-- SECTION 1 -->
+      <section id="section-1" class="section">
+        <h2 class="section-title">
+          <span>1. Getting Started</span>
+          <span class="badge badge-primary">Essential</span>
+        </h2>
+        <p>Welcome to <strong>ValGrow Business OS</strong> — a unified multi-branch Enterprise Resource Planning (ERP) and Point of Sale (POS) system designed for retail, wholesale, and multi-location businesses.</p>
+        
+        <h3 class="subsection-title">Initial Access & Navigation Steps</h3>
+        <ol style="margin-left: 20px; margin-bottom: 16px;">
+          <li style="margin-bottom: 6px;"><strong>Open the Application:</strong> Launch the app in any modern browser via <a href="https://valgrow-business-os-t6x9-nine.vercel.app/login" target="_blank" rel="noopener">ValGrow Login</a>.</li>
+          <li style="margin-bottom: 6px;"><strong>Login:</strong> Enter your authorized email address and password.</li>
+          <li style="margin-bottom: 6px;"><strong>Main Dashboard:</strong> Upon logging in, you arrive at the central Overview dashboard showing business key performance metrics.</li>
+          <li style="margin-bottom: 6px;"><strong>Left Sidebar Navigation:</strong> Access modules grouped into <em>Operations</em> (POS, Products, Inventory, Purchasing, Customers, Reports) and <em>Management</em> (Organization, Branches).</li>
+          <li style="margin-bottom: 6px;"><strong>Global Command Search:</strong> Press <kbd style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 11px;">Ctrl + K</kbd> or click <em>Global Search</em> to quickly navigate to any module.</li>
+        </ol>
+
+        <div class="callout callout-info">
+          <strong>Role & Permissions Note:</strong> Access permissions are assigned to your user account (e.g., Owner, Store Manager, Cashier). If a specific feature or button is disabled, contact your administrator to verify your permission settings.
+        </div>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s1-1"> Login page loads cleanly without errors</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s1-2"> Authorized credentials log in successfully</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s1-3"> Overview dashboard renders greeting and key cards</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s1-4"> Sidebar navigation items expand and route smoothly</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 2 -->
+      <section id="section-2" class="section">
+        <h2 class="section-title">
+          <span>2. Dashboard Overview</span>
+          <span class="badge badge-info">Overview</span>
+        </h2>
+        <p>The Overview Dashboard aggregates real-time data across all branches to give store owners and managers instant visibility into operational performance.</p>
+
+        <h3 class="subsection-title">Active Key Performance Indicators (KPIs)</h3>
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>KPI Metric</th>
+              <th>Meaning</th>
+              <th>Operational Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Today's Sales</strong></td>
+              <td>Total revenue generated from POS completed orders today</td>
+              <td>Monitor daily revenue progress against target goals.</td>
+            </tr>
+            <tr>
+              <td><strong>Orders Today</strong></td>
+              <td>Total count of completed transactions across terminals</td>
+              <td>Track customer footfall and checkout velocity.</td>
+            </tr>
+            <tr>
+              <td><strong>Active Customers</strong></td>
+              <td>Total count of registered customer accounts</td>
+              <td>Assess customer base growth and CRM engagement.</td>
+            </tr>
+            <tr>
+              <td><strong>Active Products</strong></td>
+              <td>Total sellable items active in catalog</td>
+              <td>Ensure catalog completeness and product availability.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 class="subsection-title">Needs Attention Panel</h3>
+        <p>Highlights critical items requiring prompt administrative follow-up:</p>
+        <ul style="margin-left: 20px; margin-bottom: 16px;">
+          <li><strong>Low stock items:</strong> Direct link to Inventory showing products at or below safety reorder threshold.</li>
+          <li><strong>Open purchase orders:</strong> Direct link to Purchasing for unapproved or pending orders.</li>
+          <li><strong>Pending goods receipts:</strong> Direct link to Goods Receipts for incoming shipments awaiting posting.</li>
+        </ul>
+
+        <h3 class="subsection-title">30-Day Revenue Trend Chart & Recent Sales</h3>
+        <p>Interactive sales chart rendering a 30-day breakdown alongside a real-time table of recent customer orders across all active branches.</p>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s2-1"> Dashboard KPI cards load accurate numbers</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s2-2"> Needs Attention panel links route to correct modules</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s2-3"> Revenue trend chart displays 30-day data graph</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s2-4"> Recent sales table updates after new POS transactions</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 3 -->
+      <section id="section-3" class="section">
+        <h2 class="section-title">
+          <span>3. Products Catalog</span>
+          <span class="badge badge-success">Master Data</span>
+        </h2>
+        <p>The Products module is the central repository for all physical items and services sold or tracked across your business.</p>
+
+        <h3 class="subsection-title">Product Field Reference</h3>
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>Field Name</th>
+              <th>Type</th>
+              <th>Description & Requirements</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Product Name *</strong></td>
+              <td>Text</td>
+              <td>Full descriptive item title (e.g. <em>Basmati Rice 5kg Bag</em>). Required.</td>
+            </tr>
+            <tr>
+              <td><strong>SKU *</strong></td>
+              <td>Text (Code)</td>
+              <td>Stock Keeping Unit — unique alphanumeric code for stock tracking.</td>
+            </tr>
+            <tr>
+              <td><strong>Barcode</strong></td>
+              <td>Text / Code</td>
+              <td>EAN/UPC barcode number used by POS USB scanner for instant lookup.</td>
+            </tr>
+            <tr>
+              <td><strong>Cost Price (₹)</strong></td>
+              <td>Number</td>
+              <td>Purchase/acquisition cost per unit used for profit valuation.</td>
+            </tr>
+            <tr>
+              <td><strong>Retail Price (₹)</strong></td>
+              <td>Number</td>
+              <td>Selling price charged to retail customers at POS.</td>
+            </tr>
+            <tr>
+              <td><strong>Product Type</strong></td>
+              <td>Dropdown</td>
+              <td>Select <code>PHYSICAL</code> (stockable) or <code>SERVICE</code>.</td>
+            </tr>
+            <tr>
+              <td><strong>Category / Brand / Unit</strong></td>
+              <td>Select</td>
+              <td>Assign organizational master categories, brands, or unit measure.</td>
+            </tr>
+            <tr>
+              <td><strong>Status</strong></td>
+              <td>Select</td>
+              <td><code>ACTIVE</code> (available for sales) or <code>INACTIVE</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="example-box">
+          <div class="example-title">Example Product Data Entry</div>
+          Name: Organic Whole Wheat Flour 10kg<br>
+          SKU: FLOUR-WHEAT-10KG<br>
+          Barcode: 8901234567890<br>
+          Cost Price: ₹380.00 | Retail Price: ₹450.00<br>
+          Type: PHYSICAL | Unit: KG | Status: ACTIVE
+        </div>
+
+        <h3 class="subsection-title">CSV Export Action</h3>
+        <p>Click the <strong>Export</strong> button at the top right of the Products page to instantly download a full CSV report of active product records.</p>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s3-1"> Product list displays catalog with price and status badges</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s3-2"> "New product" modal opens and creates a new item</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s3-3"> Editing a product updates details without error</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s3-4"> Export button downloads a valid CSV file</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 4 -->
+      <section id="section-4" class="section">
+        <h2 class="section-title">
+          <span>4. Branches & Warehouses</span>
+          <span class="badge badge-primary">Structure</span>
+        </h2>
+        <p>ValGrow Business OS is engineered natively for multi-branch organizations. Operational branches represent physical store locations or hubs, while warehouses manage actual inventory storage facilities.</p>
+
+        <h3 class="subsection-title">Branch Management</h3>
+        <p>Navigate to <strong>Organization → Branches</strong> to create and manage operational branch locations.</p>
+        <ul style="margin-left: 20px; margin-bottom: 16px;">
+          <li><strong>Create Branch:</strong> Click <em>New branch</em> and specify Branch Name, Branch Code, City, Address, Phone, Email, and Status (<code>ACTIVE</code> or <code>DRAFT</code>).</li>
+          <li><strong>Branch Assignment:</strong> Every POS terminal session and inventory movement is linked to a designated branch.</li>
+        </ul>
+
+        <h3 class="subsection-title">Warehouse Configuration & Selection</h3>
+        <p>View storage depots under <strong>Inventory → Warehouses</strong>.</p>
+        
+        <div class="callout callout-warning">
+          <strong>Configuration Note:</strong> Warehouse availability and assignment depend on the current system configuration. If a separate warehouse creation option is not visible in your interface, contact your system administrator. Users select their assigned warehouse during POS register opening and Purchasing / Goods Receipts.
+        </div>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s4-1"> Branch list displays active and draft branches</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s4-2"> Creating a new branch adds it to the organization</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s4-3"> Warehouses list renders assigned depots</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 5 -->
+      <section id="section-5" class="section">
+        <h2 class="section-title">
+          <span>5. Inventory & Stock</span>
+          <span class="badge badge-success">Stock Control</span>
+        </h2>
+        <p>The Inventory module provides real-time visibility into stock quantities across warehouses, low-stock warnings, and manual stock adjustment mechanisms.</p>
+
+        <h3 class="subsection-title">Stock Terminology</h3>
+        <ul style="margin-left: 20px; margin-bottom: 16px;">
+          <li><strong>On-Hand Quantity:</strong> Total physical units currently held in the warehouse.</li>
+          <li><strong>Reorder Level:</strong> Threshold below which a product is flagged as <em>Low Stock</em>.</li>
+          <li><strong>Stock Status:</strong> <code>IN_STOCK</code>, <code>LOW_STOCK</code>, or <code>OUT_OF_STOCK</code>.</li>
+        </ul>
+
+        <h3 class="subsection-title">How to Perform a Manual Stock Adjustment</h3>
+        <ol style="margin-left: 20px; margin-bottom: 16px;">
+          <li>Navigate to <strong>Inventory</strong>.</li>
+          <li>Locate the target product line.</li>
+          <li>Click <strong>Adjust Stock</strong> (or the adjustment icon).</li>
+          <li>Select the adjustment type (e.g. <em>Add Stock / Damage / Correction</em>).</li>
+          <li>Enter the quantity adjustment and mandatory reason note.</li>
+          <li>Click <strong>Save Adjustment</strong> and verify the updated On-Hand stock figure.</li>
+        </ol>
+
+        <h3 class="subsection-title">CSV Export Action</h3>
+        <p>Click <strong>Export</strong> on the Inventory table to generate a downloadable CSV of all current inventory levels and valuations.</p>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s5-1"> Inventory list displays correct On-Hand stock levels</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s5-2"> Low-stock items display warning status badge</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s5-3"> Stock adjustment modal updates On-Hand quantity</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s5-4"> Inventory CSV export downloads successfully</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 6 -->
+      <section id="section-6" class="section">
+        <h2 class="section-title">
+          <span>6. Purchasing & Purchase Orders</span>
+          <span class="badge badge-info">Procurement</span>
+        </h2>
+        <p>Purchasing governs supplier procurement, Purchase Order (PO) creation, and approval workflows prior to receiving goods into stock.</p>
+
+        <div class="flow-container">
+          <span class="flow-step">1. Select Supplier</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">2. Create PO (Draft)</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">3. Approve PO</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">4. Goods Receipt</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">5. Inventory In</span>
+        </div>
+
+        <h3 class="subsection-title">How to Create & Approve a Purchase Order</h3>
+        <ol style="margin-left: 20px; margin-bottom: 16px;">
+          <li>Go to <strong>Purchasing → Purchase Orders</strong>.</li>
+          <li>Click <strong>New Purchase Order</strong>.</li>
+          <li>Select the <strong>Supplier</strong> and target <strong>Destination Warehouse</strong>.</li>
+          <li>Add line items, entering <strong>Ordered Quantity</strong> and <strong>Unit Cost Price</strong>.</li>
+          <li>Click <strong>Create Order</strong> (saved as <code>DRAFT</code> or <code>SUBMITTED</code>).</li>
+          <li>An authorized manager clicks <strong>Approve PO</strong> to transition status to <code>APPROVED</code>.</li>
+        </ol>
+
+        <div class="example-box">
+          <div class="example-title">Example Purchase Order</div>
+          PO Number: PO-2026-0042<br>
+          Supplier: Apex Wholesalers Ltd<br>
+          Warehouse: Central Distribution Hub<br>
+          Items: 50x Test Rice @ ₹40.00 = Total ₹2,000.00<br>
+          Status: APPROVED
+        </div>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s6-1"> PO creation modal populates suppliers and items</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s6-2"> Saving PO records line items and total calculation</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s6-3"> Approving PO changes status to APPROVED</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 7 -->
+      <section id="section-7" class="section">
+        <h2 class="section-title">
+          <span>7. Goods Receipts (GRN)</span>
+          <span class="badge badge-success">Stock Receipt</span>
+        </h2>
+        <p>Goods Receipts (Goods Received Note / GRN) confirm the actual physical receipt of items ordered via an approved Purchase Order.</p>
+
+        <h3 class="subsection-title">Receiving & Posting Stock Workflow</h3>
+        <ol style="margin-left: 20px; margin-bottom: 16px;">
+          <li>Navigate to <strong>Purchasing → Goods Receipts</strong>.</li>
+          <li>Click <strong>New Goods Receipt</strong>.</li>
+          <li>Select the eligible <code>APPROVED</code> Purchase Order from the dropdown.</li>
+          <li>Verify or adjust the <strong>Received Quantity</strong> for each item line.</li>
+          <li>Save the draft GRN.</li>
+          <li>Click <strong>Post Goods Receipt</strong> to finalize receipt.</li>
+        </ol>
+
+        <div class="callout callout-info">
+          <strong>Expected Result:</strong> Upon posting the Goods Receipt, system stock levels for the received items in the designated warehouse are automatically increased by the received quantity.
+        </div>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s7-1"> Approved PO appears in Goods Receipt selection</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s7-2"> Received quantities can be verified or adjusted</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s7-3"> Posting GRN increases physical inventory On-Hand quantity</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 8 -->
+      <section id="section-8" class="section">
+        <h2 class="section-title">
+          <span>8. POS Register & Barcode Scanner</span>
+          <span class="badge badge-danger">Core Sales</span>
+        </h2>
+        <p>The Point of Sale (POS) register is optimized for fast, high-volume retail checkouts, barcode scanning, cart management, and immediate sales completion.</p>
+
+        <h3 class="subsection-title">POS Operational Flow</h3>
+        <div class="flow-container">
+          <span class="flow-step">Open Session</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">Scan / Select Product</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">Add Customer</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">Checkout</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">Payment</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">Print Receipt</span>
+        </div>
+
+        <h3 class="subsection-title">1. Opening a Register Session</h3>
+        <p>If no register session is active, the POS screen prompts you to open one:</p>
+        <ul style="margin-left: 20px; margin-bottom: 16px;">
+          <li>Select <strong>Branch</strong> and <strong>Warehouse</strong>.</li>
+          <li>Enter <strong>Terminal ID</strong> (e.g., <code>REG-01</code>) and <strong>Opening Cash Float</strong> (e.g., ₹1,000.00).</li>
+          <li>Click <strong>Open Register Session</strong>.</li>
+        </ul>
+
+        <h3 class="subsection-title">2. USB Barcode Scanner Workflow</h3>
+        <p>ValGrow Business OS includes full global USB barcode scanner support:</p>
+        <ol style="margin-left: 20px; margin-bottom: 16px;">
+          <li>Plug any standard USB barcode scanner into your PC/POS terminal.</li>
+          <li>Open the POS register screen (ensure session is open).</li>
+          <li>Scan the product barcode directly — no manual field focus required.</li>
+          <li>The scanned item is instantly added to the cart (or quantity incremented by 1 if already in cart).</li>
+          <li>If an invalid barcode is scanned, an error toast notification sounds/alerts.</li>
+        </ol>
+
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>Barcode Scan Action</th>
+              <th>Expected System Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Valid barcode scanned</td>
+              <td>Product added to active cart with quantity 1</td>
+            </tr>
+            <tr>
+              <td>Same barcode scanned twice</td>
+              <td>Cart item quantity increments to 2</td>
+            </tr>
+            <tr>
+              <td>Unrecognized barcode</td>
+              <td>Warning toast: "Product barcode not found"</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 class="subsection-title">3. Cart Actions & Checkout</h3>
+        <ul style="margin-left: 20px; margin-bottom: 16px;">
+          <li><strong>Quantity Adjust:</strong> Click <code>+</code> or <code>-</code> buttons or edit quantity directly.</li>
+          <li><strong>Hold / Resume Cart:</strong> Pause an active cart to serve another customer and resume later.</li>
+          <li><strong>Customer Selection:</strong> Search and select a registered customer for loyalty tracking.</li>
+          <li><strong>Checkout Modal:</strong> Click <strong>Checkout (F9)</strong>, select Payment Method (<code>CASH</code>, <code>CARD</code>, <code>UPI</code>, <code>STORE_CREDIT</code>), enter tendered amount, view change due, and click <strong>Complete Sale</strong>.</li>
+          <li><strong>Receipt:</strong> View, download, or print the formatted invoice receipt.</li>
+        </ul>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s8-1"> Register session opens with float amount</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s8-2"> USB barcode scanner adds products to cart on scan</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s8-3"> Scanning existing item increments quantity</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s8-4"> Hold and Resume cart functions correctly</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s8-5"> Checkout processes payment and calculates change</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s8-6"> Completed sale reduces inventory stock automatically</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s8-7"> Printable sales receipt generates cleanly</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 9 -->
+      <section id="section-9" class="section">
+        <h2 class="section-title">
+          <span>9. Customers</span>
+          <span class="badge badge-primary">CRM</span>
+        </h2>
+        <p>The Customers module manages client profiles, phone/email contact info, tax registration (GSTIN), credit limits, and purchase history.</p>
+
+        <h3 class="subsection-title">Creating & Managing Customers</h3>
+        <ul style="margin-left: 20px; margin-bottom: 16px;">
+          <li>Go to <strong>Customers</strong> and click <strong>New Customer</strong>.</li>
+          <li>Fill in Name, Phone, Email, Company, Customer Code, GSTIN/Tax ID, Payment Terms, and Credit Limit.</li>
+          <li>Search customers by name, phone, or code in POS checkout or customer master list.</li>
+          <li>Click <strong>Export</strong> to download customer records as CSV.</li>
+        </ul>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s9-1"> Customer master list displays registered contacts</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s9-2"> New customer creation saves contact details</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s9-3"> Customer selection works smoothly inside POS checkout</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s9-4"> Customer list CSV export downloads correctly</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 10 -->
+      <section id="section-10" class="section">
+        <h2 class="section-title">
+          <span>10. Sales Management</span>
+          <span class="badge badge-info">Transactions</span>
+        </h2>
+        <p>Every completed POS transaction automatically registers as a Sales Record in the system, maintaining immutable audit logs and inventory deductions.</p>
+
+        <h3 class="subsection-title">Sales Impact Chain</h3>
+        <div class="flow-container">
+          <span class="flow-step">POS Checkout</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">Sales Record Created</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">Inventory Reduced</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">Reports Updated</span>
+          <span class="flow-arrow">➔</span>
+          <span class="flow-step">Dashboard KPIs Refreshed</span>
+        </div>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s10-1"> POS sale creates corresponding record in sales overview</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s10-2"> Sales total, payment method, and items match checkout receipt</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 11 -->
+      <section id="section-11" class="section">
+        <h2 class="section-title">
+          <span>11. Reports & Analytics</span>
+          <span class="badge badge-success">Business Intelligence</span>
+        </h2>
+        <p>The Reports module delivers operational insights into revenue, top-selling items, inventory valuation, and payment breakdowns.</p>
+
+        <h3 class="subsection-title">Available Report Views</h3>
+        <ul style="margin-left: 20px; margin-bottom: 16px;">
+          <li><strong>Sales Report:</strong> Breakdown of sales by date range, customer, product line, and branch.</li>
+          <li><strong>Inventory Valuation:</strong> Financial report of stock assets held across warehouses.</li>
+          <li><strong>Payment Method Summary:</strong> Revenue split across Cash, Card, UPI, and Credit.</li>
+        </ul>
+
+        <h3 class="subsection-title">Verification Test Walkthrough</h3>
+        <ol style="margin-left: 20px; margin-bottom: 16px;">
+          <li>Execute a test sale in POS for ₹500.00.</li>
+          <li>Navigate to <strong>Reports</strong>.</li>
+          <li>Set the date filter to <em>Today</em>.</li>
+          <li>Verify that the total revenue and order count reflect the ₹500.00 transaction.</li>
+        </ol>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s11-1"> Reports module renders analytics tabs</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s11-2"> Date range filters update reports dynamically</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s11-3"> Completed POS sales match report totals</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 12 -->
+      <section id="section-12" class="section">
+        <h2 class="section-title">
+          <span>12. CSV Exports</span>
+          <span class="badge badge-muted">Data Portability</span>
+        </h2>
+        <p>ValGrow Business OS supports one-click CSV data exports across core master modules.</p>
+
+        <h3 class="subsection-title">Implemented CSV Export Screens</h3>
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>Module Screen</th>
+              <th>Export Button Location</th>
+              <th>Exported File Contents</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Products</strong></td>
+              <td>Top Right Header</td>
+              <td>Product Name, SKU, Barcode, Prices, Category, Status</td>
+            </tr>
+            <tr>
+              <td><strong>Inventory</strong></td>
+              <td>Top Right Header</td>
+              <td>Product, SKU, Warehouse, On-Hand Stock, Reorder Level</td>
+            </tr>
+            <tr>
+              <td><strong>Customers</strong></td>
+              <td>Top Right Header</td>
+              <td>Name, Code, Phone, Email, Company, GSTIN, Credit Limit</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s12-1"> Products Export downloads <code>products-export.csv</code></li>
+          <li class="checklist-item"><input type="checkbox" data-id="s12-2"> Inventory Export downloads <code>inventory-export.csv</code></li>
+          <li class="checklist-item"><input type="checkbox" data-id="s12-3"> Customers Export downloads <code>customers-export.csv</code></li>
+        </ul>
+      </section>
+
+      <!-- SECTION 13 -->
+      <section id="section-13" class="section">
+        <h2 class="section-title">
+          <span>13. Complete Business Flow</span>
+          <span class="badge badge-primary">End-to-End Test</span>
+        </h2>
+        <p>Run this complete end-to-end operational workflow to validate the entire lifecycle of products, purchasing, inventory, POS, and reporting.</p>
+
+        <div class="flow-container" style="justify-content: center; text-align: center; gap: 12px; padding: 20px;">
+          <span class="flow-step">1. Create Product</span> ➔
+          <span class="flow-step">2. Create PO</span> ➔
+          <span class="flow-step">3. Approve PO</span> ➔
+          <span class="flow-step">4. Post GRN</span> ➔
+          <span class="flow-step">5. Check Stock</span> ➔
+          <span class="flow-step">6. POS Sale</span> ➔
+          <span class="flow-step">7. Check Report</span>
+        </div>
+
+        <h3 class="subsection-title">Step-by-Step Test Procedure</h3>
+        <ol style="margin-left: 20px; margin-bottom: 16px;">
+          <li style="margin-bottom: 8px;"><strong>Create Product:</strong> Go to Products → Create item "E2E Test Widget" (SKU: <code>E2E-001</code>, Barcode: <code>8909999999999</code>, Cost: ₹50, Retail: ₹100).</li>
+          <li style="margin-bottom: 8px;"><strong>Create PO:</strong> Go to Purchasing → Create PO for 20 units of <code>E2E-001</code>.</li>
+          <li style="margin-bottom: 8px;"><strong>Approve PO:</strong> Click <em>Approve PO</em>. Status updates to <code>APPROVED</code>.</li>
+          <li style="margin-bottom: 8px;"><strong>Goods Receipt:</strong> Go to Goods Receipts → Create GRN against PO → Receive 20 units → Click <em>Post Goods Receipt</em>.</li>
+          <li style="margin-bottom: 8px;"><strong>Verify Stock:</strong> Open Inventory → Confirm On-Hand stock for <code>E2E-001</code> is 20 units.</li>
+          <li style="margin-bottom: 8px;"><strong>POS Sale:</strong> Open POS → Scan <code>8909999999999</code> twice → Checkout (2x ₹100 = ₹200) → Pay CASH → Complete Sale.</li>
+          <li style="margin-bottom: 8px;"><strong>Stock Deduction:</strong> Re-check Inventory → Confirm On-Hand stock reduced to 18 units.</li>
+          <li style="margin-bottom: 8px;"><strong>Analytics Check:</strong> Open Reports & Dashboard → Confirm ₹200 revenue recorded.</li>
+        </ol>
+
+        <h3 class="subsection-title">Verification Checklist</h3>
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s13-1"> Entire 7-step business flow passes without errors</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 14 -->
+      <section id="section-14" class="section">
+        <h2 class="section-title">
+          <span>14. Daily User Checklist</span>
+          <span class="badge badge-success">Daily Routine</span>
+        </h2>
+        <p>Recommended daily operational routine for store managers and cashiers:</p>
+
+        <ul class="checklist">
+          <li class="checklist-item"><input type="checkbox" data-id="s14-1"> <strong>Morning:</strong> Log into ValGrow & check Dashboard overview</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s14-2"> <strong>Morning:</strong> Review <em>Needs Attention</em> panel for low stock and pending POs</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s14-3"> <strong>Opening:</strong> Open POS register session and verify opening cash float</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s14-4"> <strong>Operations:</strong> Process customer sales, barcode scans, and payments</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s14-5"> <strong>Receiving:</strong> Post incoming Goods Receipts (GRNs) for delivered POs</li>
+          <li class="checklist-item"><input type="checkbox" data-id="s14-6"> <strong>Evening:</strong> Reconcile sales, close POS session, and review daily report</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 15 -->
+      <section id="section-15" class="section">
+        <h2 class="section-title">
+          <span>15. Troubleshooting</span>
+          <span class="badge badge-warning">Support</span>
+        </h2>
+        <p>Common operational questions and resolutions:</p>
+
+        <div style="display: grid; gap: 16px; margin-top: 16px;">
+          <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+            <strong style="color: var(--text-heading);">Problem: Product not appearing in POS search/scan</strong>
+            <p style="margin-top: 6px; font-size: 13px;">Check: (1) Product Status is <code>ACTIVE</code>. (2) Barcode match is exact. (3) Product has available inventory in the active POS warehouse.</p>
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+            <strong style="color: var(--text-heading);">Problem: USB Barcode scanner not adding items to cart</strong>
+            <p style="margin-top: 6px; font-size: 13px;">Check: (1) USB scanner cable is securely plugged in. (2) POS register session is active. (3) Scanner is set to standard USB HID keyboard mode.</p>
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+            <strong style="color: var(--text-heading);">Problem: Cannot post Goods Receipt</strong>
+            <p style="margin-top: 6px; font-size: 13px;">Check: (1) Corresponding Purchase Order has status <code>APPROVED</code>. (2) Target warehouse is active.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 16 -->
+      <section id="section-16" class="section">
+        <h2 class="section-title">
+          <span>16. Bug Reporting Format</span>
+          <span class="badge badge-danger">Quality</span>
+        </h2>
+        <p>When reporting an issue during testing, use this standardized format to ensure rapid investigation:</p>
+
+        <div class="example-box">
+          <div class="example-title">Standard Bug Report Format</div>
+          <strong>Feature / Module:</strong> POS Checkout<br>
+          <strong>Step-by-Step Repro:</strong><br>
+          1. Open POS register with ₹1000 float.<br>
+          2. Scan barcode 8901234567890.<br>
+          3. Select Customer "John Doe".<br>
+          4. Click Checkout and select Payment Method "UPI".<br>
+          <strong>Expected Result:</strong> Sale completes and receipt window opens.<br>
+          <strong>Actual Result:</strong> Error toast "Unable to complete checkout" displays.<br>
+          <strong>Status:</strong> Failed<br>
+          <strong>Attachment:</strong> [Attach screenshot or console error log]
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Back To Top Button -->
+  <button class="back-to-top" id="backToTopBtn" title="Back to top">↑</button>
+
+  <script>
+    // --- Vanilla JS Manual Functionality ---
+
+    // 1. Checklist State with LocalStorage Persistence
+    const CHECKLIST_KEY = 'valgrow_manual_checklist_v1';
+    
+    function loadChecklist() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(CHECKLIST_KEY) || '{}');
+        document.querySelectorAll('.checklist-item input[type="checkbox"]').forEach(cb => {
+          const id = cb.getAttribute('data-id');
+          if (id && saved[id]) {
+            cb.checked = true;
+            cb.closest('.checklist-item').classList.add('completed');
+          }
+        });
+      } catch(e) { console.error('Error loading checklist', e); }
+      updateProgress();
+    }
+
+    function saveChecklist() {
+      const state = {};
+      document.querySelectorAll('.checklist-item input[type="checkbox"]').forEach(cb => {
+        const id = cb.getAttribute('data-id');
+        if (id) {
+          state[id] = cb.checked;
+          if (cb.checked) {
+            cb.closest('.checklist-item').classList.add('completed');
+          } else {
+            cb.closest('.checklist-item').classList.remove('completed');
+          }
+        }
+      });
+      localStorage.setItem(CHECKLIST_KEY, JSON.stringify(state));
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const checkboxes = document.querySelectorAll('.checklist-item input[type="checkbox"]');
+      const total = checkboxes.length;
+      let checked = 0;
+      checkboxes.forEach(cb => { if (cb.checked) checked++; });
+      const percent = total > 0 ? Math.round((checked / total) * 100) : 0;
+      
+      const bar = document.getElementById('progressBar');
+      const text = document.getElementById('progressText');
+      if (bar) bar.style.width = percent + '%';
+      if (text) text.innerText = percent + '%';
+    }
+
+    document.querySelectorAll('.checklist-item input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', saveChecklist);
+    });
+
+    document.querySelectorAll('.checklist-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'INPUT') {
+          const cb = item.querySelector('input[type="checkbox"]');
+          if (cb) {
+            cb.checked = !cb.checked;
+            saveChecklist();
+          }
+        }
+      });
+    });
+
+    // 2. Real-time Topic Search Filter
+    const searchInput = document.getElementById('manualSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const sections = document.querySelectorAll('.section');
+        
+        sections.forEach(section => {
+          const text = section.innerText.toLowerCase();
+          if (query === '' || text.includes(query)) {
+            section.style.display = 'block';
+          } else {
+            section.style.display = 'none';
+          }
+        });
+      });
+    }
+
+    // 3. Mobile Navigation Drawer Toggle
+    const mobileBtn = document.getElementById('mobileMenuBtn');
+    const sidebar = document.getElementById('sidebar');
+    if (mobileBtn && sidebar) {
+      mobileBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+      });
+    }
+
+    // 4. Smooth Active Navigation Link Highlight
+    const navLinks = document.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        navLinks.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+        if (window.innerWidth <= 900 && sidebar) {
+          sidebar.classList.remove('open');
+        }
+      });
+    });
+
+    // 5. Back To Top Floating Button
+    const backBtn = document.getElementById('backToTopBtn');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 300) {
+        backBtn.classList.add('visible');
+      } else {
+        backBtn.classList.remove('visible');
+      }
+    });
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadChecklist();
+      const dateEl = document.getElementById('generatedDate');
+      if (dateEl) {
+        const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        dateEl.innerText = `Updated: ${today}`;
+      }
+    });
+  </script>
+</body>
+</html>

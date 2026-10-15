@@ -71,7 +71,7 @@ function GoodsReceiptsPage() {
     Record<
       string,
       {
-        locationId: string;
+        locationId?: string | undefined;
         receivingQty: number;
         batchNumber?: string | undefined;
         unitCost: number;
@@ -96,16 +96,16 @@ function GoodsReceiptsPage() {
         const itemState = receivingItems[itemId];
         const receivingQty =
           itemState !== undefined ? Number(itemState.receivingQty) : remaining;
-        const locationId = itemState?.locationId || locations?.[0]?.id || "";
+        const locationId = itemState?.locationId?.trim() || undefined;
 
-        if (receivingQty <= 0 || !locationId) return null;
+        if (receivingQty <= 0) return null;
 
         return {
           purchaseOrderItemId: itemId,
           productId: i.productId,
           ...(i.variantId ? { variantId: i.variantId } : {}),
-          locationId,
-          ...(itemState?.batchNumber ? { batchNumber: itemState.batchNumber } : {}),
+          ...(locationId ? { locationId } : {}),
+          ...(itemState?.batchNumber?.trim() ? { batchNumber: itemState.batchNumber.trim() } : {}),
           receivedQty: receivingQty,
           unitCost: Number(i.unitPrice),
         };
@@ -267,7 +267,7 @@ function GoodsReceiptsPage() {
                     const rec = Number(item.receivedQty || 0);
                     const remaining = ordered - rec;
                     const itemState = receivingItems[itemId] || {
-                      locationId: locations?.[0]?.id || "",
+                      locationId: "",
                       receivingQty: remaining,
                       batchNumber: "",
                       unitCost: Number(item.unitPrice),
@@ -311,10 +311,10 @@ function GoodsReceiptsPage() {
                           </div>
 
                           <div>
-                            <Label className="text-[11px]">Target Bin Location *</Label>
+                            <Label className="text-[11px]">Target Bin Location (Optional)</Label>
                             <select
                               className="w-full h-8 px-2 rounded border text-xs bg-background"
-                              value={itemState.locationId}
+                              value={itemState.locationId || ""}
                               onChange={(e) =>
                                 setReceivingItems((prev) => ({
                                   ...prev,
@@ -322,7 +322,7 @@ function GoodsReceiptsPage() {
                                 }))
                               }
                             >
-                              <option value="">Select Bin</option>
+                              <option value="">No Bin (Warehouse default)</option>
                               {locations?.map((l) => (
                                 <option key={l.id} value={l.id}>
                                   {l.name} ({l.code})

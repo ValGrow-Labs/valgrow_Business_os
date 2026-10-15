@@ -84,6 +84,7 @@ function InventoryStockPage() {
     setNotes("");
     setAdjustmentType("INCREASE");
     setReason("COUNT_CORRECTION");
+    setSelectedLocationId("");
 
     // Select Product
     const defaultProduct = targetProductId || productsData?.data?.[0]?.id || "";
@@ -118,11 +119,6 @@ function InventoryStockPage() {
     setIsDialogOpen(true);
   };
 
-  // If locations load and none is selected yet, select the first default location
-  if (locations.length > 0 && !selectedLocationId) {
-    setSelectedLocationId(locations[0]!.id);
-  }
-
   const handleSubmitAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -137,9 +133,13 @@ function InventoryStockPage() {
       return;
     }
 
-    if (!selectedLocationId) {
-      setFormError("Please select a location.");
-      return;
+    // Validate that selected bin belongs to the selected warehouse if provided
+    if (selectedLocationId) {
+      const binBelongsToWarehouse = locations.some((l) => l.id === selectedLocationId);
+      if (!binBelongsToWarehouse) {
+        setFormError("Selected location does not belong to the chosen warehouse.");
+        return;
+      }
     }
 
     const qtyNum = Number(quantityStr);
@@ -148,10 +148,14 @@ function InventoryStockPage() {
       return;
     }
 
-    // Find current stock level for this product & location
-    const existingStock = stockData?.data?.find(
-      (s) => s.productId === selectedProductId && s.locationId === selectedLocationId,
-    );
+    // Find current stock level for this product & location/warehouse
+    const existingStock = stockData?.data?.find((s) => {
+      if (s.productId !== selectedProductId) return false;
+      if (selectedLocationId) {
+        return s.warehouseId === selectedWarehouseId && s.locationId === selectedLocationId;
+      }
+      return s.warehouseId === selectedWarehouseId;
+    });
 
     const currentQty = existingStock ? Number(existingStock.onHand) : 0;
     const adjustedQty = adjustmentType === "INCREASE" ? qtyNum : -qtyNum;
@@ -167,7 +171,7 @@ function InventoryStockPage() {
       notes: notes.trim() || null,
       items: [
         {
-          locationId: selectedLocationId,
+          ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
           productId: selectedProductId,
           currentQty,
           adjustedQty,
@@ -532,24 +536,26 @@ function InventoryStockPage() {
                 </Select>
               </div>
 
-              {/* Select Location */}
+              {/* Location / Bin (Optional) */}
               <div className="space-y-1.5">
-                <Label htmlFor="adj-location">
-                  Location / Bin <span className="text-destructive">*</span>
-                </Label>
+                <Label htmlFor="adj-location">Location / Bin (Optional)</Label>
                 <Select
-                  value={selectedLocationId}
-                  onValueChange={(val) => setSelectedLocationId(val)}
+                  value={selectedLocationId || "none"}
+                  onValueChange={(val) => setSelectedLocationId(val === "none" ? "" : val)}
+                  disabled={!selectedWarehouseId}
                 >
                   <SelectTrigger id="adj-location">
-                    <SelectValue placeholder="Select location" />
+                    <SelectValue placeholder="Select location / bin (Optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>
-                        {loc.name} ({loc.code})
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="none">None / Warehouse default</SelectItem>
+                    {locations
+                      .filter((l) => l.status === "ACTIVE" || !l.status)
+                      .map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id}>
+                          {loc.name} {loc.code ? `(${loc.code})` : ""} {loc.isDefault ? "• Default" : ""}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>

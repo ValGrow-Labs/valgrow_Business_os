@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { AppShell } from "@/components/layout/app-shell";
 import { EmptyState } from "@/components/foundation/states";
@@ -8,7 +9,8 @@ import { staggerContainer, staggerItem } from "@/lib/motion";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import { useBranches, type BranchItem } from "@/hooks/queries/useBranches";
 import { useWarehouses, type WarehouseItem } from "@/hooks/queries/useWarehouses";
-import { useCustomers, type CustomerItem } from "@/hooks/queries/useCustomers";
+import { useCustomers, useCreateCustomer, type CustomerItem } from "@/hooks/queries/useCustomers";
+import { toast } from "sonner";
 import {
   usePOSSessions,
   useOpenPOSSession,
@@ -38,7 +40,7 @@ import {
   type CustomerPaymentMethod,
   type POSSaleResult,
 } from "@/hooks/queries/usePOSCheckout";
-import { downloadFile } from "@/lib/api-client";
+import { downloadFile, getActiveOrgId } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,6 +86,7 @@ export const Route = createFileRoute("/pos")({
 });
 
 function POSRegisterPage() {
+  const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser();
   const isOwner = currentUser?.role?.name === "Owner";
   const permissions = currentUser?.permissions || [];
@@ -92,17 +95,33 @@ function POSRegisterPage() {
   const canCheckout = isOwner || permissions.includes("pos.checkout");
   const canRefund = isOwner || permissions.includes("pos.refund");
 
-  // Masters
-  const { data: branchesRes } = useBranches();
-  const { data: warehousesRes } = useWarehouses();
+  const activeOrgId = currentUser?.activeOrganization?.id || getActiveOrgId() || undefined;
+
+  // Masters (scoped to active organization)
+  const {
+    data: branchesRes,
+    isLoading: isBranchesLoading,
+    isError: isBranchesError,
+    error: branchesError,
+    refetch: refetchBranches,
+  } = useBranches(activeOrgId);
+
+  const {
+    data: warehousesRes,
+    isLoading: isWarehousesLoading,
+    isError: isWarehousesError,
+    error: warehousesError,
+    refetch: refetchWarehouses,
+  } = useWarehouses(activeOrgId);
+
   const { data: customersRes } = useCustomers();
 
   const branches: BranchItem[] = branchesRes || [];
   const warehouses: WarehouseItem[] = warehousesRes || [];
   const customers: CustomerItem[] = customersRes || [];
 
-  // Active POS Session Query
-  const { data: openSessions, isLoading: isSessionLoading } = usePOSSessions("OPEN");
+  // Active POS Session Query (scoped to active organization)
+  const { data: openSessions, isLoading: isSessionLoading } = usePOSSessions("OPEN", undefined, activeOrgId);
   const activeSession: POSSessionItem | undefined = openSessions?.[0];
 
   // Open Session Form State
@@ -111,18 +130,70 @@ function POSRegisterPage() {
   const [openSessionTerminalId, setOpenSessionTerminalId] = useState("REG-01");
   const [openSessionOpeningCash, setOpenSessionOpeningCash] = useState("1000");
 
-  // Auto-initialize branch and warehouse selection when master data loads
+  // Track active organization ID changes: refresh queries and clear selections
+  const prevOrgIdRef = useRef<string | undefined>(activeOrgId);
   useEffect(() => {
-    if (!openSessionBranchId && branches.length > 0 && branches[0]?.id) {
+    if (prevOrgIdRef.current && prevOrgIdRef.current !== activeOrgId) {
+      setOpenSessionBranchId("");
+      setOpenSessionWarehouseId("");
+      refetchBranches();
+      refetchWarehouses();
+    }
+    prevOrgIdRef.current = activeOrgId;
+  }, [activeOrgId, refetchBranches, refetchWarehouses]);
+
+  // When branches load/update: clear branch selection if it does not belong to the current organization
+  useEffect(() => {
+    if (openSessionBranchId && branches.length > 0) {
+      const exists = branches.some((b) => b.id === openSessionBranchId);
+      if (!exists) {
+        setOpenSessionBranchId("");
+        setOpenSessionWarehouseId("");
+      }
+    }
+  }, [branches, openSessionBranchId]);
+
+  // Auto-initialize branch selection when there is exactly one branch
+  useEffect(() => {
+    if (!openSessionBranchId && branches.length === 1 && branches[0]?.id) {
       setOpenSessionBranchId(branches[0].id);
     }
   }, [branches, openSessionBranchId]);
 
-  useEffect(() => {
-    if (!openSessionWarehouseId && warehouses.length > 0 && warehouses[0]?.id) {
-      setOpenSessionWarehouseId(warehouses[0].id);
+  // Compute warehouses compatible with the selected branch and active organization
+  const availableWarehouses = warehouses.filter((w: WarehouseItem) => {
+    if (activeOrgId && w.organizationId && w.organizationId !== activeOrgId) {
+      return false;
     }
-  }, [warehouses, openSessionWarehouseId]);
+    if (w.status && w.status !== "ACTIVE") {
+      return false;
+    }
+    if (openSessionBranchId) {
+      if (w.branchId) {
+        return w.branchId === openSessionBranchId;
+      }
+      return true; // Depot / organization-wide warehouse (branchId is null or empty)
+    }
+    return !w.branchId;
+  });
+
+  // Manage warehouse selection:
+  // - Clear if selected warehouse does not belong to availableWarehouses
+  // - Automatically select warehouse only when there is exactly one valid option; otherwise require user choice
+  useEffect(() => {
+    if (openSessionWarehouseId) {
+      const isValid = availableWarehouses.some((w) => w.id === openSessionWarehouseId);
+      if (!isValid) {
+        setOpenSessionWarehouseId("");
+      }
+    }
+
+    if (openSessionBranchId && availableWarehouses.length === 1 && availableWarehouses[0]?.id) {
+      if (openSessionWarehouseId !== availableWarehouses[0].id) {
+        setOpenSessionWarehouseId(availableWarehouses[0].id);
+      }
+    }
+  }, [openSessionBranchId, availableWarehouses, openSessionWarehouseId]);
 
   const openSessionMutation = useOpenPOSSession();
   const closeSessionMutation = useClosePOSSession();
@@ -270,6 +341,126 @@ function POSRegisterPage() {
     }
   };
 
+  // Cashier Identification
+  const cashierName = currentUser?.user
+    ? `${currentUser.user.firstName || ""} ${currentUser.user.lastName || ""}`.trim() || currentUser.user.email
+    : "Cashier";
+
+  // Quick Add Customer State
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerCode, setNewCustomerCode] = useState("");
+  const [newCustomerEmail, setNewCustomerEmail] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerCreditLimit, setNewCustomerCreditLimit] = useState<string>("0");
+  const [newCustomerPaymentTerms, setNewCustomerPaymentTerms] = useState("NET30");
+  const [newCustomerTaxId, setNewCustomerTaxId] = useState("");
+  const [newCustomerCity, setNewCustomerCity] = useState("");
+  const [manualCashierName, setManualCashierName] = useState("");
+  const [createCustomerError, setCreateCustomerError] = useState<string | null>(null);
+  const createCustomerMutation = useCreateCustomer();
+
+  const generateCustomerCode = () =>
+    `CUST-${Date.now().toString().slice(-6)}${Math.floor(100 + Math.random() * 900)}`;
+
+  const resetAddCustomerForm = () => {
+    setNewCustomerName("");
+    setNewCustomerCode(generateCustomerCode());
+    setNewCustomerEmail("");
+    setNewCustomerPhone("");
+    setNewCustomerCreditLimit("0");
+    setNewCustomerPaymentTerms("NET30");
+    setNewCustomerTaxId("");
+    setNewCustomerCity("");
+    setManualCashierName("");
+    setCreateCustomerError(null);
+  };
+
+  // Quick Add Customer Submission Handler
+  const handleQuickAddCustomer = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const nameTrimmed = newCustomerName.trim();
+    if (!nameTrimmed) {
+      setCreateCustomerError("Customer Name is required.");
+      return;
+    }
+
+    const cashierTrimmed = manualCashierName.trim();
+    if (!cashierTrimmed) {
+      setCreateCustomerError("Cashier Name is required.");
+      return;
+    }
+
+    const finalCode = newCustomerCode.trim() || generateCustomerCode();
+
+    if (newCustomerEmail.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newCustomerEmail.trim())) {
+        setCreateCustomerError("Please enter a valid email address.");
+        return;
+      }
+    }
+
+    if (newCustomerCreditLimit !== "" && Number(newCustomerCreditLimit) < 0) {
+      setCreateCustomerError("Credit limit cannot be negative.");
+      return;
+    }
+
+    setCreateCustomerError(null);
+    try {
+      const payload: {
+        customerCode: string;
+        name: string;
+        email?: string;
+        phone?: string;
+        currency?: string;
+        creditLimit?: number;
+        paymentTerms?: string;
+        taxIdNumber?: string;
+        city?: string;
+      } = {
+        customerCode: finalCode,
+        name: nameTrimmed,
+        currency: "INR",
+      };
+
+      if (newCustomerEmail.trim()) {
+        payload.email = newCustomerEmail.trim();
+      }
+      if (newCustomerPhone.trim()) {
+        payload.phone = newCustomerPhone.trim();
+      }
+      if (newCustomerCreditLimit !== "" && !isNaN(Number(newCustomerCreditLimit))) {
+        payload.creditLimit = Number(newCustomerCreditLimit);
+      }
+      if (newCustomerPaymentTerms.trim()) {
+        payload.paymentTerms = newCustomerPaymentTerms.trim();
+      }
+      if (newCustomerTaxId.trim()) {
+        payload.taxIdNumber = newCustomerTaxId.trim();
+      }
+      if (newCustomerCity.trim()) {
+        payload.city = newCustomerCity.trim();
+      }
+
+      const createdCustomer = await createCustomerMutation.mutateAsync(payload);
+
+      queryClient.setQueryData<CustomerItem[]>(["customers"], (old) => {
+        if (!old) return [createdCustomer];
+        const exists = old.some((c) => c.id === createdCustomer.id);
+        return exists ? old : [...old, createdCustomer];
+      });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+
+      setShowAddCustomerModal(false);
+      resetAddCustomerForm();
+      setSelectedCustomerId(createdCustomer.id);
+      toast.success(`Customer "${createdCustomer.name}" created and selected`);
+    } catch (err: any) {
+      setCreateCustomerError(err.message || "Failed to create customer");
+    }
+  };
+
   // Held Carts Modal State
   const [showHeldModal, setShowHeldModal] = useState(false);
 
@@ -355,7 +546,14 @@ function POSRegisterPage() {
       if (!activeSession) return;
 
       // 2. Ignore if any modal/dialog is open
-      if (showCloseModal || showHeldModal || showCheckoutModal || showSuccessModal || showRefundModal) {
+      if (
+        showCloseModal ||
+        showHeldModal ||
+        showCheckoutModal ||
+        showSuccessModal ||
+        showRefundModal ||
+        showAddCustomerModal
+      ) {
         buffer = "";
         return;
       }
@@ -410,6 +608,7 @@ function POSRegisterPage() {
     showCheckoutModal,
     showSuccessModal,
     showRefundModal,
+    showAddCustomerModal,
   ]);
 
   // If Session Loading
@@ -454,39 +653,194 @@ function POSRegisterPage() {
               className="space-y-5 px-6 py-6 sm:px-8"
             >
               <div className="space-y-1.5">
-                <Label>Branch</Label>
-                <Select value={openSessionBranchId} onValueChange={setOpenSessionBranchId} required>
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Select Branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((b: BranchItem) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name} ({b.city})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between">
+                  <Label>Branch</Label>
+                  {isBranchesLoading && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Loading branches…
+                    </span>
+                  )}
+                </div>
+
+                {isBranchesError ? (
+                  <div
+                    role="alert"
+                    className="flex flex-col gap-2 rounded-md border border-destructive/20 bg-destructive-soft p-3 text-[13px] text-destructive"
+                  >
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span className="flex-1">
+                        {(branchesError as any)?.message || "Failed to load branches."}
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="self-start text-xs border-destructive/30 hover:bg-destructive/10"
+                      onClick={() => refetchBranches()}
+                    >
+                      <RotateCcw className="mr-1.5 h-3 w-3" />
+                      Retry loading branches
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Select
+                      value={openSessionBranchId}
+                      onValueChange={(val) => {
+                        setOpenSessionBranchId(val);
+                        if (openSessionWarehouseId) {
+                          const isStillValid = warehouses.some(
+                            (w) => w.id === openSessionWarehouseId && (!w.branchId || w.branchId === val),
+                          );
+                          if (!isStillValid) {
+                            setOpenSessionWarehouseId("");
+                          }
+                        }
+                      }}
+                      disabled={isBranchesLoading || branches.length === 0}
+                      required
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue
+                          placeholder={
+                            isBranchesLoading
+                              ? "Loading branches…"
+                              : branches.length === 0
+                                ? "No branches available"
+                                : "Select Branch"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((b: BranchItem) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.name} ({b.city})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {!isBranchesLoading && branches.length === 0 && (
+                      <div className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <div className="flex-1">
+                          <p>No branches found for this organization. Create a branch first.</p>
+                          <Button
+                            asChild
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 text-xs font-medium text-amber-800 dark:text-amber-300 underline mt-1"
+                          >
+                            <Link to="/branches">Go to Branch Management →</Link>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               <div className="space-y-1.5">
-                <Label>Warehouse / dispatched from</Label>
-                <Select
-                  value={openSessionWarehouseId}
-                  onValueChange={setOpenSessionWarehouseId}
-                  required
-                >
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Select Warehouse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {warehouses.map((w: WarehouseItem) => (
-                      <SelectItem key={w.id} value={w.id}>
-                        {w.name} ({w.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between">
+                  <Label>Warehouse / dispatched from</Label>
+                  {isWarehousesLoading && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Loading warehouses…
+                    </span>
+                  )}
+                </div>
+
+                {isWarehousesError ? (
+                  <div
+                    role="alert"
+                    className="flex flex-col gap-2 rounded-md border border-destructive/20 bg-destructive-soft p-3 text-[13px] text-destructive"
+                  >
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span className="flex-1">
+                        {(warehousesError as any)?.message || "Failed to load warehouses."}
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="self-start text-xs border-destructive/30 hover:bg-destructive/10"
+                      onClick={() => refetchWarehouses()}
+                    >
+                      <RotateCcw className="mr-1.5 h-3 w-3" />
+                      Retry loading warehouses
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Select
+                      value={openSessionWarehouseId}
+                      onValueChange={setOpenSessionWarehouseId}
+                      disabled={
+                        isWarehousesLoading ||
+                        !openSessionBranchId ||
+                        availableWarehouses.length === 0
+                      }
+                      required
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue
+                          placeholder={
+                            isWarehousesLoading
+                              ? "Loading warehouses…"
+                              : !openSessionBranchId
+                                ? "Select a branch first"
+                                : warehouses.length === 0
+                                  ? "No warehouses in organization"
+                                  : availableWarehouses.length === 0
+                                    ? "No warehouses for selected branch"
+                                    : "Select Warehouse"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableWarehouses.map((w: WarehouseItem) => (
+                          <SelectItem key={w.id} value={w.id}>
+                            {w.name} ({w.code}){!w.branchId ? " • All branches" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {!isWarehousesLoading && warehouses.length === 0 && (
+                      <div className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <div className="flex-1">
+                          <p>
+                            No warehouses found for this organization. Create a warehouse in Organization/Warehouse Management first.
+                          </p>
+                          <Button
+                            asChild
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 text-xs font-medium text-amber-800 dark:text-amber-300 underline mt-1"
+                          >
+                            <Link to="/warehouses">Go to Warehouse Management →</Link>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {!isWarehousesLoading && warehouses.length > 0 && openSessionBranchId && availableWarehouses.length === 0 && (
+                      <div className="flex items-start gap-2 rounded-md border border-muted bg-surface-2/60 p-2.5 text-[12px] text-muted-foreground">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>
+                          No warehouses found for this branch. Please assign a warehouse to this branch in Warehouse Management or select another branch.
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -589,7 +943,8 @@ function POSRegisterPage() {
               </span>
               <span className="flex items-center gap-1">
                 <User className="h-3.5 w-3.5" />
-                {activeSession.openedBy?.firstName} {activeSession.openedBy?.lastName}
+                <span>Cashier:</span>
+                <span className="font-semibold text-foreground">{cashierName}</span>
               </span>
             </div>
           </div>
@@ -767,29 +1122,54 @@ function POSRegisterPage() {
             id="pos-cart"
             className="flex min-h-[480px] flex-col border-t bg-surface lg:min-h-0 lg:border-l lg:border-t-0"
           >
-            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-              <div className="flex items-center gap-2">
-                <span className="whitespace-nowrap text-sm font-semibold">Current order</span>
-                {cartItems.length > 0 && (
-                  <Badge variant="brand" className="tabular">
-                    {cartCount} {cartCount === 1 ? "item" : "items"}
-                  </Badge>
-                )}
+            <div className="flex flex-col gap-2.5 border-b px-4 py-3 bg-surface">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="whitespace-nowrap text-sm font-semibold">Current order</span>
+                  {cartItems.length > 0 && (
+                    <Badge variant="brand" className="tabular">
+                      {cartCount} {cartCount === 1 ? "item" : "items"}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-surface-2 px-2.5 py-1 rounded-md border border-border/60">
+                  <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="shrink-0 font-medium">Cashier:</span>
+                  <span className="font-semibold text-foreground truncate max-w-[120px]" title={cashierName}>
+                    {cashierName}
+                  </span>
+                </div>
               </div>
-              <div className="w-44 min-w-0">
-                <Select value={selectedCustomerId} onValueChange={(val) => setSelectedCustomerId(val)}>
-                  <SelectTrigger className="h-8 text-[13px]">
-                    <SelectValue placeholder="Walk-in Customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="walkin">Walk-in Customer</SelectItem>
-                    {customers.map((c: CustomerItem) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name} ({c.customerCode})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+              <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <Label htmlFor="pos-customer-select" className="sr-only">Select Customer</Label>
+                  <Select value={selectedCustomerId} onValueChange={(val) => setSelectedCustomerId(val)}>
+                    <SelectTrigger id="pos-customer-select" className="h-8 text-[13px] w-full">
+                      <SelectValue placeholder="Walk-in Customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="walkin">Walk-in Customer</SelectItem>
+                      {customers.map((c: CustomerItem) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name} ({c.customerCode})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 shrink-0 px-2.5 text-xs"
+                  onClick={() => {
+                    resetAddCustomerForm();
+                    setShowAddCustomerModal(true);
+                  }}
+                >
+                  + New Customer
+                </Button>
               </div>
             </div>
 
@@ -958,12 +1338,24 @@ function POSRegisterPage() {
             </DialogHeader>
 
             <div className="space-y-5 py-1 text-sm">
-              <div className="tabular rounded-lg border bg-surface-2/60 p-4">
+              <div className="tabular rounded-lg border bg-surface-2/60 p-4 space-y-1.5">
                 <div className="flex justify-between text-[13px] text-muted-foreground">
+                  <span>Cashier</span>
+                  <span className="font-medium text-foreground">{cashierName}</span>
+                </div>
+                <div className="flex justify-between text-[13px] text-muted-foreground">
+                  <span>Customer</span>
+                  <span className="font-medium text-foreground">
+                    {selectedCustomerId === "walkin"
+                      ? "Walk-in Customer"
+                      : customers.find((c) => c.id === selectedCustomerId)?.name || "Walk-in Customer"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[13px] text-muted-foreground pt-1 border-t">
                   <span>Subtotal</span>
                   <span>{money(activeCart?.subtotalAmount)}</span>
                 </div>
-                <div className="mt-1 flex justify-between text-[13px] text-muted-foreground">
+                <div className="flex justify-between text-[13px] text-muted-foreground">
                   <span>Tax</span>
                   <span>{money(activeCart?.taxAmount)}</span>
                 </div>
@@ -1146,6 +1538,22 @@ function POSRegisterPage() {
 
             <div className="tabular space-y-2 rounded-lg border bg-surface-2/60 p-4 text-[13px]">
               <div className="flex justify-between">
+                <span className="text-muted-foreground">Cashier</span>
+                <span className="font-medium">
+                  {completedSale?.sale.cashier
+                    ? `${completedSale.sale.cashier.firstName} ${completedSale.sale.cashier.lastName}`
+                    : cashierName}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Customer</span>
+                <span className="font-medium">
+                  {completedSale?.sale.customer?.name || "Walk-in Customer"}
+                </span>
+              </div>
+
+              <div className="flex justify-between border-t pt-2">
                 <span className="text-muted-foreground">Total paid</span>
                 <span className="font-semibold">{money(completedSale?.sale.totalAmount)}</span>
               </div>
@@ -1252,6 +1660,191 @@ function POSRegisterPage() {
                 {closeSessionMutation.isPending ? "Closing…" : "Close register"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* QUICK ADD CUSTOMER DIALOG */}
+        <Dialog
+          open={showAddCustomerModal}
+          onOpenChange={(open) => {
+            setShowAddCustomerModal(open);
+            if (!open) {
+              resetAddCustomerForm();
+            }
+          }}
+        >
+          <DialogContent className="max-h-[90vh] w-full sm:max-w-[620px] p-0 flex flex-col overflow-hidden gap-0">
+            <DialogHeader className="p-6 pb-4 border-b shrink-0 text-left">
+              <DialogTitle>Quick add customer</DialogTitle>
+              <DialogDescription>
+                Create a new customer profile and immediately select them for this POS sale.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleQuickAddCustomer} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {createCustomerError && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive-soft p-3 text-[13px] text-destructive"
+                  >
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{createCustomerError}</span>
+                  </div>
+                )}
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* 1. Customer Name */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pos-quick-customer-name">
+                      Customer Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="pos-quick-customer-name"
+                      placeholder="Acme Corporation"
+                      value={newCustomerName}
+                      onChange={(e) => {
+                        setNewCustomerName(e.target.value);
+                        if (createCustomerError) setCreateCustomerError(null);
+                      }}
+                      required
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* 2. Customer Code */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pos-quick-customer-code">
+                      Customer Code <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="pos-quick-customer-code"
+                      placeholder="e.g. CUST-001"
+                      value={newCustomerCode}
+                      onChange={(e) => setNewCustomerCode(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 3. Email */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pos-quick-customer-email">Email</Label>
+                    <Input
+                      id="pos-quick-customer-email"
+                      type="email"
+                      placeholder="customer@example.com"
+                      value={newCustomerEmail}
+                      onChange={(e) => setNewCustomerEmail(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 4. Phone Number */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pos-quick-customer-phone">Phone Number</Label>
+                    <Input
+                      id="pos-quick-customer-phone"
+                      type="tel"
+                      placeholder="+91 9876543210"
+                      value={newCustomerPhone}
+                      onChange={(e) => setNewCustomerPhone(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 5. Credit Limit */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pos-quick-customer-credit-limit">Credit Limit (₹)</Label>
+                    <Input
+                      id="pos-quick-customer-credit-limit"
+                      type="number"
+                      min="0"
+                      placeholder="50000"
+                      value={newCustomerCreditLimit}
+                      onChange={(e) => setNewCustomerCreditLimit(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 6. Payment Terms */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pos-quick-customer-payment-terms">Payment Terms</Label>
+                    <Input
+                      id="pos-quick-customer-payment-terms"
+                      placeholder="NET30"
+                      value={newCustomerPaymentTerms}
+                      onChange={(e) => setNewCustomerPaymentTerms(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 7. Tax ID / GSTIN */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pos-quick-customer-tax-id">Tax ID / GSTIN</Label>
+                    <Input
+                      id="pos-quick-customer-tax-id"
+                      placeholder="29ABCDE1234F1Z5"
+                      value={newCustomerTaxId}
+                      onChange={(e) => setNewCustomerTaxId(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 8. City */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pos-quick-customer-city">City</Label>
+                    <Input
+                      id="pos-quick-customer-city"
+                      placeholder="Bengaluru"
+                      value={newCustomerCity}
+                      onChange={(e) => setNewCustomerCity(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 9. Cashier Name */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="pos-quick-cashier-name">
+                      Cashier Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="pos-quick-cashier-name"
+                      placeholder="Enter cashier name"
+                      value={manualCashierName}
+                      onChange={(e) => {
+                        setManualCashierName(e.target.value);
+                        if (createCustomerError) setCreateCustomerError(null);
+                      }}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="p-4 sm:px-6 border-t bg-popover shrink-0 gap-2 sm:gap-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowAddCustomerModal(false);
+                    resetAddCustomerForm();
+                  }}
+                  disabled={createCustomerMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    !newCustomerName.trim() ||
+                    !manualCashierName.trim() ||
+                    createCustomerMutation.isPending
+                  }
+                >
+                  {createCustomerMutation.isPending ? (
+                    <>
+                      <RefreshCw className="animate-spin mr-2 h-4 w-4" />
+                      Saving…
+                    </>
+                  ) : (
+                    "Save & Select Customer"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
       </div>

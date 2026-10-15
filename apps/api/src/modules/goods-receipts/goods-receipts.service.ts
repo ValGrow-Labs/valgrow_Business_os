@@ -165,18 +165,50 @@ export class GoodsReceiptsService {
         }
       }
 
-      const location = await this.prisma.location.findFirst({
-        where: {
-          id: item.locationId,
-          warehouseId: dto.warehouseId,
-          organizationId,
-          deletedAt: null,
-        },
-      });
-      if (!location) {
-        throw new BadRequestException(
-          `Location ${item.locationId} does not belong to warehouse ${dto.warehouseId}`,
-        );
+      if (item.locationId) {
+        const location = await this.prisma.location.findFirst({
+          where: {
+            id: item.locationId,
+            warehouseId: dto.warehouseId,
+            organizationId,
+            deletedAt: null,
+          },
+        });
+        if (!location) {
+          throw new BadRequestException(
+            `Location ${item.locationId} does not belong to warehouse ${dto.warehouseId}`,
+          );
+        }
+      } else {
+        let defaultLocation = await this.prisma.location.findFirst({
+          where: {
+            warehouseId: dto.warehouseId,
+            organizationId,
+            isDefault: true,
+            deletedAt: null,
+          },
+        });
+        if (!defaultLocation) {
+          defaultLocation = await this.prisma.location.findFirst({
+            where: {
+              warehouseId: dto.warehouseId,
+              organizationId,
+              deletedAt: null,
+            },
+          });
+        }
+        if (!defaultLocation) {
+          defaultLocation = await this.prisma.location.create({
+            data: {
+              organizationId,
+              warehouseId: dto.warehouseId,
+              name: "Default Bin",
+              code: "LOC-MAIN",
+              isDefault: true,
+            },
+          });
+        }
+        item.locationId = defaultLocation.id;
       }
 
       const alreadyReceived = poItem.receivedQty;
@@ -239,7 +271,7 @@ export class GoodsReceiptsService {
                 purchaseOrderItemId: i.purchaseOrderItemId,
                 productId: i.productId,
                 variantId: i.variantId || null,
-                locationId: i.locationId,
+                locationId: i.locationId!,
                 batchNumber: i.batchNumber,
                 manufactureDate: i.manufactureDate
                   ? new Date(i.manufactureDate)

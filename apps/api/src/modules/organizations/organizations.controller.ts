@@ -1,8 +1,9 @@
-import { Controller, Get, Patch, Param, Body } from "@nestjs/common";
+import { Controller, Get, Post, Patch, Param, Body } from "@nestjs/common";
 import { OrganizationsService } from "./organizations.service";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { CurrentOrg } from "../../common/decorators/current-org.decorator";
 import { RequirePermissions } from "../../common/decorators/require-permissions.decorator";
+import { CreateOrganizationDto } from "./dto/create-organization.dto";
 
 @Controller("organizations")
 export class OrganizationsController {
@@ -11,6 +12,14 @@ export class OrganizationsController {
   @Get()
   async getMyOrganizations(@CurrentUser("id") userId: string) {
     return this.organizationsService.getUserOrganizations(userId);
+  }
+
+  @Post()
+  async createOrganization(
+    @CurrentUser("id") userId: string,
+    @Body() dto: CreateOrganizationDto,
+  ) {
+    return this.organizationsService.createOrganization(userId, dto);
   }
 
   @Get(":id")

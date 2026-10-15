@@ -33,3 +33,13 @@ dist-ssr
 
 # Vercel build output
 .vercel
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Scratch & temporary development scripts
+scratch/

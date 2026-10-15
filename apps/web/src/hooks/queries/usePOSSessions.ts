@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, getActiveOrgId } from "@/lib/api-client";
 
 export interface POSSessionItem {
   id: string;
@@ -40,21 +40,23 @@ export interface ClosePOSSessionDto {
   notes?: string;
 }
 
-export function usePOSSessions(status?: string, terminalId?: string) {
+export function usePOSSessions(status?: string, terminalId?: string, orgId?: string) {
+  const effectiveOrgId = orgId || getActiveOrgId();
   const queryParams = new URLSearchParams();
   if (status) queryParams.append("status", status);
   if (terminalId) queryParams.append("terminalId", terminalId);
   const qStr = queryParams.toString();
 
   return useQuery<POSSessionItem[]>({
-    queryKey: ["pos-sessions", status, terminalId],
+    queryKey: ["pos-sessions", effectiveOrgId, status, terminalId],
     queryFn: () => apiClient<POSSessionItem[]>(`/pos/sessions${qStr ? `?${qStr}` : ""}`),
   });
 }
 
-export function usePOSSession(id: string) {
+export function usePOSSession(id: string, orgId?: string) {
+  const effectiveOrgId = orgId || getActiveOrgId();
   return useQuery<POSSessionItem>({
-    queryKey: ["pos-session", id],
+    queryKey: ["pos-session", effectiveOrgId, id],
     queryFn: () => apiClient<POSSessionItem>(`/pos/sessions/${id}`),
     enabled: Boolean(id),
   });

@@ -334,6 +334,16 @@ function CustomersPage() {
 
           <div className="grid gap-4 py-4 sm:grid-cols-2">
             <div className="space-y-2">
+              <Label htmlFor="cName">Customer Name *</Label>
+              <Input
+                id="cName"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Acme Corporation"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="cCode">Customer Code *</Label>
               <Input
                 id="cCode"
@@ -341,16 +351,6 @@ function CustomersPage() {
                 onChange={(e) => setCustomerCode(e.target.value)}
                 placeholder="e.g. CUST-001"
                 disabled={Boolean(editingCustomer)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cName">Customer Name *</Label>
-              <Input
-                id="cName"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Acme Corporation"
               />
             </div>
 

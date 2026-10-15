@@ -22,10 +22,19 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Eye } from "lucide-react";
+import { Plus, Trash2, Eye, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 const title = "Suppliers";
 const description = "Supplier profiles, payment terms, contact details, and vendor relationships.";
@@ -60,6 +69,9 @@ function SuppliersPage() {
   const [taxIdNumber, setTaxIdNumber] = useState("");
   const [currency, setCurrency] = useState("INR");
   const [paymentTerms, setPaymentTerms] = useState("NET30");
+  const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const resetForm = () => {
     setName("");
@@ -73,25 +85,54 @@ function SuppliersPage() {
     setTaxIdNumber("");
     setCurrency("INR");
     setPaymentTerms("NET30");
+    setNotes("");
+    setStatus("ACTIVE");
+    setFormError(null);
   };
 
-  const handleCreate = async () => {
-    if (!name || !code) return;
-    await createSupplierMutation.mutateAsync({
-      name,
-      code,
-      contactPerson: contactPerson || null,
-      email: email || null,
-      phone: phone || null,
-      address: address || null,
-      city: city || null,
-      country: country || null,
-      taxIdNumber: taxIdNumber || null,
-      currency,
-      paymentTerms,
-    });
-    setIsAddOpen(false);
+  const handleOpenAdd = () => {
     resetForm();
+    setIsAddOpen(true);
+  };
+
+  const handleCreate = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setFormError(null);
+
+    if (!name.trim()) {
+      setFormError("Supplier Name is required.");
+      return;
+    }
+
+    if (!code.trim()) {
+      setFormError("Supplier Code is required.");
+      return;
+    }
+
+    try {
+      await createSupplierMutation.mutateAsync({
+        name: name.trim(),
+        code: code.trim().toUpperCase(),
+        contactPerson: contactPerson.trim() || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        address: address.trim() || null,
+        city: city.trim() || null,
+        country: country.trim() || null,
+        taxIdNumber: taxIdNumber.trim() || null,
+        currency,
+        paymentTerms,
+        notes: notes.trim() || null,
+        status,
+      });
+      toast.success(`Supplier "${name.trim()}" created successfully!`);
+      setIsAddOpen(false);
+      resetForm();
+    } catch (err: any) {
+      const msg = err?.message || "Failed to create supplier.";
+      setFormError(msg);
+      toast.error(msg);
+    }
   };
 
   const columns: Column<ListRow>[] = [
@@ -169,122 +210,219 @@ function SuppliersPage() {
         description={description}
         eyebrow="Purchasing & Vendors"
         actionLabel="New supplier"
+        onAction={handleOpenAdd}
         stats={stats}
         columns={columns}
         rows={rows}
-        children={
-          <div className="mb-4 flex justify-end">
-            <Button onClick={() => setIsAddOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> New Supplier
-            </Button>
-          </div>
-        }
       />
 
       {/* Create Supplier Dialog */}
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
+      <Dialog
+        open={isAddOpen}
+        onOpenChange={(open) => {
+          setIsAddOpen(open);
+          if (!open) resetForm();
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] w-[95vw] sm:max-w-[650px] p-0 flex flex-col overflow-hidden gap-0">
+          <DialogHeader className="p-6 pb-4 border-b shrink-0 text-left">
             <DialogTitle>Add New Supplier</DialogTitle>
             <DialogDescription>
               Register a new vendor for purchase orders and inventory sourcing.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="name">Supplier Name *</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Acme Components Ltd"
-              />
+          <form onSubmit={handleCreate} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {formError && (
+                <div className="p-3 text-xs rounded border border-destructive/40 bg-destructive/10 text-destructive font-medium">
+                  {formError}
+                </div>
+              )}
+
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name">
+                    Supplier Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Acme Components Ltd"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="code">
+                    Supplier Code <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="e.g. SUP-001"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="contactPerson">Contact Person</Label>
+                  <Input
+                    id="contactPerson"
+                    value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
+                    placeholder="John Doe"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="vendor@example.com"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+91 9876543210"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="taxId">Tax ID / GSTIN</Label>
+                  <Input
+                    id="taxId"
+                    value={taxIdNumber}
+                    onChange={(e) => setTaxIdNumber(e.target.value)}
+                    placeholder="29ABCDE1234F1Z5"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="country">Country</Label>
+                  <Select value={country} onValueChange={(val) => setCountry(val)}>
+                    <SelectTrigger id="country">
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="India">India</SelectItem>
+                      <SelectItem value="United States">United States</SelectItem>
+                      <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                      <SelectItem value="UAE">United Arab Emirates</SelectItem>
+                      <SelectItem value="Germany">Germany</SelectItem>
+                      <SelectItem value="China">China</SelectItem>
+                      <SelectItem value="Japan">Japan</SelectItem>
+                      <SelectItem value="Singapore">Singapore</SelectItem>
+                      <SelectItem value="Australia">Australia</SelectItem>
+                      <SelectItem value="Canada">Canada</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="paymentTerms">Payment Terms</Label>
+                  <Select value={paymentTerms} onValueChange={(val) => setPaymentTerms(val)}>
+                    <SelectTrigger id="paymentTerms">
+                      <SelectValue placeholder="Select payment terms" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NET30">Net 30 Days</SelectItem>
+                      <SelectItem value="NET15">Net 15 Days</SelectItem>
+                      <SelectItem value="NET45">Net 45 Days</SelectItem>
+                      <SelectItem value="NET60">Net 60 Days</SelectItem>
+                      <SelectItem value="DUE_ON_RECEIPT">Due on Receipt</SelectItem>
+                      <SelectItem value="CASH_ON_DELIVERY">Cash on Delivery</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select value={currency} onValueChange={(val) => setCurrency(val)}>
+                    <SelectTrigger id="currency">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="INR">INR (₹)</SelectItem>
+                      <SelectItem value="USD">USD ($)</SelectItem>
+                      <SelectItem value="EUR">EUR (€)</SelectItem>
+                      <SelectItem value="GBP">GBP (£)</SelectItem>
+                      <SelectItem value="AED">AED (د.إ)</SelectItem>
+                      <SelectItem value="SGD">SGD (S$)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={status} onValueChange={(val: "ACTIVE" | "INACTIVE") => setStatus(val)}>
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ACTIVE">Active</SelectItem>
+                      <SelectItem value="INACTIVE">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="address">Street Address</Label>
+                  <Input
+                    id="address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Street address / Landmark"
+                  />
+                </div>
+
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="e.g. Bengaluru"
+                  />
+                </div>
+
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="notes">Notes / Vendor References</Label>
+                  <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Additional notes about supplier categories, preferred contact times, or agreements..."
+                    rows={2}
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="code">Supplier Code *</Label>
-              <Input
-                id="code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="e.g. SUP-001"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="contactPerson">Contact Person</Label>
-              <Input
-                id="contactPerson"
-                value={contactPerson}
-                onChange={(e) => setContactPerson(e.target.value)}
-                placeholder="John Doe"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="vendor@example.com"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 9876543210"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="taxId">Tax ID / GSTIN</Label>
-              <Input
-                id="taxId"
-                value={taxIdNumber}
-                onChange={(e) => setTaxIdNumber(e.target.value)}
-                placeholder="29ABCDE1234F1Z5"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Street address"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="Bengaluru"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={createSupplierMutation.isPending || !name || !code}
-            >
-              {createSupplierMutation.isPending ? "Creating…" : "Save Supplier"}
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="p-4 sm:px-6 border-t bg-popover shrink-0">
+              <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createSupplierMutation.isPending || !name.trim() || !code.trim()}
+              >
+                {createSupplierMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {createSupplierMutation.isPending ? "Saving..." : "Save Supplier"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -331,8 +469,8 @@ function SupplierDetailsModal({
 
   return (
     <Dialog open={Boolean(supplier)} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px]">
-        <DialogHeader>
+      <DialogContent className="max-h-[90dvh] w-[95vw] sm:max-w-[700px] p-0 flex flex-col overflow-hidden gap-0">
+        <DialogHeader className="p-6 pb-4 border-b shrink-0 text-left">
           <DialogTitle>
             {supplier.name} ({supplier.code})
           </DialogTitle>
@@ -341,80 +479,82 @@ function SupplierDetailsModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-2 sm:grid-cols-3 text-sm border-b pb-4">
-          <div>
-            <span className="text-muted-foreground block text-xs">Tax ID / GST</span>
-            <span className="font-medium">{supplier.taxIdNumber || "N/A"}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground block text-xs">Currency</span>
-            <span className="font-medium">{supplier.currency}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground block text-xs">Payment Terms</span>
-            <span className="font-medium">{supplier.paymentTerms || "NET30"}</span>
-          </div>
-        </div>
-
-        {/* Contacts Section */}
-        <div className="space-y-4 pt-2">
-          <h4 className="font-semibold text-sm">Supplier Contacts</h4>
-
-          <div className="grid gap-2 sm:grid-cols-4">
-            <Input
-              placeholder="Contact Name"
-              value={cName}
-              onChange={(e) => setCName(e.target.value)}
-            />
-            <Input
-              placeholder="Role / Title"
-              value={cRole}
-              onChange={(e) => setCRole(e.target.value)}
-            />
-            <Input placeholder="Email" value={cEmail} onChange={(e) => CSetEmail(e.target.value)} />
-            <Button
-              size="sm"
-              onClick={handleAddContact}
-              disabled={createContactMutation.isPending || !cName}
-            >
-              Add Contact
-            </Button>
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 text-sm border-b pb-4">
+            <div>
+              <span className="text-muted-foreground block text-xs">Tax ID / GST</span>
+              <span className="font-medium">{supplier.taxIdNumber || "N/A"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-xs">Currency</span>
+              <span className="font-medium">{supplier.currency}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-xs">Payment Terms</span>
+              <span className="font-medium">{supplier.paymentTerms || "NET30"}</span>
+            </div>
           </div>
 
-          <div className="max-h-48 overflow-y-auto space-y-2">
-            {contacts && contacts.length > 0 ? (
-              contacts.map((c) => (
-                <div
-                  key={c.id}
-                  className="flex items-center justify-between border rounded p-2 text-sm"
-                >
-                  <div>
-                    <div className="font-medium">
-                      {c.name} {c.role ? `(${c.role})` : ""}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {c.email || "No email"} • {c.phone || "No phone"}
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive"
-                    onClick={() => deleteContactMutation.mutate(c.id)}
+          {/* Contacts Section */}
+          <div className="space-y-4 pt-2">
+            <h4 className="font-semibold text-sm">Supplier Contacts</h4>
+
+            <div className="grid gap-2 grid-cols-1 sm:grid-cols-4">
+              <Input
+                placeholder="Contact Name"
+                value={cName}
+                onChange={(e) => setCName(e.target.value)}
+              />
+              <Input
+                placeholder="Role / Title"
+                value={cRole}
+                onChange={(e) => setCRole(e.target.value)}
+              />
+              <Input placeholder="Email" value={cEmail} onChange={(e) => CSetEmail(e.target.value)} />
+              <Button
+                size="sm"
+                onClick={handleAddContact}
+                disabled={createContactMutation.isPending || !cName}
+              >
+                Add Contact
+              </Button>
+            </div>
+
+            <div className="max-h-48 overflow-y-auto space-y-2">
+              {contacts && contacts.length > 0 ? (
+                contacts.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between border rounded p-2 text-sm"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                    <div>
+                      <div className="font-medium">
+                        {c.name} {c.role ? `(${c.role})` : ""}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {c.email || "No email"} • {c.phone || "No phone"}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive"
+                      onClick={() => deleteContactMutation.mutate(c.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-xs text-muted-foreground">
+                  No contacts added yet.
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-4 text-xs text-muted-foreground">
-                No contacts added yet.
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="p-4 sm:px-6 border-t bg-popover shrink-0">
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>

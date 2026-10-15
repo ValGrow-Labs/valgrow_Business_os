@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, getActiveOrgId } from "@/lib/api-client";
 
 export interface WarehouseItem {
   id: string;
@@ -17,16 +17,18 @@ export interface WarehouseItem {
   _count?: { locations: number };
 }
 
-export function useWarehouses() {
+export function useWarehouses(orgId?: string) {
+  const effectiveOrgId = orgId || getActiveOrgId();
   return useQuery<WarehouseItem[]>({
-    queryKey: ["warehouses"],
+    queryKey: ["warehouses", effectiveOrgId],
     queryFn: () => apiClient<WarehouseItem[]>("/warehouses"),
   });
 }
 
-export function useWarehouse(id: string) {
+export function useWarehouse(id: string, orgId?: string) {
+  const effectiveOrgId = orgId || getActiveOrgId();
   return useQuery<WarehouseItem>({
-    queryKey: ["warehouse", id],
+    queryKey: ["warehouse", effectiveOrgId, id],
     queryFn: () => apiClient<WarehouseItem>(`/warehouses/${id}`),
     enabled: Boolean(id),
   });

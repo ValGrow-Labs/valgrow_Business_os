@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListPage, StatusBadge, type ListRow } from "@/components/foundation/list-page";
 import type { Column } from "@/components/foundation/data-table";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   usePurchaseOrders,
   useCreatePurchaseOrder,
@@ -15,6 +16,9 @@ import { useSuppliers } from "@/hooks/queries/useSuppliers";
 import { usePurchaseRequests } from "@/hooks/queries/usePurchaseRequests";
 import { useProducts, type ProductItem } from "@/hooks/queries/useProducts";
 import { useWarehouses } from "@/hooks/queries/useWarehouses";
+import { useTaxes } from "@/hooks/queries/useTaxes";
+import { CreateProductDialog } from "@/components/products/create-product-dialog";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -51,13 +55,42 @@ export interface POFormLineItem {
 }
 
 function PurchaseOrdersPage() {
+  const queryClient = useQueryClient();
   const { data: orders } = usePurchaseOrders();
   const { data: suppliers } = useSuppliers();
   const { data: purchaseRequests } = usePurchaseRequests();
-  const { data: productsData } = useProducts();
+  const { data: productsData, refetch: refetchProducts } = useProducts({ limit: 100 });
   const { data: warehouses } = useWarehouses();
+  const { data: taxes } = useTaxes();
 
-  const productsList = productsData?.data || [];
+  const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
+  const [createdProducts, setCreatedProducts] = useState<ProductItem[]>([]);
+
+  // Merge created products with queried products so newly created items are instantly selectable
+  const allProducts = [
+    ...createdProducts.filter((cp) => !(productsData?.data || []).some((p) => p.id === cp.id)),
+    ...(productsData?.data || []),
+  ];
+  const productsList = allProducts;
+  const activeProducts = productsList.filter((p: ProductItem) => p.status === "ACTIVE" || !p.status);
+
+  const handleProductCreated = (newProduct: ProductItem) => {
+    setCreatedProducts((prev) => [newProduct, ...prev]);
+    setSelectedProduct(newProduct.id);
+    setSelectedVariant("");
+    const cost = Number(newProduct.costPrice || 0);
+    setUnitPrice(cost);
+    if (newProduct.tax?.rate !== undefined && newProduct.tax.rate !== null) {
+      setTaxRate(Number(newProduct.tax.rate));
+    } else if (newProduct.taxId) {
+      const matchedTax = taxes?.find((t) => t.id === newProduct.taxId);
+      if (matchedTax) {
+        setTaxRate(Number(matchedTax.rate));
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ["products"] });
+    refetchProducts();
+  };
 
   const createPOMutation = useCreatePurchaseOrder();
   const submitPOMutation = useSubmitPurchaseOrder();
@@ -323,26 +356,50 @@ function PurchaseOrdersPage() {
 
             <div className="grid gap-2 sm:grid-cols-6 items-end">
               <div className="sm:col-span-2">
-                <Label className="text-xs">Product *</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs">Product *</Label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateProductOpen(true)}
+                    className="text-[11px] text-primary hover:underline font-medium cursor-pointer"
+                  >
+                    + Create New Product
+                  </button>
+                </div>
                 <select
-                  className="w-full h-9 px-2 rounded border text-xs"
+                  className="w-full h-9 px-2 rounded border text-xs bg-background"
                   value={selectedProduct}
                   onChange={(e) => {
                     const pId = e.target.value;
+                    if (pId === "__CREATE_NEW_PRODUCT__") {
+                      setIsCreateProductOpen(true);
+                      return;
+                    }
                     setSelectedProduct(pId);
                     setSelectedVariant("");
                     const p = productsList.find((prod: ProductItem) => prod.id === pId);
                     if (p) {
                       setUnitPrice(Number(p.costPrice || 0));
+                      if (p.tax?.rate !== undefined && p.tax.rate !== null) {
+                        setTaxRate(Number(p.tax.rate));
+                      } else if (p.taxId) {
+                        const matchedTax = taxes?.find((t) => t.id === p.taxId);
+                        if (matchedTax) {
+                          setTaxRate(Number(matchedTax.rate));
+                        }
+                      }
                     }
                   }}
                 >
                   <option value="">Select Product</option>
-                  {productsList.map((p: ProductItem) => (
+                  {activeProducts.map((p: ProductItem) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} ({p.sku})
+                      {p.name} {p.sku ? `(${p.sku})` : ""}
                     </option>
                   ))}
+                  <option value="__CREATE_NEW_PRODUCT__" className="font-semibold text-primary">
+                    + Create New Product
+                  </option>
                 </select>
               </div>
 
@@ -438,6 +495,13 @@ function PurchaseOrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Product Dialog (modal-on-modal) */}
+      <CreateProductDialog
+        open={isCreateProductOpen}
+        onOpenChange={setIsCreateProductOpen}
+        onProductCreated={handleProductCreated}
+      />
 
       {/* View PO Details Dialog */}
       <Dialog
