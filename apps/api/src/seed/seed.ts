@@ -245,6 +245,66 @@ async function main() {
       action: "manage_bank",
       description: "Create and configure bank accounts",
     },
+    {
+      key: "pos.read",
+      resource: "POS",
+      action: "read",
+      description: "View POS sessions, carts, products, queue, and sales history",
+    },
+    {
+      key: "pos.create",
+      resource: "POS",
+      action: "create",
+      description: "Create POS carts, add items, and send transactions to billing queue",
+    },
+    {
+      key: "pos.session",
+      resource: "POS",
+      action: "session",
+      description: "Open, suspend, and resume POS register sessions",
+    },
+    {
+      key: "pos.close",
+      resource: "POS",
+      action: "close",
+      description: "Close POS register sessions and reconcile cash drawer",
+    },
+    {
+      key: "pos.billing",
+      resource: "POS",
+      action: "billing",
+      description: "Review, claim, verify, and forward carts in the billing queue",
+    },
+    {
+      key: "pos.cashier",
+      resource: "POS",
+      action: "cashier",
+      description: "Access payment queue and claim transactions for checkout",
+    },
+    {
+      key: "pos.checkout",
+      resource: "POS",
+      action: "checkout",
+      description: "Process payments, deduct stock, and complete POS checkout",
+    },
+    {
+      key: "pos.cancel",
+      resource: "POS",
+      action: "cancel",
+      description: "Cancel POS transactions and return claimed carts to queue",
+    },
+    {
+      key: "pos.refund",
+      resource: "POS",
+      action: "refund",
+      description: "Process POS sale refunds and sales returns",
+    },
+    {
+      key: "sales.read",
+      resource: "Sales",
+      action: "read",
+      description: "View sales orders, invoices, and customers",
+    },
   ];
 
   const permissionsMap = new Map<string, string>();
@@ -331,6 +391,46 @@ async function main() {
       isSystem: true,
       perms: ["users.read", "branches.read", "inventory.read"],
     },
+    {
+      name: "Salesperson",
+      description: "POS Floor Salesperson: scan products, build carts, select customers, send to billing",
+      isSystem: false,
+      perms: [
+        "pos.create",
+        "pos.read",
+        "sales.read",
+        "inventory.read",
+        "branches.read",
+      ],
+    },
+    {
+      name: "Billing Staff",
+      description: "POS Billing Desk: claim tickets, verify cart items, return/cancel, send to cashier",
+      isSystem: false,
+      perms: [
+        "pos.billing",
+        "pos.cancel",
+        "pos.create",
+        "pos.read",
+        "inventory.read",
+        "branches.read",
+      ],
+    },
+    {
+      name: "Cashier",
+      description: "POS Cashier: claim payments, open/close shifts, process payments, complete checkout",
+      isSystem: false,
+      perms: [
+        "pos.cashier",
+        "pos.checkout",
+        "pos.cancel",
+        "pos.session",
+        "pos.close",
+        "pos.read",
+        "inventory.read",
+        "branches.read",
+      ],
+    },
   ];
 
   const rolesMap = new Map<string, string>();
@@ -376,7 +476,11 @@ async function main() {
   console.log(`✓ Seeded ${rolesData.length} roles with permissions`);
 
   // 4. Seed Development Users
-  const passwordHash = await bcrypt.hash("DevelopmentPass123!", 12);
+  const seedPassword =
+    process.env.TEST_USER_PASSWORD ||
+    process.env.DEV_USER_PASSWORD ||
+    "DevelopmentPass123!";
+  const passwordHash = await bcrypt.hash(seedPassword, 12);
   const usersData = [
     {
       email: "alex.verma@valgrow.dev",
@@ -406,13 +510,38 @@ async function main() {
       jobTitle: "Viewer Member",
       roleName: "Viewer",
     },
+    {
+      email: "salesperson1@valgrow.dev",
+      firstName: "Salesperson",
+      lastName: "One",
+      jobTitle: "POS Floor Salesperson",
+      roleName: "Salesperson",
+    },
+    {
+      email: "billing1@valgrow.dev",
+      firstName: "Billing",
+      lastName: "Staff One",
+      jobTitle: "POS Billing Specialist",
+      roleName: "Billing Staff",
+    },
+    {
+      email: "cashier1@valgrow.dev",
+      firstName: "Cashier",
+      lastName: "One",
+      jobTitle: "POS Head Cashier",
+      roleName: "Cashier",
+    },
   ];
 
   const createdUsers = [];
   for (const uDef of usersData) {
     const user = await prisma.user.upsert({
       where: { email: uDef.email },
-      update: { firstName: uDef.firstName, lastName: uDef.lastName },
+      update: {
+        firstName: uDef.firstName,
+        lastName: uDef.lastName,
+        passwordHash,
+      },
       create: {
         email: uDef.email,
         firstName: uDef.firstName,

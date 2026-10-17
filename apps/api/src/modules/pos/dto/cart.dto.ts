@@ -16,8 +16,8 @@ export class CreatePosCartDto {
   warehouseId: string;
 
   @IsString()
-  @IsNotEmpty()
-  sessionId: string;
+  @IsOptional()
+  sessionId?: string;
 
   @IsString()
   @IsOptional()

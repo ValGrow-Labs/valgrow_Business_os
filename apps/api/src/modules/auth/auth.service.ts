@@ -34,11 +34,14 @@ export class AuthService {
     refreshToken: string,
   ) {
     const isProd = this.configService.get<string>("NODE_ENV") === "production";
+    const sameSiteEnv = this.configService.get<string>("COOKIE_SAME_SITE");
+    const sameSite: "lax" | "none" | "strict" =
+      sameSiteEnv === "none" || sameSiteEnv === "strict" ? sameSiteEnv : "lax";
 
     res.cookie("access_token", accessToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: "lax",
+      sameSite,
       path: "/",
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
@@ -46,15 +49,20 @@ export class AuthService {
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: "lax",
+      sameSite,
       path: "/",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
   }
 
   private clearAuthCookies(res: Response) {
-    res.clearCookie("access_token", { path: "/" });
-    res.clearCookie("refresh_token", { path: "/" });
+    const isProd = this.configService.get<string>("NODE_ENV") === "production";
+    const sameSiteEnv = this.configService.get<string>("COOKIE_SAME_SITE");
+    const sameSite: "lax" | "none" | "strict" =
+      sameSiteEnv === "none" || sameSiteEnv === "strict" ? sameSiteEnv : "lax";
+
+    res.clearCookie("access_token", { path: "/", secure: isProd, sameSite });
+    res.clearCookie("refresh_token", { path: "/", secure: isProd, sameSite });
   }
 
   private generateSlug(name: string): string {
@@ -157,8 +165,14 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, res: Response) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
+    const input = dto.email.trim().toLowerCase();
+    const candidateEmails = [input];
+    if (!input.includes("@")) {
+      candidateEmails.push(`${input}@valgrow.dev`);
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: { in: candidateEmails } },
       include: {
         memberships: {
           where: { status: "ACTIVE" },
@@ -298,8 +312,14 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
+    const input = dto.email.trim().toLowerCase();
+    const candidateEmails = [input];
+    if (!input.includes("@")) {
+      candidateEmails.push(`${input}@valgrow.dev`);
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: { in: candidateEmails } },
     });
 
     if (!user) {

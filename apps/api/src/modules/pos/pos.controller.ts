@@ -21,6 +21,7 @@ import { PosProductSearchService } from "./services/pos-product-search.service";
 import { PosCartService } from "./services/pos-cart.service";
 import { PosCheckoutService } from "./services/pos-checkout.service";
 import { PosRefundService } from "./services/pos-refund.service";
+import { PosWorkflowService } from "./services/pos-workflow.service";
 import { PdfGeneratorService } from "../documents/pdf-generator.service";
 import { OpenPosSessionDto, ClosePosSessionDto } from "./dto/session.dto";
 import {
@@ -29,6 +30,13 @@ import {
   UpdatePosCartItemDto,
 } from "./dto/cart.dto";
 import { PosCheckoutDto, PosRefundDto } from "./dto/checkout.dto";
+import {
+  SendToBillingDto,
+  SendToPaymentDto,
+  CancelPosTransactionDto,
+  ReturnToQueueDto,
+  PosQueueFilterDto,
+} from "./dto/workflow.dto";
 
 @Controller("pos")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -39,6 +47,7 @@ export class PosController {
     private readonly cartService: PosCartService,
     private readonly checkoutService: PosCheckoutService,
     private readonly refundService: PosRefundService,
+    private readonly workflowService: PosWorkflowService,
     private readonly pdfService: PdfGeneratorService,
   ) {}
 
@@ -132,14 +141,113 @@ export class PosController {
 
   @Post("carts")
   @RequirePermissions("pos.create")
-  createCart(@CurrentOrg("id") orgId: string, @Body() dto: CreatePosCartDto) {
-    return this.cartService.createCart(orgId, dto);
+  createCart(
+    @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
+    @Body() dto: CreatePosCartDto,
+  ) {
+    return this.cartService.createCart(orgId, dto, userId);
   }
 
   @Get("carts/:id")
   @RequirePermissions("pos.read")
   getCart(@CurrentOrg("id") orgId: string, @Param("id") id: string) {
     return this.cartService.getCart(orgId, id);
+  }
+
+  // ==================================================
+  // MULTI-USER WORKFLOW: BILLING & PAYMENT QUEUES
+  // ==================================================
+
+  @Post("carts/:id/send-to-billing")
+  @RequirePermissions("pos.create")
+  sendToBilling(
+    @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id") id: string,
+    @Body() dto?: SendToBillingDto,
+  ) {
+    return this.workflowService.sendToBilling(orgId, userId, id, dto);
+  }
+
+  @Get("billing/queue")
+  @RequirePermissions("pos.billing")
+  getBillingQueue(
+    @CurrentOrg("id") orgId: string,
+    @Query() filter: PosQueueFilterDto,
+  ) {
+    return this.workflowService.getBillingQueue(orgId, filter);
+  }
+
+  @Post("carts/:id/claim-billing")
+  @RequirePermissions("pos.billing")
+  claimBilling(
+    @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id") id: string,
+  ) {
+    return this.workflowService.claimBilling(orgId, userId, id);
+  }
+
+  @Post("carts/:id/send-to-payment")
+  @RequirePermissions("pos.billing")
+  sendToPayment(
+    @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id") id: string,
+    @Body() dto?: SendToPaymentDto,
+  ) {
+    return this.workflowService.sendToPayment(orgId, userId, id, dto);
+  }
+
+  @Get("payment/queue")
+  @RequirePermissions("pos.cashier")
+  getPaymentQueue(
+    @CurrentOrg("id") orgId: string,
+    @Query() filter: PosQueueFilterDto,
+  ) {
+    return this.workflowService.getPaymentQueue(orgId, filter);
+  }
+
+  @Post("carts/:id/claim-payment")
+  @RequirePermissions("pos.cashier")
+  claimPayment(
+    @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id") id: string,
+  ) {
+    return this.workflowService.claimPayment(orgId, userId, id);
+  }
+
+  @Post("carts/:id/return-to-queue")
+  @RequirePermissions("pos.cancel")
+  returnToQueue(
+    @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id") id: string,
+    @Body() dto?: ReturnToQueueDto,
+  ) {
+    return this.workflowService.returnToQueue(orgId, userId, id, dto);
+  }
+
+  @Post("carts/:id/cancel")
+  @RequirePermissions("pos.cancel")
+  cancelTransaction(
+    @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id") id: string,
+    @Body() dto: CancelPosTransactionDto,
+  ) {
+    return this.workflowService.cancelTransaction(orgId, userId, id, dto);
+  }
+
+  @Get("carts/:id/workflow")
+  @RequirePermissions("pos.read")
+  getWorkflowHistory(
+    @CurrentOrg("id") orgId: string,
+    @Param("id") id: string,
+  ) {
+    return this.workflowService.getWorkflowHistory(orgId, id);
   }
 
   @Post("carts/:id/items")

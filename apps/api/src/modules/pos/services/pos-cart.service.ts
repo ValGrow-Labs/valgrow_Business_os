@@ -21,13 +21,28 @@ export class PosCartService {
       include: {
         session: true,
         customer: true,
+        salesperson: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        billingStaff: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        cashier: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        cancelledBy: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
         items: {
           include: {
             product: {
-              select: { id: true, name: true, sku: true, images: true },
+              select: { id: true, name: true, sku: true, barcode: true, images: true },
             },
-            variant: { select: { id: true, name: true, sku: true } },
+            variant: { select: { id: true, name: true, sku: true, barcode: true } },
           },
+        },
+        transitions: {
+          orderBy: { createdAt: "desc" },
         },
       },
     });
@@ -35,12 +50,28 @@ export class PosCartService {
     return cart;
   }
 
-  async createCart(organizationId: string, dto: CreatePosCartDto) {
-    const session = await this.prisma.pOSSession.findFirst({
-      where: { id: dto.sessionId, organizationId, status: "OPEN" },
-    });
-    if (!session) {
-      throw new BadRequestException("Active OPEN POS Session not found");
+  async createCart(
+    organizationId: string,
+    dto: CreatePosCartDto,
+    userId?: string,
+  ) {
+    if (dto.sessionId) {
+      const session = await this.prisma.pOSSession.findFirst({
+        where: { id: dto.sessionId, organizationId, status: "OPEN" },
+      });
+      if (!session) {
+        throw new BadRequestException("Active OPEN POS Session not found");
+      }
+    } else {
+      const branch = await this.prisma.branch.findFirst({
+        where: { id: dto.branchId, organizationId, status: "ACTIVE" },
+      });
+      if (!branch) throw new BadRequestException("Branch not found");
+
+      const warehouse = await this.prisma.warehouse.findFirst({
+        where: { id: dto.warehouseId, organizationId, status: "ACTIVE" },
+      });
+      if (!warehouse) throw new BadRequestException("Warehouse not found");
     }
 
     if (dto.customerId) {
@@ -50,17 +81,45 @@ export class PosCartService {
       if (!customer) throw new BadRequestException("Customer not found");
     }
 
+    const year = new Date().getFullYear();
+    const seq = await this.prisma.documentSequence.upsert({
+      where: {
+        organizationId_documentType_year: {
+          organizationId,
+          documentType: "POS_CART",
+          year,
+        },
+      },
+      update: { lastSequence: { increment: 1 } },
+      create: {
+        organizationId,
+        documentType: "POS_CART",
+        year,
+        lastSequence: 1,
+      },
+    });
+    const cartNumber = `TKT-${year}-${String(seq.lastSequence).padStart(5, "0")}`;
+
     return this.prisma.pOSCart.create({
       data: {
         organizationId,
         branchId: dto.branchId,
         warehouseId: dto.warehouseId,
-        sessionId: dto.sessionId,
+        sessionId: dto.sessionId || null,
         customerId: dto.customerId || null,
+        cartNumber,
+        salespersonId: userId || null,
+        workflowStatus: "DRAFT",
         notes: dto.notes,
         status: "ACTIVE",
       },
-      include: { items: true, customer: true },
+      include: {
+        items: true,
+        customer: true,
+        salesperson: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
     });
   }
 
@@ -72,6 +131,14 @@ export class PosCartService {
     const cart = await this.getCart(organizationId, cartId);
     if (cart.status !== "ACTIVE" && cart.status !== "HELD") {
       throw new BadRequestException(`Cannot modify a ${cart.status} cart`);
+    }
+    if (
+      cart.workflowStatus !== "DRAFT" &&
+      cart.workflowStatus !== "BILLING_IN_PROGRESS"
+    ) {
+      throw new BadRequestException(
+        `Cannot modify items when cart is in '${cart.workflowStatus}' status`,
+      );
     }
 
     const product = await this.prisma.product.findFirst({
@@ -188,6 +255,14 @@ export class PosCartService {
     if (cart.status !== "ACTIVE" && cart.status !== "HELD") {
       throw new BadRequestException(`Cannot modify a ${cart.status} cart`);
     }
+    if (
+      cart.workflowStatus !== "DRAFT" &&
+      cart.workflowStatus !== "BILLING_IN_PROGRESS"
+    ) {
+      throw new BadRequestException(
+        `Cannot modify items when cart is in '${cart.workflowStatus}' status`,
+      );
+    }
 
     const item = cart.items.find((i) => i.id === itemId);
     if (!item) throw new NotFoundException("Item not found in cart");
@@ -231,6 +306,14 @@ export class PosCartService {
     if (cart.status !== "ACTIVE" && cart.status !== "HELD") {
       throw new BadRequestException(`Cannot modify a ${cart.status} cart`);
     }
+    if (
+      cart.workflowStatus !== "DRAFT" &&
+      cart.workflowStatus !== "BILLING_IN_PROGRESS"
+    ) {
+      throw new BadRequestException(
+        `Cannot modify items when cart is in '${cart.workflowStatus}' status`,
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       await tx.pOSCartItem.delete({
@@ -244,6 +327,11 @@ export class PosCartService {
     const cart = await this.getCart(organizationId, cartId);
     if (cart.status !== "ACTIVE") {
       throw new BadRequestException("Only ACTIVE carts can be held");
+    }
+    if (cart.workflowStatus !== "DRAFT") {
+      throw new BadRequestException(
+        `Cannot hold a cart in '${cart.workflowStatus}' status. Must be in 'DRAFT'.`,
+      );
     }
     return this.prisma.pOSCart.update({
       where: { id: cartId },
@@ -268,6 +356,13 @@ export class PosCartService {
   }
 
   async clearCart(organizationId: string, cartId: string) {
+    const cart = await this.getCart(organizationId, cartId);
+    if (cart.workflowStatus !== "DRAFT") {
+      throw new BadRequestException(
+        `Cannot clear cart in '${cart.workflowStatus}' status. Use cancel transaction endpoint.`,
+      );
+    }
+
     return this.prisma.$transaction(async (tx) => {
       await tx.pOSCartItem.deleteMany({ where: { cartId } });
       return tx.pOSCart.update({
@@ -278,6 +373,7 @@ export class PosCartService {
           taxAmount: new Prisma.Decimal(0),
           totalAmount: new Prisma.Decimal(0),
           status: "ABANDONED",
+          workflowStatus: "CANCELLED",
         },
       });
     });

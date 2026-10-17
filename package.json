@@ -11,7 +11,12 @@
     "build:web": "npm run build --workspace=apps/web",
     "dev:api": "npm run dev --workspace=apps/api",
     "build:api": "npm run build --workspace=apps/api",
+    "start:api": "node apps/api/dist/src/main.js",
     "seed": "npm run seed --workspace=apps/api",
+    "seed:pos-users": "npm run seed:pos-users --workspace=apps/api",
+    "verify:pos-users": "npm run verify:pos-users --workspace=apps/api",
+    "set-password": "npm run set-password --workspace=apps/api",
+    "seed:prod": "node apps/api/dist/src/seed/seed.js",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint apps/web apps/api",
     "format": "prettier --write ."

@@ -73,11 +73,11 @@ function LoginPage() {
         ) : null}
 
         <div className="space-y-2">
-          <Label htmlFor="email">Work email</Label>
+          <Label htmlFor="email">Work email or Login ID</Label>
           <Input
             id="email"
-            type="email"
-            placeholder="you@company.com"
+            type="text"
+            placeholder="you@company.com or Login ID"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="h-10"

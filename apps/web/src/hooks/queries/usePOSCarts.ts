@@ -17,13 +17,30 @@ export interface POSCartItemData {
   variant?: { id: string; name: string; sku: string } | null;
 }
 
+export type POSTransactionStatus =
+  | "DRAFT"
+  | "SENT_TO_BILLING"
+  | "BILLING_IN_PROGRESS"
+  | "READY_FOR_PAYMENT"
+  | "PAYMENT_IN_PROGRESS"
+  | "PAID"
+  | "CANCELLED";
+
 export interface POSCartData {
   id: string;
   organizationId: string;
   branchId: string;
   warehouseId: string;
-  sessionId: string;
+  sessionId: string | null;
   customerId: string | null;
+  cartNumber?: string | null;
+  workflowStatus?: POSTransactionStatus;
+  salespersonId?: string | null;
+  billingStaffId?: string | null;
+  billingClaimedAt?: string | null;
+  cashierId?: string | null;
+  paymentClaimedAt?: string | null;
+  cancellationReason?: string | null;
   subtotalAmount: number;
   discountAmount: number;
   taxAmount: number;
@@ -40,14 +57,17 @@ export interface POSCartData {
     phone?: string;
     email?: string;
   } | null;
+  salesperson?: { id: string; firstName: string; lastName: string; email: string } | null;
+  billingStaff?: { id: string; firstName: string; lastName: string; email: string } | null;
+  cashier?: { id: string; firstName: string; lastName: string; email: string } | null;
 }
 
 export interface CreatePOSCartDto {
   branchId: string;
   warehouseId: string;
-  sessionId: string;
-  customerId?: string;
-  notes?: string;
+  sessionId?: string | null | undefined;
+  customerId?: string | null | undefined;
+  notes?: string | undefined;
 }
 
 export interface AddPOSCartItemDto {

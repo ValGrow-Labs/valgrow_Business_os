@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
@@ -40,6 +40,9 @@ import {
   type CustomerPaymentMethod,
   type POSSaleResult,
 } from "@/hooks/queries/usePOSCheckout";
+import { useSendToBilling } from "@/hooks/queries/usePOSWorkflow";
+import { BillingDesk } from "@/components/pos/billing-desk";
+import { CashierCounter } from "@/components/pos/cashier-counter";
 import { downloadFile, getActiveOrgId } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,11 +82,27 @@ import {
   AlertCircle,
   X,
   RefreshCw,
+  Send,
+  Receipt,
+  CreditCard,
+  Lock,
 } from "lucide-react";
 
 export const Route = createFileRoute("/pos")({
+  head: () => ({
+    meta: [
+      { title: "Point of Sale (POS) · ValGrow Business OS" },
+      {
+        name: "description",
+        content:
+          "Multi-user retail POS system supporting salesperson terminals, billing desk queue, and cashier counter.",
+      },
+    ],
+  }),
   component: POSRegisterPage,
 });
+
+type POSTab = "register" | "billing" | "cashier";
 
 function POSRegisterPage() {
   const queryClient = useQueryClient();
@@ -94,6 +113,16 @@ function POSRegisterPage() {
   const canCloseSession = isOwner || permissions.includes("pos.close");
   const canCheckout = isOwner || permissions.includes("pos.checkout");
   const canRefund = isOwner || permissions.includes("pos.refund");
+  const canBilling = isOwner || permissions.includes("pos.billing");
+  const canCashier = isOwner || permissions.includes("pos.cashier");
+  const canCreateCart = isOwner || permissions.includes("pos.create");
+
+  // Determine initial active tab based on role & permissions
+  const [activeTab, setActiveTab] = useState<POSTab>(() => {
+    if (canBilling && !canCreateCart && !canCheckout) return "billing";
+    if (canCashier && !canCreateCart) return "cashier";
+    return "register";
+  });
 
   const activeOrgId = currentUser?.activeOrganization?.id || getActiveOrgId() || undefined;
 
@@ -121,14 +150,19 @@ function POSRegisterPage() {
   const customers: CustomerItem[] = customersRes || [];
 
   // Active POS Session Query (scoped to active organization)
-  const { data: openSessions, isLoading: isSessionLoading } = usePOSSessions("OPEN", undefined, activeOrgId);
+  const { data: openSessions, isLoading: isSessionLoading } = usePOSSessions(
+    "OPEN",
+    undefined,
+    activeOrgId,
+  );
   const activeSession: POSSessionItem | undefined = openSessions?.[0];
 
-  // Open Session Form State
+  // Open Session / Salesperson Setup Form State
   const [openSessionBranchId, setOpenSessionBranchId] = useState("");
   const [openSessionWarehouseId, setOpenSessionWarehouseId] = useState("");
   const [openSessionTerminalId, setOpenSessionTerminalId] = useState("REG-01");
   const [openSessionOpeningCash, setOpenSessionOpeningCash] = useState("1000");
+  const [salespersonTerminalActive, setSalespersonTerminalActive] = useState(false);
 
   // Track active organization ID changes: refresh queries and clear selections
   const prevOrgIdRef = useRef<string | undefined>(activeOrgId);
@@ -161,21 +195,23 @@ function POSRegisterPage() {
   }, [branches, openSessionBranchId]);
 
   // Compute warehouses compatible with the selected branch and active organization
-  const availableWarehouses = warehouses.filter((w: WarehouseItem) => {
-    if (activeOrgId && w.organizationId && w.organizationId !== activeOrgId) {
-      return false;
-    }
-    if (w.status && w.status !== "ACTIVE") {
-      return false;
-    }
-    if (openSessionBranchId) {
-      if (w.branchId) {
-        return w.branchId === openSessionBranchId;
+  const availableWarehouses = useMemo(() => {
+    return warehouses.filter((w: WarehouseItem) => {
+      if (activeOrgId && w.organizationId && w.organizationId !== activeOrgId) {
+        return false;
       }
-      return true; // Depot / organization-wide warehouse (branchId is null or empty)
-    }
-    return !w.branchId;
-  });
+      if (w.status && w.status !== "ACTIVE") {
+        return false;
+      }
+      if (openSessionBranchId) {
+        if (w.branchId) {
+          return w.branchId === openSessionBranchId;
+        }
+        return true; // Depot / organization-wide warehouse (branchId is null or empty)
+      }
+      return !w.branchId;
+    });
+  }, [warehouses, activeOrgId, openSessionBranchId]);
 
   // Manage warehouse selection:
   // - Clear if selected warehouse does not belong to availableWarehouses
@@ -195,6 +231,10 @@ function POSRegisterPage() {
     }
   }, [openSessionBranchId, availableWarehouses, openSessionWarehouseId]);
 
+  // Effective branch and warehouse for salesperson / register
+  const effectiveBranchId = activeSession?.branchId || openSessionBranchId;
+  const effectiveWarehouseId = activeSession?.warehouseId || openSessionWarehouseId;
+
   const openSessionMutation = useOpenPOSSession();
   const closeSessionMutation = useClosePOSSession();
   const suspendSessionMutation = useSuspendPOSSession();
@@ -209,20 +249,40 @@ function POSRegisterPage() {
   const [activeCartId, setActiveCartId] = useState<string | null>(null);
   const { data: activeCart } = usePOSCart(activeCartId || undefined);
 
+  // Cart is locked if it has been submitted to billing or beyond
+  const isCartLocked = Boolean(
+    activeCart?.workflowStatus && activeCart.workflowStatus !== "DRAFT",
+  );
+
   const createCartMutation = useCreatePOSCart();
   const addItemMutation = useAddPOSCartItem();
   const updateItemMutation = useUpdatePOSCartItem();
   const removeItemMutation = useRemovePOSCartItem();
   const holdCartMutation = useHoldPOSCart();
+  const resumeCartMutation = useResumePOSCart();
   const clearCartMutation = useClearPOSCart();
+  const sendToBillingMutation = useSendToBilling();
 
-  // Auto-create cart when session becomes active
+  // Multi-user Send to Billing State
+  const [showSendToBillingModal, setShowSendToBillingModal] = useState(false);
+  const [sendToBillingNotes, setSendToBillingNotes] = useState("");
+  const [ticketConfirmation, setTicketConfirmation] = useState<{
+    ticketNumber: string;
+    totalAmount: number;
+    itemCount: number;
+    customerName?: string | undefined;
+  } | null>(null);
+
+  // Auto-create cart when session becomes active (only resume DRAFT carts)
   useEffect(() => {
     if (activeSession && !activeCartId) {
       if (activeSession.carts && activeSession.carts.length > 0) {
-        const activeC = activeSession.carts.find((c: { status: string }) => c.status === "ACTIVE");
-        if (activeC) {
-          setActiveCartId(activeC.id);
+        const activeDraftCart = activeSession.carts.find(
+          (c: { status: string; workflowStatus?: string }) =>
+            c.status === "ACTIVE" && (!c.workflowStatus || c.workflowStatus === "DRAFT"),
+        );
+        if (activeDraftCart) {
+          setActiveCartId(activeDraftCart.id);
           return;
         }
       }
@@ -248,7 +308,7 @@ function POSRegisterPage() {
 
   const { data: searchResult, isLoading: isProductsLoading } = usePOSProductSearch({
     search: searchQuery || undefined,
-    warehouseId: activeSession?.warehouseId || undefined,
+    warehouseId: effectiveWarehouseId || undefined,
     limit: 12,
   });
   const products = searchResult?.data || [];
@@ -258,6 +318,11 @@ function POSRegisterPage() {
     const cleanCode = code.trim();
     if (!cleanCode) return;
 
+    if (!effectiveBranchId || !effectiveWarehouseId) {
+      setBarcodeError("Please select a branch and warehouse first");
+      return;
+    }
+
     setBarcodeError(null);
     setIsSearchingBarcode(true);
 
@@ -265,14 +330,19 @@ function POSRegisterPage() {
       const match = await findPOSProductByBarcode(cleanCode);
       if (match) {
         let targetCartId = activeCartId;
-        if (!targetCartId && activeSession) {
+
+        // If no active cart, or if current cart is locked (already sent to billing), start a new draft cart
+        if (!targetCartId || isCartLocked) {
           const newCart = await createCartMutation.mutateAsync({
-            branchId: activeSession.branchId,
-            warehouseId: activeSession.warehouseId,
-            sessionId: activeSession.id,
+            branchId: effectiveBranchId,
+            warehouseId: effectiveWarehouseId,
+            sessionId: activeSession?.id,
           });
           targetCartId = newCart.id;
           setActiveCartId(newCart.id);
+          if (isCartLocked) {
+            toast.info(`Started fresh cart #${newCart.cartNumber || newCart.id.slice(0, 8)}`);
+          }
         }
 
         if (targetCartId) {
@@ -307,17 +377,25 @@ function POSRegisterPage() {
 
   // Add Product Card Handler
   const handleAddProductToCart = async (product: POSProductItem, variantId?: string) => {
-    if (!activeSession) return;
+    if (!effectiveBranchId || !effectiveWarehouseId) {
+      toast.error("Please select a branch and warehouse first");
+      return;
+    }
+
     let targetCartId = activeCartId;
 
-    if (!targetCartId) {
+    // If no cart or if cart is locked, automatically start a fresh cart
+    if (!targetCartId || isCartLocked) {
       const newCart = await createCartMutation.mutateAsync({
-        branchId: activeSession.branchId,
-        warehouseId: activeSession.warehouseId,
-        sessionId: activeSession.id,
+        branchId: effectiveBranchId,
+        warehouseId: effectiveWarehouseId,
+        sessionId: activeSession?.id,
       });
       targetCartId = newCart.id;
       setActiveCartId(newCart.id);
+      if (isCartLocked) {
+        toast.info(`Started fresh cart #${newCart.cartNumber || newCart.id.slice(0, 8)}`);
+      }
     }
 
     const price = Number(product.retailPrice || product.costPrice || 0);
@@ -332,6 +410,63 @@ function POSRegisterPage() {
     });
   };
 
+  // Start Next Cart Handler (used after Send to Billing or manually)
+  const handleStartNewCart = async () => {
+    setTicketConfirmation(null);
+    if (!effectiveBranchId || !effectiveWarehouseId) {
+      setActiveCartId(null);
+      return;
+    }
+
+    try {
+      const newCart = await createCartMutation.mutateAsync({
+        branchId: effectiveBranchId,
+        warehouseId: effectiveWarehouseId,
+        sessionId: activeSession?.id,
+        customerId: selectedCustomerId !== "walkin" ? selectedCustomerId : undefined,
+      });
+      setActiveCartId(newCart.id);
+      setSelectedCustomerId("walkin");
+      toast.success("Ready for next customer");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to start new cart");
+    }
+  };
+
+  // Confirm Send to Billing Handler
+  const handleConfirmSendToBilling = async () => {
+    if (!activeCartId) return;
+    try {
+      const result = await sendToBillingMutation.mutateAsync({
+        cartId: activeCartId,
+        notes: sendToBillingNotes.trim() || undefined,
+      });
+
+      const assignedNumber = result.cartNumber || activeCart?.cartNumber || result.id.slice(0, 8);
+      const custName =
+        result.customer?.name ||
+        (selectedCustomerId !== "walkin"
+          ? customers.find((c) => c.id === selectedCustomerId)?.name
+          : "Walk-in Customer");
+
+      setTicketConfirmation({
+        ticketNumber: assignedNumber,
+        totalAmount: Number(result.totalAmount || activeCart?.totalAmount || 0),
+        itemCount: (activeCart?.items ?? []).reduce(
+          (sum, it) => sum + Number(it.quantity || 0),
+          0,
+        ),
+        customerName: custName,
+      });
+
+      setShowSendToBillingModal(false);
+      setSendToBillingNotes("");
+      toast.success(`Ticket #${assignedNumber} queued for Billing Desk!`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send ticket to billing");
+    }
+  };
+
   const handleDownloadReceipt = async (saleId?: string, receiptNum?: string) => {
     if (!saleId) return;
     try {
@@ -341,10 +476,11 @@ function POSRegisterPage() {
     }
   };
 
-  // Cashier Identification
+  // Cashier / Staff Identification
   const cashierName = currentUser?.user
-    ? `${currentUser.user.firstName || ""} ${currentUser.user.lastName || ""}`.trim() || currentUser.user.email
-    : "Cashier";
+    ? `${currentUser.user.firstName || ""} ${currentUser.user.lastName || ""}`.trim() ||
+      currentUser.user.email
+    : "Staff";
 
   // Quick Add Customer State
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
@@ -485,7 +621,7 @@ function POSRegisterPage() {
 
   // Open Checkout Dialog
   const handleOpenCheckout = () => {
-    if (!activeCart || activeCart.items.length === 0) return;
+    if (!activeCart || activeCart.items.length === 0 || isCartLocked) return;
     const grandTotal = Number(activeCart.totalAmount);
     setPayments([{ paymentMethod: "CASH", amount: grandTotal, receivedAmount: grandTotal }]);
     setCartDiscount("0");
@@ -542,23 +678,28 @@ function POSRegisterPage() {
     const INTER_CHAR_TIMEOUT = 50; // ms threshold for USB HID rapid key stream
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 1. Ignore if no active POS register session
-      if (!activeSession) return;
+      // 1. Ignore if not in register tab
+      if (activeTab !== "register") return;
 
-      // 2. Ignore if any modal/dialog is open
+      // 2. Ignore if no branch/warehouse context
+      if (!effectiveBranchId || !effectiveWarehouseId) return;
+
+      // 3. Ignore if any modal/dialog is open
       if (
         showCloseModal ||
         showHeldModal ||
         showCheckoutModal ||
         showSuccessModal ||
         showRefundModal ||
-        showAddCustomerModal
+        showAddCustomerModal ||
+        showSendToBillingModal ||
+        Boolean(ticketConfirmation)
       ) {
         buffer = "";
         return;
       }
 
-      // 3. Ignore if active element is a text input, textarea, select, or contenteditable
+      // 4. Ignore if active element is a text input, textarea, select, or contenteditable
       const target = e.target as HTMLElement | null;
       const tagName = target?.tagName;
       const isEditable =
@@ -601,99 +742,224 @@ function POSRegisterPage() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [
+    activeTab,
+    effectiveBranchId,
+    effectiveWarehouseId,
     activeSession,
     activeCartId,
+    isCartLocked,
     showCloseModal,
     showHeldModal,
     showCheckoutModal,
     showSuccessModal,
     showRefundModal,
     showAddCustomerModal,
+    showSendToBillingModal,
+    ticketConfirmation,
   ]);
 
-  // If Session Loading
+  // Loading state
   if (isSessionLoading) {
     return (
       <AppShell>
         <div className="flex h-96 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
           <RefreshCw className="h-6 w-6 animate-spin" />
-          Loading register…
+          Loading POS workspace…
         </div>
       </AppShell>
     );
   }
 
-  // 12. NO ACTIVE SESSION -> OPEN REGISTER SCREEN
-  if (!activeSession) {
-    return (
-      <AppShell>
-        <div className="mx-auto w-full max-w-lg py-6 sm:py-12">
-          <div className="panel overflow-hidden">
-            <div className="border-b bg-surface-2/60 px-6 py-6 sm:px-8">
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary">
-                <Calculator className="h-5 w-5" />
-              </div>
-              <h1 className="text-xl font-semibold tracking-tight">Open register session</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Select your branch, warehouse and opening cash float to start selling.
-              </p>
-              <PageGuideButton id="pos" className="-ml-3 mt-2" />
-            </div>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                openSessionMutation.mutate({
-                  branchId: openSessionBranchId,
-                  warehouseId: openSessionWarehouseId,
-                  terminalId: openSessionTerminalId,
-                  openingCash: Number(openSessionOpeningCash),
-                });
-              }}
-              className="space-y-5 px-6 py-6 sm:px-8"
+  // Top Tab Navigation Bar Component
+  const renderTopNavBar = () => (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-surface px-4 py-2 sm:px-6">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 rounded-lg border bg-surface-2 p-1">
+          {(canCreateCart || canCheckout || isOwner) && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("register")}
+              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                activeTab === "register"
+                  ? "bg-surface text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label>Branch</Label>
-                  {isBranchesLoading && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                      Loading branches…
-                    </span>
-                  )}
-                </div>
+              <Calculator className="h-3.5 w-3.5 text-primary" />
+              <span>Sales Register</span>
+            </button>
+          )}
 
-                {isBranchesError ? (
-                  <div
-                    role="alert"
-                    className="flex flex-col gap-2 rounded-md border border-destructive/20 bg-destructive-soft p-3 text-[13px] text-destructive"
-                  >
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span className="flex-1">
-                        {(branchesError as any)?.message || "Failed to load branches."}
+          {(canBilling || isOwner) && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("billing")}
+              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                activeTab === "billing"
+                  ? "bg-surface text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Receipt className="h-3.5 w-3.5 text-amber-500" />
+              <span>Billing Desk</span>
+            </button>
+          )}
+
+          {(canCashier || canCheckout || isOwner) && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("cashier")}
+              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                activeTab === "cashier"
+                  ? "bg-surface text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <CreditCard className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Cashier Counter</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <PageGuideButton id="pos" />
+        {activeSession ? (
+          <div className="flex items-center gap-2">
+            <Badge variant={activeSession.status === "OPEN" ? "success" : "warning"}>
+              <span
+                className={
+                  activeSession.status === "OPEN"
+                    ? "h-1.5 w-1.5 animate-pulse rounded-full bg-success"
+                    : "h-1.5 w-1.5 rounded-full bg-warning"
+                }
+              />
+              {activeSession.terminalId} · {activeSession.status}
+            </Badge>
+
+            {canCloseSession && (
+              <Button
+                variant="outline"
+                size="xs"
+                className="text-destructive hover:bg-destructive-soft hover:text-destructive"
+                onClick={() => {
+                  setClosingCash(String(activeSession.openingCash || 0));
+                  setShowCloseModal(true);
+                }}
+              >
+                Close register
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs text-muted-foreground">
+              Multi-User Mode
+            </Badge>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Render Billing Desk Tab
+  if (activeTab === "billing") {
+    return (
+      <AppShell fullBleed>
+        <div className="flex flex-col lg:h-[calc(100vh-3.5rem)]">
+          {renderTopNavBar()}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <BillingDesk branchId={effectiveBranchId} warehouseId={effectiveWarehouseId} />
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // Render Cashier Counter Tab
+  if (activeTab === "cashier") {
+    return (
+      <AppShell fullBleed>
+        <div className="flex flex-col lg:h-[calc(100vh-3.5rem)]">
+          {renderTopNavBar()}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <CashierCounter
+              branchId={effectiveBranchId}
+              warehouseId={effectiveWarehouseId}
+              activeSession={activeSession}
+            />
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // REGISTER TAB: Check if terminal has an active session OR active salesperson setup
+  const isTerminalReady = Boolean(activeSession || salespersonTerminalActive);
+
+  if (!isTerminalReady) {
+    return (
+      <AppShell fullBleed>
+        <div className="flex flex-col min-h-[calc(100vh-3.5rem)]">
+          {renderTopNavBar()}
+
+          <div className="mx-auto w-full max-w-lg py-6 sm:py-10 px-4">
+            <div className="panel overflow-hidden shadow-sm">
+              <div className="border-b bg-surface-2/60 px-6 py-6 sm:px-8">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                  <Calculator className="h-5 w-5" />
+                </div>
+                <h1 className="text-xl font-semibold tracking-tight">Sales Register Setup</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Select your dispatch branch and warehouse to start scanning products and building
+                  customer orders.
+                </p>
+              </div>
+
+              <div className="space-y-5 px-6 py-6 sm:px-8">
+                {/* Branch Selection */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label>Branch</Label>
+                    {isBranchesLoading && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        Loading branches…
                       </span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="self-start text-xs border-destructive/30 hover:bg-destructive/10"
-                      onClick={() => refetchBranches()}
-                    >
-                      <RotateCcw className="mr-1.5 h-3 w-3" />
-                      Retry loading branches
-                    </Button>
+                    )}
                   </div>
-                ) : (
-                  <>
+
+                  {isBranchesError ? (
+                    <div
+                      role="alert"
+                      className="flex flex-col gap-2 rounded-md border border-destructive/20 bg-destructive-soft p-3 text-[13px] text-destructive"
+                    >
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span className="flex-1">
+                          {(branchesError as any)?.message || "Failed to load branches."}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="self-start text-xs border-destructive/30 hover:bg-destructive/10"
+                        onClick={() => refetchBranches()}
+                      >
+                        <RotateCcw className="mr-1.5 h-3 w-3" />
+                        Retry loading branches
+                      </Button>
+                    </div>
+                  ) : (
                     <Select
                       value={openSessionBranchId}
                       onValueChange={(val) => {
                         setOpenSessionBranchId(val);
                         if (openSessionWarehouseId) {
                           const isStillValid = warehouses.some(
-                            (w) => w.id === openSessionWarehouseId && (!w.branchId || w.branchId === val),
+                            (w) =>
+                              w.id === openSessionWarehouseId && (!w.branchId || w.branchId === val),
                           );
                           if (!isStillValid) {
                             setOpenSessionWarehouseId("");
@@ -701,7 +967,6 @@ function POSRegisterPage() {
                         }
                       }}
                       disabled={isBranchesLoading || branches.length === 0}
-                      required
                     >
                       <SelectTrigger className="h-10">
                         <SelectValue
@@ -722,62 +987,44 @@ function POSRegisterPage() {
                         ))}
                       </SelectContent>
                     </Select>
-
-                    {!isBranchesLoading && branches.length === 0 && (
-                      <div className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">
-                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                        <div className="flex-1">
-                          <p>No branches found for this organization. Create a branch first.</p>
-                          <Button
-                            asChild
-                            variant="link"
-                            size="sm"
-                            className="h-auto p-0 text-xs font-medium text-amber-800 dark:text-amber-300 underline mt-1"
-                          >
-                            <Link to="/branches">Go to Branch Management →</Link>
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label>Warehouse / dispatched from</Label>
-                  {isWarehousesLoading && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                      Loading warehouses…
-                    </span>
                   )}
                 </div>
 
-                {isWarehousesError ? (
-                  <div
-                    role="alert"
-                    className="flex flex-col gap-2 rounded-md border border-destructive/20 bg-destructive-soft p-3 text-[13px] text-destructive"
-                  >
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span className="flex-1">
-                        {(warehousesError as any)?.message || "Failed to load warehouses."}
+                {/* Warehouse Selection */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label>Warehouse / Dispatched From</Label>
+                    {isWarehousesLoading && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        Loading warehouses…
                       </span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="self-start text-xs border-destructive/30 hover:bg-destructive/10"
-                      onClick={() => refetchWarehouses()}
-                    >
-                      <RotateCcw className="mr-1.5 h-3 w-3" />
-                      Retry loading warehouses
-                    </Button>
+                    )}
                   </div>
-                ) : (
-                  <>
+
+                  {isWarehousesError ? (
+                    <div
+                      role="alert"
+                      className="flex flex-col gap-2 rounded-md border border-destructive/20 bg-destructive-soft p-3 text-[13px] text-destructive"
+                    >
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span className="flex-1">
+                          {(warehousesError as any)?.message || "Failed to load warehouses."}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="self-start text-xs border-destructive/30 hover:bg-destructive/10"
+                        onClick={() => refetchWarehouses()}
+                      >
+                        <RotateCcw className="mr-1.5 h-3 w-3" />
+                        Retry loading warehouses
+                      </Button>
+                    </div>
+                  ) : (
                     <Select
                       value={openSessionWarehouseId}
                       onValueChange={setOpenSessionWarehouseId}
@@ -786,7 +1033,6 @@ function POSRegisterPage() {
                         !openSessionBranchId ||
                         availableWarehouses.length === 0
                       }
-                      required
                     >
                       <SelectTrigger className="h-10">
                         <SelectValue
@@ -811,92 +1057,106 @@ function POSRegisterPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  )}
+                </div>
 
-                    {!isWarehousesLoading && warehouses.length === 0 && (
-                      <div className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">
-                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                        <div className="flex-1">
-                          <p>
-                            No warehouses found for this organization. Create a warehouse in Organization/Warehouse Management first.
-                          </p>
-                          <Button
-                            asChild
-                            variant="link"
-                            size="sm"
-                            className="h-auto p-0 text-xs font-medium text-amber-800 dark:text-amber-300 underline mt-1"
-                          >
-                            <Link to="/warehouses">Go to Warehouse Management →</Link>
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {!isWarehousesLoading && warehouses.length > 0 && openSessionBranchId && availableWarehouses.length === 0 && (
-                      <div className="flex items-start gap-2 rounded-md border border-muted bg-surface-2/60 p-2.5 text-[12px] text-muted-foreground">
-                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                        <span>
-                          No warehouses found for this branch. Please assign a warehouse to this branch in Warehouse Management or select another branch.
-                        </span>
-                      </div>
-                    )}
-                  </>
+                {/* Cash Drawer Float & Terminal ID (For users with pos.session / cashiers) */}
+                {canOpenSession && (
+                  <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t">
+                    <div className="space-y-1.5">
+                      <Label>Terminal ID</Label>
+                      <Input
+                        value={openSessionTerminalId}
+                        onChange={(e) => setOpenSessionTerminalId(e.target.value)}
+                        className="h-10 font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Cash Float (₹)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={openSessionOpeningCash}
+                        onChange={(e) => setOpenSessionOpeningCash(e.target.value)}
+                        className="tabular h-10"
+                      />
+                    </div>
+                  </div>
                 )}
-              </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label>Terminal / register ID</Label>
-                  <Input
-                    value={openSessionTerminalId}
-                    onChange={(e) => setOpenSessionTerminalId(e.target.value)}
-                    className="h-10 font-mono"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Opening cash float (₹)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={openSessionOpeningCash}
-                    onChange={(e) => setOpenSessionOpeningCash(e.target.value)}
-                    className="tabular h-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              {openSessionMutation.isError && (
-                <div
-                  role="alert"
-                  className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive-soft p-3 text-[13px] text-destructive"
-                >
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  {(openSessionMutation.error as any)?.message || "Failed to open POS session"}
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full"
-                disabled={
-                  !openSessionBranchId ||
-                  !openSessionWarehouseId ||
-                  !canOpenSession ||
-                  openSessionMutation.isPending
-                }
-              >
-                {openSessionMutation.isPending ? (
-                  <>
-                    <RefreshCw className="animate-spin" />
-                    Opening register…
-                  </>
-                ) : (
-                  "Open register & start selling"
+                {openSessionMutation.isError && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive-soft p-3 text-[13px] text-destructive"
+                  >
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    {(openSessionMutation.error as any)?.message || "Failed to open POS session"}
+                  </div>
                 )}
-              </Button>
-            </form>
+
+                <div className="space-y-3 pt-2">
+                  {/* Action 1: Floor Salesperson Terminal (No cash drawer required) */}
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="w-full text-sm font-semibold"
+                    disabled={!openSessionBranchId || !openSessionWarehouseId}
+                    onClick={() => {
+                      setSalespersonTerminalActive(true);
+                      if (!activeCartId) {
+                        createCartMutation.mutate(
+                          {
+                            branchId: openSessionBranchId,
+                            warehouseId: openSessionWarehouseId,
+                          },
+                          {
+                            onSuccess: (newCart) => setActiveCartId(newCart.id),
+                          },
+                        );
+                      }
+                    }}
+                  >
+                    <ShoppingBag className="mr-2 h-4 w-4" />
+                    Start Salesperson Terminal
+                  </Button>
+
+                  {/* Action 2: Open Register Session (With Cash Drawer & Float) */}
+                  {canOpenSession && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      className="w-full text-sm font-medium"
+                      disabled={
+                        !openSessionBranchId ||
+                        !openSessionWarehouseId ||
+                        openSessionMutation.isPending
+                      }
+                      onClick={() => {
+                        openSessionMutation.mutate({
+                          branchId: openSessionBranchId,
+                          warehouseId: openSessionWarehouseId,
+                          terminalId: openSessionTerminalId,
+                          openingCash: Number(openSessionOpeningCash),
+                        });
+                      }}
+                    >
+                      {openSessionMutation.isPending ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Opening Cash Register…
+                        </>
+                      ) : (
+                        <>
+                          <Calculator className="mr-2 h-4 w-4" />
+                          Open Cash Register & Float
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </AppShell>
@@ -904,105 +1164,97 @@ function POSRegisterPage() {
   }
 
   const cartItems = activeCart?.items ?? [];
-  // Quantities can arrive as decimal strings from the API.
   const cartCount = cartItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
   const money = (n: unknown) =>
     `₹${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  // ACTIVE SESSION UI
+  // MAIN ACTIVE REGISTER / SALESPERSON TERMINAL UI
   return (
     <AppShell fullBleed>
       <div className="flex flex-col lg:h-[calc(100vh-3.5rem)]">
-        {/* SESSION BAR */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-surface px-4 py-2.5 sm:px-6">
+        {renderTopNavBar()}
+
+        {/* TERMINAL STATUS & ACTIONS BAR */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-surface-2/40 px-4 py-2 sm:px-6">
           <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary-soft text-primary">
-                <Calculator className="h-4 w-4" />
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary-soft text-primary">
+                <Calculator className="h-3.5 w-3.5" />
               </span>
-              <span className="text-sm font-semibold">{activeSession.terminalId}</span>
-              <Badge variant={activeSession.status === "OPEN" ? "success" : "warning"}>
-                <span
-                  className={
-                    activeSession.status === "OPEN"
-                      ? "h-1.5 w-1.5 animate-pulse rounded-full bg-success"
-                      : "h-1.5 w-1.5 rounded-full bg-warning"
-                  }
-                />
-                {activeSession.status}
+              <span className="text-xs font-semibold">
+                {activeSession ? activeSession.terminalId : "Floor Terminal"}
+              </span>
+              <Badge variant={activeSession ? "success" : "neutral"} className="text-[11px]">
+                {activeSession ? "Register Active" : "Floor Salesperson"}
               </Badge>
             </div>
+
             <div className="hidden items-center gap-3 text-xs text-muted-foreground md:flex">
               <span className="flex items-center gap-1">
                 <Building2 className="h-3.5 w-3.5" />
-                {activeSession.branch?.name}
+                {branches.find((b) => b.id === effectiveBranchId)?.name || "Branch"}
               </span>
               <span className="flex items-center gap-1">
                 <Warehouse className="h-3.5 w-3.5" />
-                {activeSession.warehouse?.name}
+                {warehouses.find((w) => w.id === effectiveWarehouseId)?.name || "Warehouse"}
               </span>
               <span className="flex items-center gap-1">
                 <User className="h-3.5 w-3.5" />
-                <span>Cashier:</span>
+                <span>Salesperson:</span>
                 <span className="font-semibold text-foreground">{cashierName}</span>
               </span>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            <PageGuideButton id="pos" />
-            {activeSession.status === "OPEN" ? (
+            {activeSession && activeSession.status === "OPEN" ? (
               <Button
                 variant="ghost"
-                size="sm"
+                size="xs"
                 onClick={() => suspendSessionMutation.mutate(activeSession.id)}
                 disabled={suspendSessionMutation.isPending}
               >
                 <PauseCircle />
                 Suspend
               </Button>
-            ) : (
+            ) : activeSession ? (
               <Button
                 variant="ghost"
-                size="sm"
+                size="xs"
                 onClick={() => resumeSessionMutation.mutate(activeSession.id)}
                 disabled={resumeSessionMutation.isPending}
               >
                 <Play className="text-success" />
                 Resume
               </Button>
-            )}
+            ) : null}
 
-            <Button variant="ghost" size="sm" onClick={() => setShowHeldModal(true)}>
+            <Button variant="ghost" size="xs" onClick={() => setShowHeldModal(true)}>
               <PauseCircle />
               Held sales
             </Button>
 
             {canRefund && (
-              <Button variant="ghost" size="sm" onClick={() => setShowRefundModal(true)}>
+              <Button variant="ghost" size="xs" onClick={() => setShowRefundModal(true)}>
                 <RotateCcw />
                 Refunds
               </Button>
             )}
 
-            {canCloseSession && (
+            {!activeSession && (
               <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive hover:bg-destructive-soft hover:text-destructive"
-                onClick={() => {
-                  setClosingCash(String(activeSession.openingCash || 0));
-                  setShowCloseModal(true);
-                }}
+                variant="ghost"
+                size="xs"
+                onClick={() => setSalespersonTerminalActive(false)}
               >
-                Close register
+                Change branch
               </Button>
             )}
           </div>
         </div>
 
         {/* MAIN TWO-PANE REGISTER */}
-        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px]">
           {/* LEFT: SCAN + CATALOG */}
           <div className="flex min-h-0 flex-col gap-4 p-4 sm:p-6">
             <div className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
@@ -1012,7 +1264,7 @@ function POSRegisterPage() {
                   <Input
                     ref={barcodeRef}
                     type="text"
-                    placeholder="Scan or enter SKU…"
+                    placeholder="Scan or enter barcode / SKU…"
                     value={barcodeInput}
                     onChange={(e) => setBarcodeInput(e.target.value)}
                     className="h-11 pl-10 font-mono text-sm"
@@ -1117,34 +1369,45 @@ function POSRegisterPage() {
             </div>
           </div>
 
-          {/* RIGHT: CART & CHECKOUT */}
+          {/* RIGHT: CART & WORKFLOW ACTIONS */}
           <div
             id="pos-cart"
             className="flex min-h-[480px] flex-col border-t bg-surface lg:min-h-0 lg:border-l lg:border-t-0"
           >
+            {/* CART HEADER */}
             <div className="flex flex-col gap-2.5 border-b px-4 py-3 bg-surface">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="whitespace-nowrap text-sm font-semibold">Current order</span>
+                  <span className="whitespace-nowrap text-sm font-semibold">
+                    {activeCart?.cartNumber ? `Ticket #${activeCart.cartNumber}` : "Current order"}
+                  </span>
                   {cartItems.length > 0 && (
                     <Badge variant="brand" className="tabular">
                       {cartCount} {cartCount === 1 ? "item" : "items"}
                     </Badge>
                   )}
                 </div>
+
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-surface-2 px-2.5 py-1 rounded-md border border-border/60">
                   <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="shrink-0 font-medium">Cashier:</span>
+                  <span className="shrink-0 font-medium">Salesperson:</span>
                   <span className="font-semibold text-foreground truncate max-w-[120px]" title={cashierName}>
                     {cashierName}
                   </span>
                 </div>
               </div>
 
+              {/* CUSTOMER SELECTOR */}
               <div className="flex items-center gap-2">
                 <div className="flex-1 min-w-0">
-                  <Label htmlFor="pos-customer-select" className="sr-only">Select Customer</Label>
-                  <Select value={selectedCustomerId} onValueChange={(val) => setSelectedCustomerId(val)}>
+                  <Label htmlFor="pos-customer-select" className="sr-only">
+                    Select Customer
+                  </Label>
+                  <Select
+                    value={selectedCustomerId}
+                    onValueChange={(val) => setSelectedCustomerId(val)}
+                    disabled={isCartLocked}
+                  >
                     <SelectTrigger id="pos-customer-select" className="h-8 text-[13px] w-full">
                       <SelectValue placeholder="Walk-in Customer" />
                     </SelectTrigger>
@@ -1167,12 +1430,35 @@ function POSRegisterPage() {
                     resetAddCustomerForm();
                     setShowAddCustomerModal(true);
                   }}
+                  disabled={isCartLocked}
                 >
                   + New Customer
                 </Button>
               </div>
+
+              {/* LOCKED CART STATUS BANNER */}
+              {isCartLocked && activeCart && (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Lock className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <span className="font-medium truncate">
+                      Submitted ({activeCart.workflowStatus?.replace(/_/g, " ")}) — Order locked
+                    </span>
+                  </div>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    className="shrink-0 h-6 text-[11px] border-amber-500/40 bg-surface hover:bg-amber-500/20"
+                    onClick={handleStartNewCart}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Start Next Cart
+                  </Button>
+                </div>
+              )}
             </div>
 
+            {/* CART ITEMS LIST */}
             <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
               {cartItems.length === 0 ? (
                 <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 px-6 text-center">
@@ -1204,11 +1490,13 @@ function POSRegisterPage() {
                         </div>
                       </div>
 
+                      {/* Quantity Controls (Disabled when locked) */}
                       <div className="flex items-center rounded-md border bg-surface shadow-xs">
                         <button
                           type="button"
                           aria-label="Decrease quantity"
-                          className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                          disabled={isCartLocked}
+                          className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
                           onClick={() =>
                             item.quantity > 1
                               ? updateItemMutation.mutate({
@@ -1230,7 +1518,8 @@ function POSRegisterPage() {
                         <button
                           type="button"
                           aria-label="Increase quantity"
-                          className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                          disabled={isCartLocked}
+                          className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
                           onClick={() =>
                             updateItemMutation.mutate({
                               cartId: activeCart!.id,
@@ -1250,7 +1539,8 @@ function POSRegisterPage() {
                       <button
                         type="button"
                         aria-label={`Remove ${item.product?.name ?? "item"}`}
-                        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive-soft hover:text-destructive"
+                        disabled={isCartLocked}
+                        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive-soft hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed"
                         onClick={() =>
                           removeItemMutation.mutate({ cartId: activeCart!.id, itemId: item.id })
                         }
@@ -1263,6 +1553,7 @@ function POSRegisterPage() {
               )}
             </div>
 
+            {/* CART FOOTER & ACTIONS */}
             <div className="space-y-3 border-t bg-surface-2/40 px-4 py-4">
               <dl className="tabular space-y-1.5 text-[13px]">
                 <div className="flex justify-between">
@@ -1278,6 +1569,7 @@ function POSRegisterPage() {
                   <dd>{money(activeCart?.taxAmount)}</dd>
                 </div>
               </dl>
+
               <div className="flex items-end justify-between border-t pt-3">
                 <span className="text-sm font-medium">Total</span>
                 <span className="tabular font-display text-2xl font-semibold tracking-tight">
@@ -1285,32 +1577,82 @@ function POSRegisterPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              {/* ACTION BUTTONS: DRAFT VS LOCKED */}
+              {isCartLocked ? (
                 <Button
-                  variant="outline"
-                  onClick={() => activeCartId && holdCartMutation.mutate({ cartId: activeCartId })}
-                  disabled={!activeCart?.items.length || holdCartMutation.isPending}
+                  size="lg"
+                  className="h-12 w-full text-base font-semibold"
+                  onClick={handleStartNewCart}
                 >
-                  <PauseCircle />
-                  Hold
+                  <Plus className="mr-2 h-4 w-4" />
+                  Start Next Cart
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => activeCartId && clearCartMutation.mutate(activeCartId)}
-                  disabled={!activeCart?.items.length}
-                >
-                  <X />
-                  Clear
-                </Button>
-              </div>
-              <Button
-                size="lg"
-                className="h-12 w-full text-base"
-                onClick={handleOpenCheckout}
-                disabled={!activeCart?.items.length || !canCheckout}
-              >
-                Charge {money(activeCart?.totalAmount)}
-              </Button>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => activeCartId && holdCartMutation.mutate({ cartId: activeCartId })}
+                      disabled={!activeCart?.items.length || holdCartMutation.isPending}
+                    >
+                      <PauseCircle className="mr-1.5 h-4 w-4" />
+                      Hold
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => activeCartId && clearCartMutation.mutate(activeCartId)}
+                      disabled={!activeCart?.items.length}
+                    >
+                      <X className="mr-1.5 h-4 w-4" />
+                      Clear
+                    </Button>
+                  </div>
+
+                  {/* Dual Mode: Single-user Checkout vs Multi-user Send to Billing */}
+                  {canCheckout ? (
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        size="lg"
+                        className="h-11 w-full text-base font-semibold"
+                        onClick={handleOpenCheckout}
+                        disabled={!activeCart?.items.length}
+                      >
+                        Charge {money(activeCart?.totalAmount)}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="default"
+                        className="h-10 w-full text-sm font-medium border"
+                        onClick={() => setShowSendToBillingModal(true)}
+                        disabled={!activeCart?.items.length || sendToBillingMutation.isPending}
+                      >
+                        <Send className="mr-2 h-4 w-4 text-primary" />
+                        Send to Billing Desk
+                      </Button>
+                    </div>
+                  ) : (
+                    /* Pure Salesperson Terminal Action: Send to Billing */
+                    <Button
+                      size="lg"
+                      className="h-12 w-full text-base font-semibold"
+                      onClick={() => setShowSendToBillingModal(true)}
+                      disabled={!activeCart?.items.length || sendToBillingMutation.isPending}
+                    >
+                      {sendToBillingMutation.isPending ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting Ticket…
+                        </>
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-4 w-4" />
+                          Send to Billing ({money(activeCart?.totalAmount)})
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1327,7 +1669,147 @@ function POSRegisterPage() {
           </div>
         )}
 
-        {/* CHECKOUT MODAL */}
+        {/* SEND TO BILLING DIALOG */}
+        <Dialog open={showSendToBillingModal} onOpenChange={setShowSendToBillingModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Send Order to Billing Desk</DialogTitle>
+              <DialogDescription>
+                Submit this cart to the billing queue. An assigned ticket number will be generated
+                for customer tracking.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg border bg-surface-2/60 p-3 space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Items in cart:</span>
+                  <span className="font-medium">{cartCount} items</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Customer:</span>
+                  <span className="font-medium">
+                    {selectedCustomerId === "walkin"
+                      ? "Walk-in Customer"
+                      : customers.find((c) => c.id === selectedCustomerId)?.name ||
+                        "Walk-in Customer"}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t pt-1.5 font-semibold text-base">
+                  <span>Estimated Total:</span>
+                  <span className="text-foreground">{money(activeCart?.totalAmount)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="send-to-billing-notes">Salesperson remarks (optional)</Label>
+                <Input
+                  id="send-to-billing-notes"
+                  placeholder="e.g., Requested gift packing, corporate tax invoice"
+                  value={sendToBillingNotes}
+                  onChange={(e) => setSendToBillingNotes(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setShowSendToBillingModal(false)}
+                disabled={sendToBillingMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmSendToBilling}
+                disabled={sendToBillingMutation.isPending}
+              >
+                {sendToBillingMutation.isPending ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting…
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Confirm & Send to Billing
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* TICKET CONFIRMATION MODAL */}
+        <Dialog
+          open={Boolean(ticketConfirmation)}
+          onOpenChange={(open) => {
+            if (!open) setTicketConfirmation(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-md text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success">
+              <CheckCircle2 className="h-7 w-7" />
+            </div>
+
+            <DialogHeader className="text-center sm:text-center">
+              <DialogTitle className="text-xl">Ticket Queued for Billing</DialogTitle>
+              <DialogDescription>
+                The cart has been successfully transferred to the Billing Desk queue.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="my-2 rounded-xl border bg-surface-2/60 p-4 text-left">
+              <div className="flex items-center justify-between pb-3 border-b">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                  Ticket Number
+                </span>
+                <span className="font-mono text-xl font-bold text-primary">
+                  {ticketConfirmation?.ticketNumber}
+                </span>
+              </div>
+
+              <div className="space-y-1.5 pt-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Customer</span>
+                  <span className="font-medium">
+                    {ticketConfirmation?.customerName || "Walk-in Customer"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Line items</span>
+                  <span className="font-medium">{ticketConfirmation?.itemCount} items</span>
+                </div>
+                <div className="flex justify-between font-semibold text-base pt-2 border-t">
+                  <span>Total Amount</span>
+                  <span className="text-foreground">
+                    {money(ticketConfirmation?.totalAmount)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 rounded-lg bg-surface-2 p-3 text-xs text-muted-foreground text-left">
+              <Receipt className="h-4 w-4 shrink-0 text-primary" />
+              <span>
+                Please guide customer to the Billing Counter with Ticket #
+                <strong className="text-foreground font-mono">
+                  {ticketConfirmation?.ticketNumber}
+                </strong>
+                .
+              </span>
+            </div>
+
+            <DialogFooter className="mt-4 sm:justify-center">
+              <Button size="lg" className="w-full sm:w-auto min-w-[200px]" onClick={handleStartNewCart}>
+                <Plus className="mr-2 h-4 w-4" />
+                Start Next Cart
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* CHECKOUT MODAL (For single-user cashier checkout) */}
         <Dialog open={showCheckoutModal} onOpenChange={setShowCheckoutModal}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -1340,7 +1822,7 @@ function POSRegisterPage() {
             <div className="space-y-5 py-1 text-sm">
               <div className="tabular rounded-lg border bg-surface-2/60 p-4 space-y-1.5">
                 <div className="flex justify-between text-[13px] text-muted-foreground">
-                  <span>Cashier</span>
+                  <span>Staff</span>
                   <span className="font-medium text-foreground">{cashierName}</span>
                 </div>
                 <div className="flex justify-between text-[13px] text-muted-foreground">
@@ -1348,7 +1830,8 @@ function POSRegisterPage() {
                   <span className="font-medium text-foreground">
                     {selectedCustomerId === "walkin"
                       ? "Walk-in Customer"
-                      : customers.find((c) => c.id === selectedCustomerId)?.name || "Walk-in Customer"}
+                      : customers.find((c) => c.id === selectedCustomerId)?.name ||
+                        "Walk-in Customer"}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px] text-muted-foreground pt-1 border-t">
@@ -1538,7 +2021,7 @@ function POSRegisterPage() {
 
             <div className="tabular space-y-2 rounded-lg border bg-surface-2/60 p-4 text-[13px]">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Cashier</span>
+                <span className="text-muted-foreground">Staff</span>
                 <span className="font-medium">
                   {completedSale?.sale.cashier
                     ? `${completedSale.sale.cashier.firstName} ${completedSale.sale.cashier.lastName}`
@@ -1694,7 +2177,6 @@ function POSRegisterPage() {
                 )}
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {/* 1. Customer Name */}
                   <div className="space-y-1.5">
                     <Label htmlFor="pos-quick-customer-name">
                       Customer Name <span className="text-destructive">*</span>
@@ -1712,7 +2194,6 @@ function POSRegisterPage() {
                     />
                   </div>
 
-                  {/* 2. Customer Code */}
                   <div className="space-y-1.5">
                     <Label htmlFor="pos-quick-customer-code">
                       Customer Code <span className="text-destructive">*</span>
@@ -1725,7 +2206,6 @@ function POSRegisterPage() {
                     />
                   </div>
 
-                  {/* 3. Email */}
                   <div className="space-y-1.5">
                     <Label htmlFor="pos-quick-customer-email">Email</Label>
                     <Input
@@ -1737,7 +2217,6 @@ function POSRegisterPage() {
                     />
                   </div>
 
-                  {/* 4. Phone Number */}
                   <div className="space-y-1.5">
                     <Label htmlFor="pos-quick-customer-phone">Phone Number</Label>
                     <Input
@@ -1749,7 +2228,6 @@ function POSRegisterPage() {
                     />
                   </div>
 
-                  {/* 5. Credit Limit */}
                   <div className="space-y-1.5">
                     <Label htmlFor="pos-quick-customer-credit-limit">Credit Limit (₹)</Label>
                     <Input
@@ -1762,7 +2240,6 @@ function POSRegisterPage() {
                     />
                   </div>
 
-                  {/* 6. Payment Terms */}
                   <div className="space-y-1.5">
                     <Label htmlFor="pos-quick-customer-payment-terms">Payment Terms</Label>
                     <Input
@@ -1773,7 +2250,6 @@ function POSRegisterPage() {
                     />
                   </div>
 
-                  {/* 7. Tax ID / GSTIN */}
                   <div className="space-y-1.5">
                     <Label htmlFor="pos-quick-customer-tax-id">Tax ID / GSTIN</Label>
                     <Input
@@ -1784,7 +2260,6 @@ function POSRegisterPage() {
                     />
                   </div>
 
-                  {/* 8. City */}
                   <div className="space-y-1.5">
                     <Label htmlFor="pos-quick-customer-city">City</Label>
                     <Input
@@ -1795,14 +2270,13 @@ function POSRegisterPage() {
                     />
                   </div>
 
-                  {/* 9. Cashier Name */}
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label htmlFor="pos-quick-cashier-name">
-                      Cashier Name <span className="text-destructive">*</span>
+                      Staff / Cashier Name <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       id="pos-quick-cashier-name"
-                      placeholder="Enter cashier name"
+                      placeholder="Enter staff name"
                       value={manualCashierName}
                       onChange={(e) => {
                         setManualCashierName(e.target.value);

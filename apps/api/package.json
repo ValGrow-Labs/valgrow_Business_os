@@ -9,8 +9,12 @@
     "start": "nest start",
     "dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
     "seed": "ts-node src/seed/seed.ts",
+    "seed:pos-users": "ts-node src/seed/seed-pos-users.ts",
+    "verify:pos-users": "ts-node src/seed/verify-pos-users.ts",
+    "set-password": "ts-node src/seed/set-user-password.ts",
+    "seed:prod": "node dist/src/seed/seed.js",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "typecheck": "tsc --noEmit"

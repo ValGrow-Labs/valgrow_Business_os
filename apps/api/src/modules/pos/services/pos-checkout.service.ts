@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { JournalEntriesService } from "../../journal-entries/journal-entries.service";
@@ -130,7 +131,7 @@ export class PosCheckoutService {
 
       // 2. Validate POS Cart & Items
       const cart = await tx.pOSCart.findFirst({
-        where: { id: dto.cartId, organizationId, sessionId: dto.sessionId },
+        where: { id: dto.cartId, organizationId },
         include: {
           items: {
             include: { product: true, variant: true },
@@ -139,11 +140,54 @@ export class PosCheckoutService {
         },
       });
       if (!cart) throw new NotFoundException("POS Cart not found");
+      if (cart.branchId !== session.branchId) {
+        throw new BadRequestException(
+          "Cart branch does not match POS session branch",
+        );
+      }
       if (cart.status !== "ACTIVE" && cart.status !== "HELD") {
         throw new BadRequestException(`Cannot checkout a ${cart.status} cart`);
       }
+      if (cart.workflowStatus === "PAID") {
+        throw new BadRequestException(
+          "POS Cart has already been paid and completed",
+        );
+      }
+      if (cart.workflowStatus === "CANCELLED") {
+        throw new BadRequestException("Cannot checkout a cancelled POS Cart");
+      }
+      if (
+        cart.workflowStatus === "SENT_TO_BILLING" ||
+        cart.workflowStatus === "BILLING_IN_PROGRESS" ||
+        cart.workflowStatus === "READY_FOR_PAYMENT"
+      ) {
+        throw new BadRequestException(
+          `Cannot checkout cart in status '${cart.workflowStatus}'. Bill must be claimed by cashier first.`,
+        );
+      }
       if (!cart.items || cart.items.length === 0) {
         throw new BadRequestException("POS Cart is empty");
+      }
+
+      // Atomic lock & status update: prevents concurrent duplicate checkout on the same cart
+      const previousWorkflowStatus = cart.workflowStatus;
+      const statusUpdate = await tx.pOSCart.updateMany({
+        where: {
+          id: dto.cartId,
+          organizationId,
+          workflowStatus: { in: ["DRAFT", "PAYMENT_IN_PROGRESS"] },
+        },
+        data: {
+          workflowStatus: "PAID",
+          status: "COMPLETED",
+          cashierId,
+        },
+      });
+
+      if (statusUpdate.count === 0) {
+        throw new ConflictException(
+          "Cart is no longer available for payment or has already been completed by another checkout transaction.",
+        );
       }
 
       const customerId = dto.customerId || cart.customerId;
@@ -523,10 +567,16 @@ export class PosCheckoutService {
         },
       });
 
-      // 12. Update POSCart to COMPLETED
-      await tx.pOSCart.update({
-        where: { id: dto.cartId },
-        data: { status: "COMPLETED" },
+      // 12. Record Workflow Transition for Checkout
+      await tx.pOSWorkflowTransition.create({
+        data: {
+          organizationId,
+          cartId: dto.cartId,
+          fromStatus: previousWorkflowStatus,
+          toStatus: "PAID",
+          actorId: cashierId,
+          notes: `POS Checkout completed: ${receiptNumber}`,
+        },
       });
 
       // 13. Log Activity

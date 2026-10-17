@@ -72,6 +72,8 @@ export function usePOSCheckout() {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales-invoices"] });
       queryClient.invalidateQueries({ queryKey: ["customer-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["pos-payment-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["pos-billing-queue"] });
     },
   });
 }

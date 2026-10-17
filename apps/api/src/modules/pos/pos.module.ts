@@ -5,6 +5,7 @@ import { PosProductSearchService } from "./services/pos-product-search.service";
 import { PosCartService } from "./services/pos-cart.service";
 import { PosCheckoutService } from "./services/pos-checkout.service";
 import { PosRefundService } from "./services/pos-refund.service";
+import { PosWorkflowService } from "./services/pos-workflow.service";
 import { SalesReturnsModule } from "../sales-returns/sales-returns.module";
 import { JournalEntriesModule } from "../journal-entries/journal-entries.module";
 import { DocumentsModule } from "../documents/documents.module";
@@ -18,6 +19,7 @@ import { DocumentsModule } from "../documents/documents.module";
     PosCartService,
     PosCheckoutService,
     PosRefundService,
+    PosWorkflowService,
   ],
   exports: [
     PosSessionService,
@@ -25,6 +27,7 @@ import { DocumentsModule } from "../documents/documents.module";
     PosCartService,
     PosCheckoutService,
     PosRefundService,
+    PosWorkflowService,
   ],
 })
 export class PosModule {}

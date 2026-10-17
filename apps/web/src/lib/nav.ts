@@ -70,6 +70,8 @@ export const navGroups: NavGroup[] = [
     label: "OPERATIONS",
     items: [
       { title: "POS", url: "/pos", icon: ShoppingBag },
+      { title: "Billing Desk", url: "/pos-billing", icon: Receipt },
+      { title: "Cashier Counter", url: "/pos-cashier", icon: CreditCard },
       { title: "Products", url: "/products", icon: Package },
       { title: "Inventory", url: "/inventory", icon: Boxes },
       { title: "Purchasing", url: "/purchasing", icon: ShoppingCart },

@@ -43,3 +43,7 @@ dist-ssr
 
 # Scratch & temporary development scripts
 scratch/
+
+# Database dumps & backups
+backups/
+*.dump

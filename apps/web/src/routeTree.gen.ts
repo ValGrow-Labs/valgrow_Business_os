@@ -55,6 +55,8 @@ import { Route as OrganizationRouteImport } from './routes/organization'
 import { Route as PermissionsRouteImport } from './routes/permissions'
 import { Route as PipelinesRouteImport } from './routes/pipelines'
 import { Route as PosRouteImport } from './routes/pos'
+import { Route as PosBillingRouteImport } from './routes/pos-billing'
+import { Route as PosCashierRouteImport } from './routes/pos-cashier'
 import { Route as PreferencesRouteImport } from './routes/preferences'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -322,6 +324,16 @@ const PosRoute = PosRouteImport.update({
   path: '/pos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PosBillingRoute = PosBillingRouteImport.update({
+  id: '/pos-billing',
+  path: '/pos-billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PosCashierRoute = PosCashierRouteImport.update({
+  id: '/pos-cashier',
+  path: '/pos-cashier',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PreferencesRoute = PreferencesRouteImport.update({
   id: '/preferences',
   path: '/preferences',
@@ -550,6 +562,8 @@ export interface FileRoutesByFullPath {
   '/permissions': typeof PermissionsRoute
   '/pipelines': typeof PipelinesRoute
   '/pos': typeof PosRoute
+  '/pos-billing': typeof PosBillingRoute
+  '/pos-cashier': typeof PosCashierRoute
   '/preferences': typeof PreferencesRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
@@ -634,6 +648,8 @@ export interface FileRoutesByTo {
   '/permissions': typeof PermissionsRoute
   '/pipelines': typeof PipelinesRoute
   '/pos': typeof PosRoute
+  '/pos-billing': typeof PosBillingRoute
+  '/pos-cashier': typeof PosCashierRoute
   '/preferences': typeof PreferencesRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
@@ -719,6 +735,8 @@ export interface FileRoutesById {
   '/permissions': typeof PermissionsRoute
   '/pipelines': typeof PipelinesRoute
   '/pos': typeof PosRoute
+  '/pos-billing': typeof PosBillingRoute
+  '/pos-cashier': typeof PosCashierRoute
   '/preferences': typeof PreferencesRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
@@ -805,6 +823,8 @@ export interface FileRouteTypes {
     | '/permissions'
     | '/pipelines'
     | '/pos'
+    | '/pos-billing'
+    | '/pos-cashier'
     | '/preferences'
     | '/products'
     | '/profile'
@@ -889,6 +909,8 @@ export interface FileRouteTypes {
     | '/permissions'
     | '/pipelines'
     | '/pos'
+    | '/pos-billing'
+    | '/pos-cashier'
     | '/preferences'
     | '/products'
     | '/profile'
@@ -973,6 +995,8 @@ export interface FileRouteTypes {
     | '/permissions'
     | '/pipelines'
     | '/pos'
+    | '/pos-billing'
+    | '/pos-cashier'
     | '/preferences'
     | '/products'
     | '/profile'
@@ -1058,6 +1082,8 @@ export interface RootRouteChildren {
   PermissionsRoute: typeof PermissionsRoute
   PipelinesRoute: typeof PipelinesRoute
   PosRoute: typeof PosRoute
+  PosBillingRoute: typeof PosBillingRoute
+  PosCashierRoute: typeof PosCashierRoute
   PreferencesRoute: typeof PreferencesRoute
   ProductsRoute: typeof ProductsRoute
   ProfileRoute: typeof ProfileRoute
@@ -1420,6 +1446,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pos-billing': {
+      id: '/pos-billing'
+      path: '/pos-billing'
+      fullPath: '/pos-billing'
+      preLoaderRoute: typeof PosBillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pos-cashier': {
+      id: '/pos-cashier'
+      path: '/pos-cashier'
+      fullPath: '/pos-cashier'
+      preLoaderRoute: typeof PosCashierRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/preferences': {
       id: '/preferences'
       path: '/preferences'
@@ -1722,6 +1762,8 @@ const rootRouteChildren: RootRouteChildren = {
   PermissionsRoute: PermissionsRoute,
   PipelinesRoute: PipelinesRoute,
   PosRoute: PosRoute,
+  PosBillingRoute: PosBillingRoute,
+  PosCashierRoute: PosCashierRoute,
   PreferencesRoute: PreferencesRoute,
   ProductsRoute: ProductsRoute,
   ProfileRoute: ProfileRoute,

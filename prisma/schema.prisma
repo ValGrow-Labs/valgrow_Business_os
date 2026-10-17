@@ -237,12 +237,13 @@ model Organization {
   salesReturnItems  SalesReturnItem[]
   salesCreditNotes  SalesCreditNote[]
 
-  posSessions  POSSession[]
-  posCarts     POSCart[]
-  posCartItems POSCartItem[]
-  posSales     POSSale[]
-  posPayments  POSPayment[]
-  cycleCounts  CycleCount[]
+  posSessions            POSSession[]
+  posCarts               POSCart[]
+  posCartItems           POSCartItem[]
+  posSales               POSSale[]
+  posPayments            POSPayment[]
+  posWorkflowTransitions POSWorkflowTransition[]
+  cycleCounts            CycleCount[]
 
   leadSources       LeadSource[]
   crmPipelines      CrmPipeline[]
@@ -308,7 +309,12 @@ model User {
   closedPOSSessions POSSession[] @relation("POSSessionCloser")
 
   stockMovements StockMovement[]
-  posSales          POSSale[]    @relation("POSCashier")
+  posSales               POSSale[]               @relation("POSCashier")
+  salespersonPOSCarts    POSCart[]               @relation("POSCartSalesperson")
+  billingPOSCarts        POSCart[]               @relation("POSCartBillingStaff")
+  cashierPOSCarts        POSCart[]               @relation("POSCartCashier")
+  cancelledPOSCarts      POSCart[]               @relation("POSCartCanceller")
+  posWorkflowTransitions POSWorkflowTransition[]
 
   assignedLeads         Lead[]        @relation("LeadAssignee")
   assignedOpportunities Opportunity[] @relation("OpportunityAssignee")
@@ -1953,6 +1959,16 @@ enum POSCartStatus {
   ABANDONED
 }
 
+enum POSTransactionStatus {
+  DRAFT
+  SENT_TO_BILLING
+  BILLING_IN_PROGRESS
+  READY_FOR_PAYMENT
+  PAYMENT_IN_PROGRESS
+  PAID
+  CANCELLED
+}
+
 enum POSSaleStatus {
   COMPLETED
   REFUNDED
@@ -2000,36 +2016,78 @@ model POSSession {
 }
 
 model POSCart {
-  id             String        @id @default(uuid())
-  organizationId String
-  branchId       String
-  warehouseId    String
-  sessionId      String
-  customerId     String?
-  subtotalAmount Decimal       @default(0) @db.Decimal(14, 4)
-  discountAmount Decimal       @default(0) @db.Decimal(14, 4)
-  taxAmount      Decimal       @default(0) @db.Decimal(14, 4)
-  totalAmount    Decimal       @default(0) @db.Decimal(14, 4)
-  notes          String?
-  status         POSCartStatus @default(ACTIVE)
+  id                 String               @id @default(uuid())
+  organizationId     String
+  branchId           String
+  warehouseId        String
+  sessionId          String?
+  customerId         String?
+  cartNumber         String?
+  workflowStatus     POSTransactionStatus @default(DRAFT)
+  salespersonId      String?
+  billingStaffId     String?
+  billingClaimedAt   DateTime?
+  cashierId          String?
+  paymentClaimedAt   DateTime?
+  cancellationReason String?
+  cancelledById      String?
+  cancelledAt        DateTime?
+  subtotalAmount     Decimal              @default(0) @db.Decimal(14, 4)
+  discountAmount     Decimal              @default(0) @db.Decimal(14, 4)
+  taxAmount          Decimal              @default(0) @db.Decimal(14, 4)
+  totalAmount        Decimal              @default(0) @db.Decimal(14, 4)
+  notes              String?
+  status             POSCartStatus        @default(ACTIVE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  branch       Branch        @relation(fields: [branchId], references: [id])
-  warehouse    Warehouse     @relation(fields: [warehouseId], references: [id])
-  session      POSSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  customer     Customer?     @relation(fields: [customerId], references: [id])
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch                  @relation(fields: [branchId], references: [id])
+  warehouse    Warehouse               @relation(fields: [warehouseId], references: [id])
+  session      POSSession?             @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  customer     Customer?               @relation(fields: [customerId], references: [id])
+  salesperson  User?                   @relation("POSCartSalesperson", fields: [salespersonId], references: [id])
+  billingStaff User?                   @relation("POSCartBillingStaff", fields: [billingStaffId], references: [id])
+  cashier      User?                   @relation("POSCartCashier", fields: [cashierId], references: [id])
+  cancelledBy  User?                   @relation("POSCartCanceller", fields: [cancelledById], references: [id])
   items        POSCartItem[]
   sales        POSSale[]
+  transitions  POSWorkflowTransition[]
 
+  @@unique([organizationId, cartNumber])
   @@index([organizationId])
   @@index([branchId])
   @@index([warehouseId])
   @@index([sessionId])
   @@index([customerId])
   @@index([status])
+  @@index([workflowStatus])
+  @@index([salespersonId])
+  @@index([billingStaffId])
+  @@index([cashierId])
+}
+
+model POSWorkflowTransition {
+  id             String               @id @default(uuid())
+  organizationId String
+  cartId         String
+  fromStatus     POSTransactionStatus
+  toStatus       POSTransactionStatus
+  actorId        String
+  notes          String?
+  metadata       Json?
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cart         POSCart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  actor        User         @relation(fields: [actorId], references: [id])
+
+  @@index([organizationId])
+  @@index([cartId])
+  @@index([actorId])
+  @@index([createdAt])
 }
 
 model POSCartItem {
