@@ -20,6 +20,7 @@ export interface CurrencySelectProps {
   className?: string;
   placeholder?: string;
   "aria-label"?: string;
+  modal?: boolean;
 }
 
 export function CurrencySelect({
@@ -30,12 +31,13 @@ export function CurrencySelect({
   className,
   placeholder = "Select currency",
   "aria-label": ariaLabel = "Select currency",
+  modal = true,
 }: CurrencySelectProps) {
   const [open, setOpen] = React.useState(false);
   const selectedCurrency = getCurrency(value);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={modal}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -59,6 +61,7 @@ export function CurrencySelect({
       <PopoverContent
         className="w-[320px] sm:w-[380px] max-w-[calc(100vw-2rem)] p-0 z-[70] shadow-xl border border-border"
         align="start"
+        onWheel={(e) => e.stopPropagation()}
       >
         <Command
           filter={(itemValue, search) => {
@@ -66,12 +69,16 @@ export function CurrencySelect({
             if (!search) return 1;
             return itemValue.includes(search.toLowerCase().trim()) ? 1 : 0;
           }}
+          onWheel={(e) => e.stopPropagation()}
         >
           <CommandInput
             placeholder="Search code, name, or symbol..."
             className="h-9 text-xs sm:text-sm"
           />
-          <CommandList className="max-h-60 sm:max-h-72 overflow-y-auto">
+          <CommandList
+            className="max-h-60 sm:max-h-72 overflow-y-auto overscroll-contain"
+            onWheel={(e) => e.stopPropagation()}
+          >
             <CommandEmpty className="py-6 text-center text-xs text-muted-foreground">
               No matching currency found.
             </CommandEmpty>
