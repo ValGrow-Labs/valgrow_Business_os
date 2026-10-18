@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListPage, StatusBadge, type ListRow } from "@/components/foundation/list-page";
 import type { Column } from "@/components/foundation/data-table";
 import { useQueryClient } from "@tanstack/react-query";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   usePurchaseOrders,
   useCreatePurchaseOrder,
@@ -18,6 +19,7 @@ import { useProducts, type ProductItem } from "@/hooks/queries/useProducts";
 import { useWarehouses } from "@/hooks/queries/useWarehouses";
 import { useTaxes } from "@/hooks/queries/useTaxes";
 import { CreateProductDialog } from "@/components/products/create-product-dialog";
+import { ProductPicker } from "@/components/products/product-picker";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -56,6 +58,7 @@ export interface POFormLineItem {
 
 function PurchaseOrdersPage() {
   const queryClient = useQueryClient();
+  const { currencyCode, currencySymbol, formatMoney } = useActiveCurrency();
   const { data: orders } = usePurchaseOrders();
   const { data: suppliers } = useSuppliers();
   const { data: purchaseRequests } = usePurchaseRequests();
@@ -65,6 +68,8 @@ function PurchaseOrdersPage() {
 
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
   const [createdProducts, setCreatedProducts] = useState<ProductItem[]>([]);
+  const [selectedProductObj, setSelectedProductObj] = useState<ProductItem | null>(null);
+  const [productDetailsMap, setProductDetailsMap] = useState<Record<string, ProductItem>>({});
 
   // Merge created products with queried products so newly created items are instantly selectable
   const allProducts = [
@@ -74,20 +79,28 @@ function PurchaseOrdersPage() {
   const productsList = allProducts;
   const activeProducts = productsList.filter((p: ProductItem) => p.status === "ACTIVE" || !p.status);
 
-  const handleProductCreated = (newProduct: ProductItem) => {
-    setCreatedProducts((prev) => [newProduct, ...prev]);
-    setSelectedProduct(newProduct.id);
+  const handleSelectProduct = (product: ProductItem) => {
+    setSelectedProduct(product.id);
+    setSelectedProductObj(product);
     setSelectedVariant("");
-    const cost = Number(newProduct.costPrice || 0);
+    setProductDetailsMap((prev) => ({ ...prev, [product.id]: product }));
+
+    const cost = Number(product.costPrice || 0);
     setUnitPrice(cost);
-    if (newProduct.tax?.rate !== undefined && newProduct.tax.rate !== null) {
-      setTaxRate(Number(newProduct.tax.rate));
-    } else if (newProduct.taxId) {
-      const matchedTax = taxes?.find((t) => t.id === newProduct.taxId);
+    if (product.tax?.rate !== undefined && product.tax.rate !== null) {
+      setTaxRate(Number(product.tax.rate));
+    } else if (product.taxId) {
+      const matchedTax = taxes?.find((t) => t.id === product.taxId);
       if (matchedTax) {
         setTaxRate(Number(matchedTax.rate));
       }
     }
+  };
+
+  const handleProductCreated = (newProduct: ProductItem) => {
+    setCreatedProducts((prev) => [newProduct, ...prev]);
+    setProductDetailsMap((prev) => ({ ...prev, [newProduct.id]: newProduct }));
+    handleSelectProduct(newProduct);
     queryClient.invalidateQueries({ queryKey: ["products"] });
     refetchProducts();
   };
@@ -118,8 +131,14 @@ function PurchaseOrdersPage() {
   const [prId, setPRId] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("NET30");
-  const [currency, setCurrency] = useState("INR");
+  const [currency, setCurrency] = useState(currencyCode || "INR");
   const [items, setItems] = useState<POFormLineItem[]>([]);
+
+  useEffect(() => {
+    if (currencyCode) {
+      setCurrency(currencyCode);
+    }
+  }, [currencyCode]);
 
   // Item Line State
   const [selectedProduct, setSelectedProduct] = useState("");
@@ -130,15 +149,43 @@ function PurchaseOrdersPage() {
 
   const handleAddItem = () => {
     if (!selectedProduct || qty <= 0 || unitPrice < 0) return;
-    const newItem: POFormLineItem = {
-      productId: selectedProduct,
-      ...(selectedVariant ? { variantId: selectedVariant } : {}),
-      orderedQty: Number(qty),
-      unitPrice: Number(unitPrice),
-      taxRate: Number(taxRate),
-    };
-    setItems((prev) => [...prev, newItem]);
+
+    // Check if product is already added as a line item
+    const existingIndex = items.findIndex(
+      (it) => it.productId === selectedProduct && (!selectedVariant || it.variantId === selectedVariant),
+    );
+
+    const existingItem = items[existingIndex];
+    if (existingIndex >= 0 && existingItem) {
+      const newQty = existingItem.orderedQty + Number(qty);
+      setItems((prev) =>
+        prev.map((it, idx) =>
+          idx === existingIndex
+            ? {
+                ...it,
+                orderedQty: newQty,
+                unitPrice: unitPrice > 0 ? Number(unitPrice) : it.unitPrice,
+                taxRate: Number(taxRate),
+              }
+            : it,
+        ),
+      );
+      toast.success(
+        `Updated quantity for ${selectedProductObj?.name || "product"} to ${newQty}`,
+      );
+    } else {
+      const newItem: POFormLineItem = {
+        productId: selectedProduct,
+        ...(selectedVariant ? { variantId: selectedVariant } : {}),
+        orderedQty: Number(qty),
+        unitPrice: Number(unitPrice),
+        taxRate: Number(taxRate),
+      };
+      setItems((prev) => [...prev, newItem]);
+    }
+
     setSelectedProduct("");
+    setSelectedProductObj(null);
     setSelectedVariant("");
     setQty(1);
     setUnitPrice(0);
@@ -254,7 +301,7 @@ function PurchaseOrdersPage() {
         warehouse: po.warehouse ? po.warehouse.name : "N/A",
         orderDate: new Date(po.orderDate).toLocaleDateString(),
         itemCount: String(po.items.length),
-        totalAmount: `₹${Number(po.totalAmount).toLocaleString("en-IN")}`,
+        totalAmount: formatMoney(po.totalAmount, po.currency || currencyCode),
         status: po.status,
       }))
     : [];
@@ -272,8 +319,6 @@ function PurchaseOrdersPage() {
       value: String(orders?.filter((o) => o.status === "RECEIVED").length || 0),
     },
   ];
-
-  const activeProduct = productsList.find((p: ProductItem) => p.id === selectedProduct);
 
   return (
     <>
@@ -366,41 +411,18 @@ function PurchaseOrdersPage() {
                     + Create New Product
                   </button>
                 </div>
-                <select
-                  className="w-full h-9 px-2 rounded border text-xs bg-background"
-                  value={selectedProduct}
-                  onChange={(e) => {
-                    const pId = e.target.value;
-                    if (pId === "__CREATE_NEW_PRODUCT__") {
-                      setIsCreateProductOpen(true);
-                      return;
-                    }
-                    setSelectedProduct(pId);
-                    setSelectedVariant("");
-                    const p = productsList.find((prod: ProductItem) => prod.id === pId);
-                    if (p) {
-                      setUnitPrice(Number(p.costPrice || 0));
-                      if (p.tax?.rate !== undefined && p.tax.rate !== null) {
-                        setTaxRate(Number(p.tax.rate));
-                      } else if (p.taxId) {
-                        const matchedTax = taxes?.find((t) => t.id === p.taxId);
-                        if (matchedTax) {
-                          setTaxRate(Number(matchedTax.rate));
-                        }
-                      }
-                    }
+                <ProductPicker
+                  id="po-product-picker"
+                  selectedProductId={selectedProduct}
+                  selectedProductDetails={selectedProductObj || productDetailsMap[selectedProduct]}
+                  onSelectProduct={handleSelectProduct}
+                  onClear={() => {
+                    setSelectedProduct("");
+                    setSelectedProductObj(null);
+                    setUnitPrice(0);
                   }}
-                >
-                  <option value="">Select Product</option>
-                  {activeProducts.map((p: ProductItem) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} {p.sku ? `(${p.sku})` : ""}
-                    </option>
-                  ))}
-                  <option value="__CREATE_NEW_PRODUCT__" className="font-semibold text-primary">
-                    + Create New Product
-                  </option>
-                </select>
+                  onCreateProductClick={() => setIsCreateProductOpen(true)}
+                />
               </div>
 
               <div>
@@ -415,7 +437,7 @@ function PurchaseOrdersPage() {
               </div>
 
               <div>
-                <Label className="text-xs">Unit Price (₹) *</Label>
+                <Label className="text-xs">Unit Price ({currencySymbol}) *</Label>
                 <Input
                   type="number"
                   min={0}
@@ -451,7 +473,9 @@ function PurchaseOrdersPage() {
             {/* Added Order Lines */}
             <div className="max-h-40 overflow-y-auto space-y-1">
               {items.map((it, idx) => {
-                const p = productsList.find((prod: ProductItem) => prod.id === it.productId);
+                const p =
+                  productDetailsMap[it.productId] ||
+                  productsList.find((prod: ProductItem) => prod.id === it.productId);
                 const sub = it.orderedQty * it.unitPrice;
                 const tax = (sub * it.taxRate) / 100;
                 return (
@@ -460,11 +484,14 @@ function PurchaseOrdersPage() {
                     className="flex justify-between items-center border rounded p-2 text-xs"
                   >
                     <div>
-                      <span className="font-medium">{p?.name}</span> • {it.orderedQty} x ₹
-                      {it.unitPrice} (+{it.taxRate}% GST)
+                      <span className="font-medium">{p ? p.name : "Product"}</span>
+                      {p?.sku && (
+                        <span className="text-muted-foreground ml-1 font-mono">({p.sku})</span>
+                      )}{" "}
+                      • {it.orderedQty} x {formatMoney(it.unitPrice)} (+{it.taxRate}% GST)
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="font-semibold">₹{(sub + tax).toLocaleString("en-IN")}</span>
+                      <span className="font-semibold">{formatMoney(sub + tax)}</span>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -585,11 +612,11 @@ function PurchaseOrdersPage() {
                               <td className="p-2.5 font-medium">{productName}</td>
                               <td className="p-2.5 text-right">{qtyVal}</td>
                               <td className="p-2.5 text-right">
-                                ₹{priceVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                {formatMoney(priceVal, selectedPO.currency || currencyCode)}
                               </td>
                               <td className="p-2.5 text-right">{taxRateVal}%</td>
                               <td className="p-2.5 text-right font-medium">
-                                ₹{lineTotalVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                {formatMoney(lineTotalVal, selectedPO.currency || currencyCode)}
                               </td>
                             </tr>
                           );
@@ -611,28 +638,19 @@ function PurchaseOrdersPage() {
                 <div className="flex justify-between w-48">
                   <span className="text-muted-foreground">Subtotal:</span>
                   <span>
-                    ₹
-                    {Number(selectedPO.subtotalAmount || 0).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
+                    {formatMoney(selectedPO.subtotalAmount || 0, selectedPO.currency || currencyCode)}
                   </span>
                 </div>
                 <div className="flex justify-between w-48">
                   <span className="text-muted-foreground">Tax Amount:</span>
                   <span>
-                    ₹
-                    {Number(selectedPO.taxAmount || 0).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
+                    {formatMoney(selectedPO.taxAmount || 0, selectedPO.currency || currencyCode)}
                   </span>
                 </div>
                 <div className="flex justify-between w-48 font-semibold text-sm border-t pt-1">
                   <span>Total Amount:</span>
                   <span>
-                    ₹
-                    {Number(selectedPO.totalAmount || 0).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
+                    {formatMoney(selectedPO.totalAmount || 0, selectedPO.currency || currencyCode)}
                   </span>
                 </div>
               </div>

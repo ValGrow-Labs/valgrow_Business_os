@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useTrialBalance, useProfitAndLoss, useBalanceSheet, useGeneralLedgerDetail } from "@/hooks/queries/useFinancialReports";
 import { useChartOfAccounts } from "@/hooks/queries/useChartOfAccounts";
 import { Scale, PieChart, FileSpreadsheet, ListTree, CheckCircle2, AlertCircle } from "lucide-react";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 
 export const Route = createFileRoute("/financial-reports")({
   head: () => ({
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/financial-reports")({
 });
 
 function FinancialReportsPage() {
+  const { currencyCode, currencySymbol, formatMoney } = useActiveCurrency();
   const { data: tbData, isLoading: tbLoading } = useTrialBalance();
   const { data: pnlData, isLoading: pnlLoading } = useProfitAndLoss();
   const { data: bsData } = useBalanceSheet();
@@ -76,8 +78,8 @@ function FinancialReportsPage() {
                       <th className="px-4 py-3">Account Code</th>
                       <th className="px-4 py-3">Account Name</th>
                       <th className="px-4 py-3">Type</th>
-                      <th className="px-4 py-3 text-right">Debit ₹</th>
-                      <th className="px-4 py-3 text-right">Credit ₹</th>
+                      <th className="px-4 py-3 text-right">Debit ({currencySymbol})</th>
+                      <th className="px-4 py-3 text-right">Credit ({currencySymbol})</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -102,10 +104,10 @@ function FinancialReportsPage() {
                             <Badge variant="outline">{row.account.accountType}</Badge>
                           </td>
                           <td className="px-4 py-3 text-right font-mono">
-                            {row.debit > 0 ? `₹${row.debit.toLocaleString("en-IN")}` : "-"}
+                            {row.debit > 0 ? formatMoney(row.debit, currencyCode) : "-"}
                           </td>
                           <td className="px-4 py-3 text-right font-mono">
-                            {row.credit > 0 ? `₹${row.credit.toLocaleString("en-IN")}` : "-"}
+                            {row.credit > 0 ? formatMoney(row.credit, currencyCode) : "-"}
                           </td>
                         </tr>
                       ))
@@ -114,8 +116,8 @@ function FinancialReportsPage() {
                   <tfoot className="border-t bg-muted/30 font-bold">
                     <tr>
                       <td colSpan={3} className="px-4 py-3 uppercase text-xs">Total Trial Balance</td>
-                      <td className="px-4 py-3 text-right font-mono">₹{tbData?.totals.totalDebit.toLocaleString("en-IN")}</td>
-                      <td className="px-4 py-3 text-right font-mono">₹{tbData?.totals.totalCredit.toLocaleString("en-IN")}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatMoney(tbData?.totals.totalDebit || 0, currencyCode)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatMoney(tbData?.totals.totalCredit || 0, currencyCode)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -139,12 +141,12 @@ function FinancialReportsPage() {
                     {pnlData?.revenue.items.map((i, idx) => (
                       <div key={idx} className="flex justify-between text-sm py-1">
                         <span>{i.accountCode} - {i.accountName}</span>
-                        <span className="font-mono">₹{i.amount.toLocaleString("en-IN")}</span>
+                        <span className="font-mono">{formatMoney(i.amount, currencyCode)}</span>
                       </div>
                     ))}
                     <div className="flex justify-between font-bold text-sm border-t pt-1">
                       <span>Total Revenue</span>
-                      <span className="font-mono">₹{pnlData?.revenue.total.toLocaleString("en-IN")}</span>
+                      <span className="font-mono">{formatMoney(pnlData?.revenue.total || 0, currencyCode)}</span>
                     </div>
                   </div>
 
@@ -153,18 +155,18 @@ function FinancialReportsPage() {
                     {pnlData?.cogs.items.map((i, idx) => (
                       <div key={idx} className="flex justify-between text-sm py-1">
                         <span>{i.accountCode} - {i.accountName}</span>
-                        <span className="font-mono">₹{i.amount.toLocaleString("en-IN")}</span>
+                        <span className="font-mono">{formatMoney(i.amount, currencyCode)}</span>
                       </div>
                     ))}
                     <div className="flex justify-between font-bold text-sm border-t pt-1">
                       <span>Total COGS</span>
-                      <span className="font-mono text-warning">₹{pnlData?.cogs.total.toLocaleString("en-IN")}</span>
+                      <span className="font-mono text-warning">{formatMoney(pnlData?.cogs.total || 0, currencyCode)}</span>
                     </div>
                   </div>
 
                   <div className="flex justify-between font-extrabold text-base bg-accent/20 p-3 rounded-md">
                     <span>GROSS PROFIT</span>
-                    <span className="font-mono">₹{pnlData?.grossProfit.toLocaleString("en-IN")}</span>
+                    <span className="font-mono">{formatMoney(pnlData?.grossProfit || 0, currencyCode)}</span>
                   </div>
 
                   <div className="space-y-2">
@@ -172,18 +174,18 @@ function FinancialReportsPage() {
                     {pnlData?.operatingExpenses.items.map((i, idx) => (
                       <div key={idx} className="flex justify-between text-sm py-1">
                         <span>{i.accountCode} - {i.accountName}</span>
-                        <span className="font-mono">₹{i.amount.toLocaleString("en-IN")}</span>
+                        <span className="font-mono">{formatMoney(i.amount, currencyCode)}</span>
                       </div>
                     ))}
                     <div className="flex justify-between font-bold text-sm border-t pt-1">
                       <span>Total Operating Expenses</span>
-                      <span className="font-mono text-destructive">₹{pnlData?.operatingExpenses.total.toLocaleString("en-IN")}</span>
+                      <span className="font-mono text-destructive">{formatMoney(pnlData?.operatingExpenses.total || 0, currencyCode)}</span>
                     </div>
                   </div>
 
                   <div className="flex justify-between font-extrabold text-lg bg-success-soft text-success p-4 rounded-md border border-success/30">
                     <span>NET OPERATING PROFIT</span>
-                    <span className="font-mono">₹{pnlData?.netProfit.toLocaleString("en-IN")}</span>
+                    <span className="font-mono">{formatMoney(pnlData?.netProfit || 0, currencyCode)}</span>
                   </div>
                 </>
               )}
@@ -208,12 +210,12 @@ function FinancialReportsPage() {
                 {bsData?.assets.items.map((i, idx) => (
                   <div key={idx} className="flex justify-between text-sm py-1">
                     <span>{i.accountCode} - {i.accountName}</span>
-                    <span className="font-mono">₹{i.balance.toLocaleString("en-IN")}</span>
+                    <span className="font-mono">{formatMoney(i.balance, currencyCode)}</span>
                   </div>
                 ))}
                 <div className="flex justify-between font-bold text-base border-t pt-2 bg-accent/10 p-2 rounded">
                   <span>TOTAL ASSETS</span>
-                  <span className="font-mono">₹{bsData?.assets.total.toLocaleString("en-IN")}</span>
+                  <span className="font-mono">{formatMoney(bsData?.assets.total || 0, currencyCode)}</span>
                 </div>
               </div>
 
@@ -223,7 +225,7 @@ function FinancialReportsPage() {
                 {bsData?.liabilities.items.map((i, idx) => (
                   <div key={idx} className="flex justify-between text-sm py-1">
                     <span>{i.accountCode} - {i.accountName}</span>
-                    <span className="font-mono">₹{i.balance.toLocaleString("en-IN")}</span>
+                    <span className="font-mono">{formatMoney(i.balance, currencyCode)}</span>
                   </div>
                 ))}
 
@@ -231,13 +233,13 @@ function FinancialReportsPage() {
                 {bsData?.equity.items.map((i, idx) => (
                   <div key={idx} className="flex justify-between text-sm py-1">
                     <span>{i.accountCode} - {i.accountName}</span>
-                    <span className="font-mono">₹{i.balance.toLocaleString("en-IN")}</span>
+                    <span className="font-mono">{formatMoney(i.balance, currencyCode)}</span>
                   </div>
                 ))}
 
                 <div className="flex justify-between font-bold text-base border-t pt-2 bg-accent/10 p-2 rounded">
                   <span>TOTAL LIABILITIES & EQUITY</span>
-                  <span className="font-mono">₹{bsData?.totalLiabilitiesAndEquity.toLocaleString("en-IN")}</span>
+                  <span className="font-mono">{formatMoney(bsData?.totalLiabilitiesAndEquity || 0, currencyCode)}</span>
                 </div>
               </div>
             </CardContent>
@@ -273,9 +275,9 @@ function FinancialReportsPage() {
                         <th className="px-4 py-3">Journal No</th>
                         <th className="px-4 py-3">Module</th>
                         <th className="px-4 py-3">Description</th>
-                        <th className="px-4 py-3 text-right">Debit ₹</th>
-                        <th className="px-4 py-3 text-right">Credit ₹</th>
-                        <th className="px-4 py-3 text-right">Running Balance ₹</th>
+                        <th className="px-4 py-3 text-right">Debit ({currencySymbol})</th>
+                        <th className="px-4 py-3 text-right">Credit ({currencySymbol})</th>
+                        <th className="px-4 py-3 text-right">Running Balance ({currencySymbol})</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -285,9 +287,9 @@ function FinancialReportsPage() {
                           <td className="px-4 py-3 font-mono font-bold text-primary">{l.journalNumber}</td>
                           <td className="px-4 py-3"><Badge variant="outline">{l.sourceModule || "GL"}</Badge></td>
                           <td className="px-4 py-3">{l.description || "-"}</td>
-                          <td className="px-4 py-3 text-right font-mono">{l.debit > 0 ? `₹${l.debit.toLocaleString("en-IN")}` : "-"}</td>
-                          <td className="px-4 py-3 text-right font-mono">{l.credit > 0 ? `₹${l.credit.toLocaleString("en-IN")}` : "-"}</td>
-                          <td className="px-4 py-3 text-right font-mono font-bold">₹{l.runningBalance.toLocaleString("en-IN")}</td>
+                          <td className="px-4 py-3 text-right font-mono">{l.debit > 0 ? formatMoney(l.debit, currencyCode) : "-"}</td>
+                          <td className="px-4 py-3 text-right font-mono">{l.credit > 0 ? formatMoney(l.credit, currencyCode) : "-"}</td>
+                          <td className="px-4 py-3 text-right font-mono font-bold">{formatMoney(l.runningBalance, currencyCode)}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useJournalEntries, useCreateManualJournalEntry, useReverseJournalEntry } from "@/hooks/queries/useJournalEntries";
 import { useChartOfAccounts } from "@/hooks/queries/useChartOfAccounts";
 import { Plus, Search, RotateCcw, AlertCircle } from "lucide-react";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 
 export const Route = createFileRoute("/journal-entries")({
   head: () => ({
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/journal-entries")({
 });
 
 function JournalEntriesPage() {
+  const { currencyCode, currencySymbol, formatMoney } = useActiveCurrency();
   const { data: entries, isLoading } = useJournalEntries();
   const { data: accounts } = useChartOfAccounts();
   const createManualMutation = useCreateManualJournalEntry();
@@ -151,7 +153,7 @@ function JournalEntriesPage() {
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder="Debit ₹"
+                      placeholder={`Debit (${currencySymbol})`}
                       value={l.debit || ""}
                       onChange={(e) => {
                         const newLines = [...lines];
@@ -166,7 +168,7 @@ function JournalEntriesPage() {
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder="Credit ₹"
+                      placeholder={`Credit (${currencySymbol})`}
                       value={l.credit || ""}
                       onChange={(e) => {
                         const newLines = [...lines];
@@ -184,8 +186,8 @@ function JournalEntriesPage() {
 
               <div className="flex items-center justify-between pt-2 border-t">
                 <div className="text-sm">
-                  Total Debit: <span className="font-bold">₹{totalDebit.toLocaleString("en-IN")}</span> | Total Credit:{" "}
-                  <span className="font-bold">₹{totalCredit.toLocaleString("en-IN")}</span>
+                  Total Debit: <span className="font-bold">{formatMoney(totalDebit, currencyCode)}</span> | Total Credit:{" "}
+                  <span className="font-bold">{formatMoney(totalCredit, currencyCode)}</span>
                   {!isBalanced && (
                     <span className="ml-2 text-xs text-destructive flex items-center inline-flex">
                       <AlertCircle className="mr-1 h-3 w-3" /> Unbalanced
@@ -255,8 +257,8 @@ function JournalEntriesPage() {
                     <Badge variant="outline">{je.sourceModule || "GL"}</Badge>
                   </td>
                   <td className="px-4 py-3 font-medium">{je.description || "-"}</td>
-                  <td className="px-4 py-3 text-right font-mono">₹{Number(je.totalDebit).toLocaleString("en-IN")}</td>
-                  <td className="px-4 py-3 text-right font-mono">₹{Number(je.totalCredit).toLocaleString("en-IN")}</td>
+                  <td className="px-4 py-3 text-right font-mono">{formatMoney(Number(je.totalDebit), currencyCode)}</td>
+                  <td className="px-4 py-3 text-right font-mono">{formatMoney(Number(je.totalCredit), currencyCode)}</td>
                   <td className="px-4 py-3">
                     <Badge variant={je.status === "POSTED" ? "default" : je.status === "REVERSED" ? "destructive" : "secondary"}>
                       {je.status}

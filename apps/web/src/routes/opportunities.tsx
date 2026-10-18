@@ -14,6 +14,7 @@ import { useCrmPipelines } from "@/hooks/queries/useCrmPipelines";
 import { useCustomers } from "@/hooks/queries/useCustomers";
 import { useUsers } from "@/hooks/queries/useUsers";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,7 @@ export const Route = createFileRoute("/opportunities")({
 });
 
 function OpportunitiesPage() {
+  const { currencySymbol, formatMoney } = useActiveCurrency();
   const { data: currentUser } = useCurrentUser();
   const permissions = currentUser?.permissions || [];
 
@@ -238,7 +240,7 @@ function OpportunitiesPage() {
     customerName: o.customer?.name || "N/A",
     stageName: `${o.stage?.name || o.stageId} (${o.probability}%)`,
     probability: `${o.probability}%`,
-    estimatedValue: `₹${Number(o.estimatedValue || 0).toLocaleString("en-IN")}`,
+    estimatedValue: formatMoney(o.estimatedValue || 0),
     assignedToName: o.assignedTo
       ? `${o.assignedTo.firstName} ${o.assignedTo.lastName || ""}`
       : "Unassigned",
@@ -258,7 +260,7 @@ function OpportunitiesPage() {
       label: "Pipeline Value",
       value: isLoading
         ? "…"
-        : `₹${(oppsData?.filter((o) => o.status === "OPEN").reduce((acc, o) => acc + Number(o.estimatedValue || 0), 0) || 0).toLocaleString("en-IN")}`,
+        : formatMoney(oppsData?.filter((o) => o.status === "OPEN").reduce((acc, o) => acc + Number(o.estimatedValue || 0), 0) || 0),
     },
   ];
 
@@ -365,7 +367,7 @@ function OpportunitiesPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Estimated Value (₹)</Label>
+                <Label>Estimated Value ({currencySymbol})</Label>
                 <Input
                   type="number"
                   value={estimatedValue}

@@ -17,7 +17,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardList,
-  IndianRupee,
+  CircleDollarSign,
   Package,
   PackageCheck,
   Plus,
@@ -33,14 +33,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import { useDashboardOverview } from "@/hooks/queries/useDashboardOverview";
 import { useSalesReport } from "@/hooks/queries/useReports";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
+import { formatCompactMoney } from "@/lib/currencies";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-
-const inr = (n: number, decimals = 0) =>
-  `₹${Number(n || 0).toLocaleString("en-IN", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  })}`;
 
 /** Local calendar date as YYYY-MM-DD (toISOString would shift to UTC). */
 function isoDay(d: Date) {
@@ -67,13 +63,14 @@ function greeting(date: Date) {
 
 export function OverviewGreeting() {
   const { data: currentUser } = useCurrentUser();
+  const { currencyCode } = useActiveCurrency();
   const firstName = currentUser?.user?.firstName;
   // Time-of-day text differs between server and browser, so compute it after mount.
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => setNow(new Date()), []);
   const today = now
-    ? new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long" }).format(now)
-    : " ";
+    ? new Intl.DateTimeFormat(currencyCode === "INR" ? "en-IN" : "en-US", { weekday: "long", day: "numeric", month: "long" }).format(now)
+    : " ";
 
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
@@ -114,6 +111,7 @@ export function OverviewGreeting() {
 export function KpiGrid() {
   const { data, isLoading, isError, refetch } = useDashboardOverview();
   const { data: sales } = useLast30DaysSales();
+  const { currencyCode, formatMoney } = useActiveCurrency();
 
   const trend = useMemo(() => {
     const byDate = sales?.breakdowns.salesByDate ?? [];
@@ -143,8 +141,8 @@ export function KpiGrid() {
   const kpis = [
     {
       label: "Today's sales",
-      value: inr(data.todaysTotalPosSales, 2),
-      icon: IndianRupee,
+      value: formatMoney(data.todaysTotalPosSales),
+      icon: CircleDollarSign,
       hint: "POS revenue today",
       tone: "brand" as const,
       trend,
@@ -157,13 +155,13 @@ export function KpiGrid() {
     },
     {
       label: "Active customers",
-      value: data.activeCustomerCount.toLocaleString("en-IN"),
+      value: data.activeCustomerCount.toLocaleString(currencyCode === "INR" ? "en-IN" : "en-US"),
       icon: Users,
       hint: "With an active account",
     },
     {
       label: "Active products",
-      value: data.totalActiveProducts.toLocaleString("en-IN"),
+      value: data.totalActiveProducts.toLocaleString(currencyCode === "INR" ? "en-IN" : "en-US"),
       icon: Boxes,
       hint: "Sellable catalog items",
     },
@@ -197,18 +195,21 @@ function ChartTooltip({
   active,
   payload,
   label,
+  currencyCode,
 }: {
   active?: boolean;
   payload?: Array<{ value: number; payload: { orderCount: number } }>;
   label?: string;
+  currencyCode?: string;
 }) {
+  const { formatMoney } = useActiveCurrency();
   if (!active || !payload?.length) return null;
   const point = payload[0]!;
   return (
     <div className="rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
       <p className="font-medium text-foreground">{label}</p>
       <p className="tabular mt-1 text-muted-foreground">
-        <span className="font-semibold text-foreground">{inr(point.value)}</span> ·{" "}
+        <span className="font-semibold text-foreground">{formatMoney(point.value)}</span> ·{" "}
         {point.payload.orderCount} orders
       </p>
     </div>
@@ -217,15 +218,16 @@ function ChartTooltip({
 
 export function RevenueChartCard({ className }: { className?: string }) {
   const { data, isLoading, isError, refetch } = useLast30DaysSales();
+  const { currencyCode, formatMoney } = useActiveCurrency();
 
   const points = useMemo(
     () =>
       (data?.breakdowns.salesByDate ?? []).map((d) => ({
-        label: new Date(d.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+        label: new Date(d.date).toLocaleDateString(currencyCode === "INR" ? "en-IN" : "en-US", { day: "numeric", month: "short" }),
         totalSales: d.totalSales,
         orderCount: d.orderCount,
       })),
-    [data],
+    [data, currencyCode],
   );
 
   return (
@@ -239,13 +241,13 @@ export function RevenueChartCard({ className }: { className?: string }) {
           <div className="flex gap-6 text-right">
             <div>
               <p className="tabular font-display text-xl font-semibold tracking-tight">
-                {inr(data.summary.totalSales)}
+                {formatMoney(data.summary.totalSales)}
               </p>
               <p className="text-xs text-muted-foreground">Total sales</p>
             </div>
             <div>
               <p className="tabular font-display text-xl font-semibold tracking-tight">
-                {data.summary.orderCount.toLocaleString("en-IN")}
+                {data.summary.orderCount.toLocaleString(currencyCode === "INR" ? "en-IN" : "en-US")}
               </p>
               <p className="text-xs text-muted-foreground">Orders</p>
             </div>
@@ -286,9 +288,7 @@ export function RevenueChartCard({ className }: { className?: string }) {
                 axisLine={false}
                 width={56}
                 tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
-                tickFormatter={(v: number) =>
-                  v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`
-                }
+                tickFormatter={(v: number) => formatCompactMoney(v, currencyCode)}
               />
               <Tooltip content={<ChartTooltip />} cursor={{ stroke: "var(--color-border)" }} />
               <Area
@@ -385,6 +385,7 @@ export function AttentionCard({ className }: { className?: string }) {
 
 export function RecentSalesCard() {
   const { data, isLoading, isError, refetch } = useLast30DaysSales();
+  const { currencyCode, formatMoney } = useActiveCurrency();
 
   const recent = useMemo(
     () =>
@@ -455,13 +456,13 @@ export function RecentSalesCard() {
                   </td>
                   <td className="hidden px-3 py-3 text-muted-foreground md:table-cell">{r.branchName}</td>
                   <td className="tabular px-3 py-3 text-muted-foreground">
-                    {new Date(r.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                    {new Date(r.date).toLocaleDateString(currencyCode === "INR" ? "en-IN" : "en-US", { day: "numeric", month: "short" })}
                   </td>
                   <td className="px-3 py-3">
                     <StatusBadge value={r.status} />
                   </td>
                   <td className="tabular px-5 py-3 text-right font-medium text-foreground">
-                    {inr(r.total, 2)}
+                    {formatMoney(r.total)}
                   </td>
                 </motion.tr>
               ))}

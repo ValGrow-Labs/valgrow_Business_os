@@ -44,6 +44,7 @@ import { useSendToBilling } from "@/hooks/queries/usePOSWorkflow";
 import { BillingDesk } from "@/components/pos/billing-desk";
 import { CashierCounter } from "@/components/pos/cashier-counter";
 import { downloadFile, getActiveOrgId } from "@/lib/api-client";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -106,6 +107,7 @@ type POSTab = "register" | "billing" | "cashier";
 
 function POSRegisterPage() {
   const queryClient = useQueryClient();
+  const { currencyCode, currencySymbol, formatMoney } = useActiveCurrency();
   const { data: currentUser } = useCurrentUser();
   const isOwner = currentUser?.role?.name === "Owner";
   const permissions = currentUser?.permissions || [];
@@ -557,7 +559,7 @@ function POSRegisterPage() {
       } = {
         customerCode: finalCode,
         name: nameTrimmed,
-        currency: "INR",
+        currency: currencyCode || "INR",
       };
 
       if (newCustomerEmail.trim()) {
@@ -1072,7 +1074,7 @@ function POSRegisterPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Cash Float (₹)</Label>
+                      <Label>Cash Float ({currencySymbol})</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -1165,8 +1167,7 @@ function POSRegisterPage() {
 
   const cartItems = activeCart?.items ?? [];
   const cartCount = cartItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-  const money = (n: unknown) =>
-    `₹${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const money = (n: unknown) => formatMoney(n as number);
 
   // MAIN ACTIVE REGISTER / SALESPERSON TERMINAL UI
   return (
@@ -2095,7 +2096,7 @@ function POSRegisterPage() {
 
             <div className="space-y-4 py-1 text-sm">
               <div className="space-y-1.5">
-                <Label>Counted cash (₹)</Label>
+                <Label>Counted cash ({currencySymbol})</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -2229,7 +2230,7 @@ function POSRegisterPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="pos-quick-customer-credit-limit">Credit Limit (₹)</Label>
+                    <Label htmlFor="pos-quick-customer-credit-limit">Credit Limit ({currencySymbol})</Label>
                     <Input
                       id="pos-quick-customer-credit-limit"
                       type="number"

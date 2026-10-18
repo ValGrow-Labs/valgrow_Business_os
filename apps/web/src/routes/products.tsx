@@ -21,6 +21,7 @@ import { useCategories } from "@/hooks/queries/useCategories";
 import { useBrands } from "@/hooks/queries/useBrands";
 import { useUnits } from "@/hooks/queries/useUnits";
 import { useTaxes } from "@/hooks/queries/useTaxes";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,6 +89,7 @@ const initialFormState: ProductFormState = {
 };
 
 function ProductsPage() {
+  const { currencySymbol, formatMoney } = useActiveCurrency();
   const [page] = useState(1);
   const [search] = useState("");
   const {
@@ -288,11 +290,11 @@ function ProductsPage() {
           (pr: any) => pr.tier === "RETAIL" && !pr.variantId,
         )?.price;
 
-        const priceDisplay = defaultRetailPrice
-          ? `₹${Number(defaultRetailPrice).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-          : p.costPrice
-          ? `₹${Number(p.costPrice).toLocaleString("en-IN", { minimumFractionDigits: 2 })} (Cost)`
-          : "₹0.00";
+        const priceDisplay = defaultRetailPrice !== undefined && defaultRetailPrice !== null
+          ? formatMoney(defaultRetailPrice)
+          : p.costPrice !== undefined && p.costPrice !== null
+          ? `${formatMoney(p.costPrice)} (Cost)`
+          : formatMoney(0);
 
         return {
           id: p.id,
@@ -395,7 +397,7 @@ function ProductsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="product-costPrice">Cost Price (₹)</Label>
+                <Label htmlFor="product-costPrice">Cost Price ({currencySymbol})</Label>
                 <Input
                   id="product-costPrice"
                   type="number"

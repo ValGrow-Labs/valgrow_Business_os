@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useSupplierBalances, useSupplierAging, useSupplierStatement } from "@/hooks/queries/useApSubledger";
 import { Calendar, UserCheck, FileText } from "lucide-react";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 
 export const Route = createFileRoute("/accounts-payable")({
   head: () => ({
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/accounts-payable")({
 });
 
 function AccountsPayablePage() {
+  const { currencyCode, formatMoney } = useActiveCurrency();
   const { data: balances, isLoading: balLoading } = useSupplierBalances();
   const { data: aging } = useSupplierAging();
 
@@ -65,14 +67,13 @@ function AccountsPayablePage() {
                       No supplier payables recorded.
                     </td>
                   </tr>
-                ) : (
-                  balances?.map((b) => (
+                ) : (                    balances?.map((b) => (
                     <tr key={b.supplier.id} className="hover:bg-accent/5">
                       <td className="px-4 py-3 font-mono font-bold text-primary">{b.supplier.code}</td>
                       <td className="px-4 py-3 font-medium">{b.supplier.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{b.supplier.email || b.supplier.phone || "-"}</td>
                       <td className="px-4 py-3 text-right font-mono font-bold">
-                        ₹{Number(b.totalOutstanding).toLocaleString("en-IN")}
+                        {formatMoney(Number(b.totalOutstanding), currencyCode)}
                       </td>
                       <td className="px-4 py-3">
                         <button
@@ -115,9 +116,9 @@ function AccountsPayablePage() {
                             <Badge variant={tx.type === "INVOICE" ? "outline" : "default"}>{tx.type}</Badge>
                           </td>
                           <td className="px-4 py-2 font-mono">{tx.reference}</td>
-                          <td className="px-4 py-2 text-right font-mono">{tx.debit > 0 ? `₹${tx.debit.toLocaleString("en-IN")}` : "-"}</td>
-                          <td className="px-4 py-2 text-right font-mono">{tx.credit > 0 ? `₹${tx.credit.toLocaleString("en-IN")}` : "-"}</td>
-                          <td className="px-4 py-2 text-right font-mono font-bold">₹{tx.runningBalance.toLocaleString("en-IN")}</td>
+                          <td className="px-4 py-2 text-right font-mono">{tx.debit > 0 ? formatMoney(tx.debit, currencyCode) : "-"}</td>
+                          <td className="px-4 py-2 text-right font-mono">{tx.credit > 0 ? formatMoney(tx.credit, currencyCode) : "-"}</td>
+                          <td className="px-4 py-2 text-right font-mono font-bold">{formatMoney(tx.runningBalance, currencyCode)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -135,31 +136,31 @@ function AccountsPayablePage() {
                 <Card>
                   <CardHeader className="py-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">Current</span>
-                    <span className="text-xl font-bold">₹{aging.summary.current.toLocaleString("en-IN")}</span>
+                    <span className="text-xl font-bold">{formatMoney(aging.summary.current, currencyCode)}</span>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="py-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">1 - 30 Days</span>
-                    <span className="text-xl font-bold">₹{aging.summary.days1To30.toLocaleString("en-IN")}</span>
+                    <span className="text-xl font-bold">{formatMoney(aging.summary.days1To30, currencyCode)}</span>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="py-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">31 - 60 Days</span>
-                    <span className="text-xl font-bold text-warning">₹{aging.summary.days31To60.toLocaleString("en-IN")}</span>
+                    <span className="text-xl font-bold text-warning">{formatMoney(aging.summary.days31To60, currencyCode)}</span>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="py-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">61 - 90 Days</span>
-                    <span className="text-xl font-bold text-destructive/80">₹{aging.summary.days61To90.toLocaleString("en-IN")}</span>
+                    <span className="text-xl font-bold text-destructive/80">{formatMoney(aging.summary.days61To90, currencyCode)}</span>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="py-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">&gt; 90 Days</span>
-                    <span className="text-xl font-bold text-destructive">₹{aging.summary.daysOver90.toLocaleString("en-IN")}</span>
+                    <span className="text-xl font-bold text-destructive">{formatMoney(aging.summary.daysOver90, currencyCode)}</span>
                   </CardHeader>
                 </Card>
               </div>
@@ -181,12 +182,12 @@ function AccountsPayablePage() {
                     {aging.suppliers.map((s) => (
                       <tr key={s.supplier.id} className="hover:bg-accent/5">
                         <td className="px-4 py-3 font-medium">{s.supplier.name} ({s.supplier.code})</td>
-                        <td className="px-4 py-3 text-right font-mono">₹{s.current.toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-3 text-right font-mono">₹{s.days1To30.toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-3 text-right font-mono text-warning">₹{s.days31To60.toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-3 text-right font-mono text-destructive/80">₹{s.days61To90.toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-3 text-right font-mono text-destructive">₹{s.daysOver90.toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-3 text-right font-mono font-bold">₹{s.total.toLocaleString("en-IN")}</td>
+                        <td className="px-4 py-3 text-right font-mono">{formatMoney(s.current, currencyCode)}</td>
+                        <td className="px-4 py-3 text-right font-mono">{formatMoney(s.days1To30, currencyCode)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-warning">{formatMoney(s.days31To60, currencyCode)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-destructive/80">{formatMoney(s.days61To90, currencyCode)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-destructive">{formatMoney(s.daysOver90, currencyCode)}</td>
+                        <td className="px-4 py-3 text-right font-mono font-bold">{formatMoney(s.total, currencyCode)}</td>
                       </tr>
                     ))}
                   </tbody>

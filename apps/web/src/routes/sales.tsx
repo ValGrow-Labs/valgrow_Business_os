@@ -11,6 +11,7 @@ import { useSalesOrders } from "@/hooks/queries/useSalesOrders";
 import { useDeliveryNotes } from "@/hooks/queries/useDeliveryNotes";
 import { useSalesInvoices } from "@/hooks/queries/useSalesInvoices";
 import { useCustomerPayments } from "@/hooks/queries/useCustomerPayments";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   ShoppingCart,
   Contact,
@@ -38,6 +39,7 @@ export const Route = createFileRoute("/sales")({
 });
 
 function SalesDashboardPage() {
+  const { formatMoney } = useActiveCurrency();
   const { data: custData, isLoading: custLoading } = useCustomers();
   const { data: quoData, isLoading: quoLoading } = useQuotations();
   const { data: soData, isLoading: soLoading } = useSalesOrders();
@@ -76,7 +78,7 @@ function SalesDashboardPage() {
     },
     {
       label: "Total Amount Due",
-      value: invLoading ? "…" : `₹${totalReceivable.toLocaleString("en-IN")}`,
+      value: invLoading ? "…" : formatMoney(totalReceivable),
       hint: `${unpaidInvoices.length} outstanding invoices`,
     },
   ];
@@ -210,7 +212,7 @@ function SalesDashboardPage() {
                     </div>
                     <div className="text-right">
                       <div className="font-semibold text-foreground">
-                        ₹{Number(so.totalAmount).toLocaleString("en-IN")}
+                        {formatMoney(so.totalAmount)}
                       </div>
                       <Badge variant="outline" className="mt-1 text-xs">
                         {so.status}
@@ -237,23 +239,19 @@ function SalesDashboardPage() {
             <div className="flex justify-between border-b pb-2 text-sm">
               <span className="text-muted-foreground">Total Invoiced</span>
               <span className="font-semibold">
-                ₹
-                {invData?.reduce((s, i) => s + Number(i.totalAmount), 0).toLocaleString("en-IN") ||
-                  0}
+                {formatMoney(invData?.reduce((s, i) => s + Number(i.totalAmount), 0) || 0)}
               </span>
             </div>
             <div className="flex justify-between border-b pb-2 text-sm">
               <span className="text-muted-foreground">Total Received</span>
               <span className="font-semibold text-success">
-                ₹
-                {invData?.reduce((s, i) => s + Number(i.paidAmount), 0).toLocaleString("en-IN") ||
-                  0}
+                {formatMoney(invData?.reduce((s, i) => s + Number(i.paidAmount), 0) || 0)}
               </span>
             </div>
             <div className="flex justify-between border-b pb-2 text-sm">
               <span className="text-muted-foreground">Outstanding Balance</span>
               <span className="font-semibold text-warning">
-                ₹{totalReceivable.toLocaleString("en-IN")}
+                {formatMoney(totalReceivable)}
               </span>
             </div>
             <div className="pt-2 flex gap-2">

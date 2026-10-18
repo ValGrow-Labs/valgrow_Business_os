@@ -15,6 +15,7 @@ import { useLocations } from "@/hooks/queries/useLocations";
 import { useProducts } from "@/hooks/queries/useProducts";
 import { useProductVariants } from "@/hooks/queries/useProductVariants";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +50,7 @@ export const Route = createFileRoute("/sales-returns")({
 });
 
 function SalesReturnsPage() {
+  const { formatMoney } = useActiveCurrency();
   const { data: currentUser } = useCurrentUser();
   const permissions = currentUser?.permissions || [];
 
@@ -251,7 +253,7 @@ function SalesReturnsPage() {
           warehouse: sr.warehouse?.name || "N/A",
           returnDate: new Date(sr.returnDate).toLocaleDateString(),
           returnedQty: `${totalQty} units`,
-          refundAmount: `₹${Number(sr.totalRefundAmount).toLocaleString("en-IN")}`,
+          refundAmount: formatMoney(sr.totalRefundAmount),
           status: sr.status,
         };
       })

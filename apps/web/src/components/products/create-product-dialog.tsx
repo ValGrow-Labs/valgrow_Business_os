@@ -17,6 +17,7 @@ import { useBrands } from "@/hooks/queries/useBrands";
 import { useUnits } from "@/hooks/queries/useUnits";
 import { useTaxes } from "@/hooks/queries/useTaxes";
 import { apiClient } from "@/lib/api-client";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -62,6 +63,8 @@ export function CreateProductDialog({
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const { currencySymbol } = useActiveCurrency();
 
   const { data: categories = [] } = useCategories({ status: "ACTIVE" });
   const { data: brands = [] } = useBrands();
@@ -218,7 +221,7 @@ export function CreateProductDialog({
 
             <div className="space-y-1.5">
               <Label htmlFor="new-product-cost" className="text-xs font-medium">
-                Cost Price (₹)
+                Cost Price ({currencySymbol})
               </Label>
               <Input
                 id="new-product-cost"
@@ -235,7 +238,7 @@ export function CreateProductDialog({
 
             <div className="space-y-1.5">
               <Label htmlFor="new-product-retail" className="text-xs font-medium">
-                Retail Price (₹)
+                Retail Price ({currencySymbol})
               </Label>
               <Input
                 id="new-product-retail"

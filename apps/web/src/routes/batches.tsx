@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ListPage, type ListRow } from "@/components/foundation/list-page";
 import type { Column } from "@/components/foundation/data-table";
 import { useInventoryBatches } from "@/hooks/queries/useInventoryBatches";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 
 const columns: Column<ListRow>[] = [
   { key: "batchNumber", header: "Batch Number" },
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/batches")({
 });
 
 function BatchesPage() {
+  const { currencyCode, formatMoney } = useActiveCurrency();
   const { data: batchesData } = useInventoryBatches();
 
   const rows: ListRow[] = batchesData
@@ -39,7 +41,7 @@ function BatchesPage() {
         variant: b.variant?.name || "Base Product",
         mfgDate: b.manufactureDate ? new Date(b.manufactureDate).toLocaleDateString() : "N/A",
         expDate: b.expiryDate ? new Date(b.expiryDate).toLocaleDateString() : "No Expiry",
-        cost: `₹${Number(b.costPrice).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+        cost: formatMoney(Number(b.costPrice), currencyCode),
       }))
     : [];
 

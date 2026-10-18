@@ -19,6 +19,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
+
 const title = "Accounting & Finance Dashboard";
 const description = "Double-entry General Ledger, Chart of Accounts, Sub-ledgers, and Financial Reporting.";
 
@@ -33,6 +35,7 @@ export const Route = createFileRoute("/accounting")({
 });
 
 function AccountingDashboardPage() {
+  const { currencyCode, formatMoney } = useActiveCurrency();
   const { data: coaData, isLoading: coaLoading } = useChartOfAccounts();
   const { data: jeData, isLoading: jeLoading } = useJournalEntries();
   const { data: pnlData, isLoading: pnlLoading } = useProfitAndLoss();
@@ -52,13 +55,13 @@ function AccountingDashboardPage() {
     },
     {
       label: "Net Profit (Current)",
-      value: pnlLoading ? "…" : `₹${(pnlData?.netProfit || 0).toLocaleString("en-IN")}`,
-      hint: `Revenue: ₹${(pnlData?.revenue.total || 0).toLocaleString("en-IN")}`,
+      value: pnlLoading ? "…" : formatMoney(pnlData?.netProfit || 0, currencyCode),
+      hint: `Revenue: ${formatMoney(pnlData?.revenue.total || 0, currencyCode)}`,
     },
     {
       label: "Net Tax Payable",
-      value: taxData ? `₹${(taxData.netTaxPayable || 0).toLocaleString("en-IN")}` : "…",
-      hint: `Output: ₹${(taxData?.totalOutputTaxCollected || 0).toLocaleString("en-IN")}`,
+      value: taxData ? formatMoney(taxData.netTaxPayable || 0, currencyCode) : "…",
+      hint: `Output: ${formatMoney(taxData?.totalOutputTaxCollected || 0, currencyCode)}`,
     },
   ];
 

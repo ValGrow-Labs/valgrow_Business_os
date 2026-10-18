@@ -14,6 +14,7 @@ import { useLeadSources } from "@/hooks/queries/useLeadSources";
 import { useCustomers } from "@/hooks/queries/useCustomers";
 import { useUsers } from "@/hooks/queries/useUsers";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,7 @@ export const Route = createFileRoute("/leads")({
 });
 
 function LeadsPage() {
+  const { currencySymbol, formatMoney } = useActiveCurrency();
   const { data: currentUser } = useCurrentUser();
   const permissions = currentUser?.permissions || [];
 
@@ -251,7 +253,7 @@ function LeadsPage() {
     assignedToName: l.assignedTo
       ? `${l.assignedTo.firstName} ${l.assignedTo.lastName || ""}`
       : "Unassigned",
-    estimatedValue: `₹${Number(l.estimatedValue || 0).toLocaleString("en-IN")}`,
+    estimatedValue: formatMoney(l.estimatedValue || 0),
     status: l.status,
   }));
 
@@ -369,7 +371,7 @@ function LeadsPage() {
               </div>
             </div>
             <div>
-              <Label>Estimated Deal Value (₹)</Label>
+              <Label>Estimated Deal Value ({currencySymbol})</Label>
               <Input
                 type="number"
                 value={estimatedValue}

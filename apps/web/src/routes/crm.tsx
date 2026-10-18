@@ -9,6 +9,7 @@ import { useLeads } from "@/hooks/queries/useLeads";
 import { useOpportunities } from "@/hooks/queries/useOpportunities";
 import { useCrmTasks } from "@/hooks/queries/useCrmTasks";
 import { useCrmActivities } from "@/hooks/queries/useCrmActivities";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   UserRound,
   Sparkles,
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/crm")({
 });
 
 function CrmDashboardPage() {
+  const { formatMoney } = useActiveCurrency();
   const { data: leads, isLoading: leadsLoading } = useLeads();
   const { data: opps, isLoading: oppsLoading } = useOpportunities();
   const { data: tasks, isLoading: tasksLoading } = useCrmTasks();
@@ -75,8 +77,8 @@ function CrmDashboardPage() {
     },
     {
       label: "Pipeline Value",
-      value: oppsLoading ? "…" : `₹${pipelineValue.toLocaleString("en-IN")}`,
-      hint: `Weighted: ₹${Math.round(weightedValue).toLocaleString("en-IN")}`,
+      value: oppsLoading ? "…" : formatMoney(pipelineValue),
+      hint: `Weighted: ${formatMoney(Math.round(weightedValue))}`,
       tone: "default",
     },
     {

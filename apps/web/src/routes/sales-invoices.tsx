@@ -14,6 +14,7 @@ import { useSalesOrders } from "@/hooks/queries/useSalesOrders";
 import { useProducts } from "@/hooks/queries/useProducts";
 import { useProductVariants } from "@/hooks/queries/useProductVariants";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,7 @@ export const Route = createFileRoute("/sales-invoices")({
 
 function SalesInvoicesPage() {
   const navigate = useNavigate();
+  const { currencySymbol, formatMoney } = useActiveCurrency();
   const { data: currentUser } = useCurrentUser();
   const permissions = currentUser?.permissions || [];
 
@@ -280,9 +282,9 @@ function SalesInvoicesPage() {
           invoiceNumber: inv.invoiceNumber,
           customerName: inv.customer?.name || "N/A",
           dueDate: new Date(inv.dueDate).toLocaleDateString(),
-          total: `₹${total.toLocaleString("en-IN")}`,
-          paid: `₹${paid.toLocaleString("en-IN")}`,
-          outstanding: `₹${outstanding.toLocaleString("en-IN")}`,
+          total: formatMoney(total),
+          paid: formatMoney(paid),
+          outstanding: formatMoney(outstanding),
           status: inv.status,
         };
       })
@@ -459,7 +461,7 @@ function SalesInvoicesPage() {
                     <Input
                       type="number"
                       className="h-8 text-xs"
-                      placeholder="Price (₹)"
+                      placeholder={`Price (${currencySymbol})`}
                       value={row.unitPrice}
                       onChange={(e) => updateItemRow(idx, "unitPrice", Number(e.target.value))}
                     />

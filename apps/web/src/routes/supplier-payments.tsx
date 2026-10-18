@@ -5,6 +5,7 @@ import type { Column } from "@/components/foundation/data-table";
 import { useSupplierPayments, useCreateSupplierPayment } from "@/hooks/queries/useSupplierPayments";
 import { useSuppliers } from "@/hooks/queries/useSuppliers";
 import { useSupplierInvoices, useSupplierInvoice } from "@/hooks/queries/useSupplierInvoices";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/supplier-payments")({
 });
 
 function SupplierPaymentsPage() {
+  const { currencySymbol, formatMoney } = useActiveCurrency();
   const { data: payments } = useSupplierPayments();
   const { data: suppliers } = useSuppliers();
   const { data: invoices } = useSupplierInvoices();
@@ -98,7 +100,7 @@ function SupplierPaymentsPage() {
         paymentNumber: p.paymentNumber,
         supplier: p.supplier ? p.supplier.name : "N/A",
         invoiceNumber: p.invoice ? p.invoice.invoiceNumber : "Direct / Advance",
-        amount: `₹${Number(p.amount).toLocaleString("en-IN")}`,
+        amount: formatMoney(p.amount),
         paymentMethod: p.paymentMethod,
         referenceNumber: p.referenceNumber || "N/A",
         paymentDate: new Date(p.paymentDate).toLocaleDateString(),
@@ -109,7 +111,7 @@ function SupplierPaymentsPage() {
     { label: "Total Disbursements", value: String(payments?.length || 0) },
     {
       label: "Total Amount Paid",
-      value: `₹${payments?.reduce((s, p) => s + Number(p.amount), 0).toLocaleString("en-IN") || 0}`,
+      value: formatMoney(payments?.reduce((s, p) => s + Number(p.amount), 0) || 0),
     },
     {
       label: "Bank Transfers",
@@ -159,8 +161,7 @@ function SupplierPaymentsPage() {
                   ?.filter((i) => i.status !== "PAID" && i.status !== "CANCELLED")
                   .map((inv) => (
                     <option key={inv.id} value={inv.id}>
-                      {inv.invoiceNumber} — {inv.supplier?.name} (Outs: ₹
-                      {(Number(inv.totalAmount) - Number(inv.paidAmount)).toLocaleString("en-IN")})
+                      {inv.invoiceNumber} — {inv.supplier?.name} (Outs: {formatMoney(Number(inv.totalAmount) - Number(inv.paidAmount))})
                     </option>
                   ))}
               </select>
@@ -171,19 +172,19 @@ function SupplierPaymentsPage() {
                 <div>
                   <span className="text-muted-foreground block">Invoice Total</span>
                   <span className="font-semibold">
-                    ₹{Number(selectedInvoice.totalAmount).toLocaleString("en-IN")}
+                    {formatMoney(selectedInvoice.totalAmount)}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block">Already Paid</span>
                   <span className="font-semibold text-success">
-                    ₹{Number(selectedInvoice.paidAmount).toLocaleString("en-IN")}
+                    {formatMoney(selectedInvoice.paidAmount)}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block">Outstanding</span>
                   <span className="font-semibold text-warning">
-                    ₹{outstanding.toLocaleString("en-IN")}
+                    {formatMoney(outstanding)}
                   </span>
                 </div>
               </div>
@@ -221,7 +222,7 @@ function SupplierPaymentsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Payment Amount (₹) *</Label>
+              <Label>Payment Amount ({currencySymbol}) *</Label>
               <Input
                 type="number"
                 min={0.01}

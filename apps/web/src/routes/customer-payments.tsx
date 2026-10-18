@@ -6,6 +6,7 @@ import { useCustomerPayments, useCreateCustomerPayment } from "@/hooks/queries/u
 import { useCustomers } from "@/hooks/queries/useCustomers";
 import { useSalesInvoices } from "@/hooks/queries/useSalesInvoices";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,7 @@ export const Route = createFileRoute("/customer-payments")({
 });
 
 function CustomerPaymentsPage() {
+  const { currencySymbol, formatMoney } = useActiveCurrency();
   const { data: currentUser } = useCurrentUser();
   const permissions = currentUser?.permissions || [];
 
@@ -128,7 +130,7 @@ function CustomerPaymentsPage() {
         paymentDate: new Date(p.paymentDate).toLocaleDateString(),
         paymentMethod: p.paymentMethod,
         referenceNumber: p.referenceNumber || "N/A",
-        amount: `₹${Number(p.amount).toLocaleString("en-IN")}`,
+        amount: formatMoney(p.amount),
       }))
     : [];
 
@@ -138,7 +140,7 @@ function CustomerPaymentsPage() {
     { label: "Total Receipts", value: isLoading ? "…" : String(paymentsData?.length || 0) },
     {
       label: "Total Collected",
-      value: isLoading ? "…" : `₹${totalCollected.toLocaleString("en-IN")}`,
+      value: isLoading ? "…" : formatMoney(totalCollected),
     },
     {
       label: "Default Channel",
@@ -226,25 +228,25 @@ function CustomerPaymentsPage() {
               <div className="col-span-2 rounded border bg-muted/20 p-3 text-xs space-y-1">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Invoice Total:</span>
-                  <span className="font-semibold">₹{invoiceTotal.toLocaleString("en-IN")}</span>
+                  <span className="font-semibold">{formatMoney(invoiceTotal)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Already Paid:</span>
                   <span className="font-semibold text-success">
-                    ₹{invoicePaid.toLocaleString("en-IN")}
+                    {formatMoney(invoicePaid)}
                   </span>
                 </div>
                 <div className="flex justify-between border-t pt-1">
                   <span className="text-muted-foreground">Outstanding Balance:</span>
                   <span className="font-semibold text-warning">
-                    ₹{invoiceOutstanding.toLocaleString("en-IN")}
+                    {formatMoney(invoiceOutstanding)}
                   </span>
                 </div>
               </div>
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="payAmount">Payment Amount (₹) *</Label>
+              <Label htmlFor="payAmount">Payment Amount ({currencySymbol}) *</Label>
               <Input
                 id="payAmount"
                 type="number"

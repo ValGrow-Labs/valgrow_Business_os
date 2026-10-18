@@ -306,6 +306,7 @@ export class AuthService {
         name: m.organization.name,
         slug: m.organization.slug,
         plan: m.organization.plan,
+        currency: m.organization.currency,
         role: m.role.name,
       })),
     };

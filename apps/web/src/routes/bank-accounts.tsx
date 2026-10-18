@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useBankAccounts, useCreateBankAccount, useBankReconciliations, useCreateBankReconciliation } from "@/hooks/queries/useBankAccounts";
 import { useChartOfAccounts } from "@/hooks/queries/useChartOfAccounts";
 import { Plus, Building2, CheckCircle2, RotateCcw } from "lucide-react";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 
 export const Route = createFileRoute("/bank-accounts")({
   head: () => ({
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/bank-accounts")({
 });
 
 function BankAccountsPage() {
+  const { currencyCode, currencySymbol, formatMoney } = useActiveCurrency();
   const { data: bankAccounts, isLoading } = useBankAccounts();
   const { data: accounts } = useChartOfAccounts();
   const { data: reconciliations } = useBankReconciliations();
@@ -221,7 +223,7 @@ function BankAccountsPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase text-muted-foreground">Statement Ending Balance ₹</label>
+                <label className="text-xs font-semibold uppercase text-muted-foreground">Statement Ending Balance ({currencySymbol})</label>
                 <Input
                   type="number"
                   step="0.01"
@@ -305,8 +307,8 @@ function BankAccountsPage() {
                     <tr key={r.id} className="hover:bg-accent/5">
                       <td className="px-4 py-3">{new Date(r.statementDate).toLocaleDateString()}</td>
                       <td className="px-4 py-3 font-medium">{r.bankAccount?.accountName}</td>
-                      <td className="px-4 py-3 text-right font-mono font-bold">₹{Number(r.endingBalance).toLocaleString("en-IN")}</td>
-                      <td className="px-4 py-3 text-right font-mono font-bold">₹{Number(r.clearedBalance).toLocaleString("en-IN")}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold">{formatMoney(Number(r.endingBalance), currencyCode)}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold">{formatMoney(Number(r.clearedBalance), currencyCode)}</td>
                       <td className="px-4 py-3">
                         {r.isReconciled ? (
                           <Badge variant="outline" className="gap-1 border-success/30 text-success">

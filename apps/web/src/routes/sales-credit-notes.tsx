@@ -14,6 +14,7 @@ import { useCustomers } from "@/hooks/queries/useCustomers";
 import { useSalesInvoices } from "@/hooks/queries/useSalesInvoices";
 import { useSalesReturns } from "@/hooks/queries/useSalesReturns";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,7 @@ export const Route = createFileRoute("/sales-credit-notes")({
 });
 
 function SalesCreditNotesPage() {
+  const { currencySymbol, formatMoney } = useActiveCurrency();
   const { data: currentUser } = useCurrentUser();
   const permissions = currentUser?.permissions || [];
 
@@ -180,7 +182,7 @@ function SalesCreditNotesPage() {
         invoiceNumber: cn.salesInvoice?.invoiceNumber || "N/A",
         returnNumber: cn.salesReturn?.returnNumber || "N/A",
         creditDate: new Date(cn.creditDate).toLocaleDateString(),
-        amount: `₹${Number(cn.totalAmount).toLocaleString("en-IN")}`,
+        amount: formatMoney(cn.totalAmount),
         status: cn.status,
       }))
     : [];
@@ -294,7 +296,7 @@ function SalesCreditNotesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cnAmt">Credit Amount (₹) *</Label>
+              <Label htmlFor="cnAmt">Credit Amount ({currencySymbol}) *</Label>
               <Input
                 id="cnAmt"
                 type="number"

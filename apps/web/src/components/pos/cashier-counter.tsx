@@ -21,6 +21,7 @@ import {
   type POSSessionItem,
 } from "@/hooks/queries/usePOSSessions";
 import { ApiError, downloadFile } from "@/lib/api-client";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +65,7 @@ export function CashierCounter({
   activeSession: propSession,
 }: CashierCounterProps) {
   const queryClient = useQueryClient();
+  const { currencySymbol, formatMoney } = useActiveCurrency();
   const { data: currentUser } = useCurrentUser();
   const currentUserId = currentUser?.user?.id;
   const isOwner = currentUser?.role?.name === "Owner";
@@ -247,7 +249,7 @@ export function CashierCounter({
 
     if (totalPaid < grandTotal) {
       toast.error("Insufficient payment", {
-        description: `Remaining balance: ₹${remainingDue.toFixed(2)}. Please collect the full bill amount.`,
+        description: `Remaining balance: ${formatMoney(remainingDue)}. Please collect the full bill amount.`,
       });
       return;
     }
@@ -583,11 +585,7 @@ export function CashierCounter({
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-foreground font-mono">
-                          ₹
-                          {Number(bill.totalAmount).toLocaleString("en-IN", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {formatMoney(bill.totalAmount)}
                         </span>
 
                         {isReady ? (
@@ -719,11 +717,7 @@ export function CashierCounter({
                       Total Amount Due
                     </span>
                     <div className="text-2xl font-bold font-mono text-foreground mt-0.5">
-                      ₹
-                      {grandTotal.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      {formatMoney(grandTotal)}
                     </div>
                   </div>
 
@@ -731,13 +725,13 @@ export function CashierCounter({
                     <div>
                       Subtotal:{" "}
                       <span className="font-mono text-foreground">
-                        ₹{Number(activeBill.subtotalAmount).toFixed(2)}
+                        {formatMoney(activeBill.subtotalAmount)}
                       </span>
                     </div>
                     <div>
                       Tax:{" "}
                       <span className="font-mono text-foreground">
-                        ₹{Number(activeBill.taxAmount).toFixed(2)}
+                        {formatMoney(activeBill.taxAmount)}
                       </span>
                     </div>
                   </div>
@@ -796,7 +790,7 @@ export function CashierCounter({
                           <div className="sm:col-span-3">
                             <div className="relative">
                               <span className="absolute left-2 top-2 text-muted-foreground font-mono">
-                                ₹
+                                {currencySymbol}
                               </span>
                               <Input
                                 type="number"
@@ -822,7 +816,7 @@ export function CashierCounter({
                             {line.paymentMethod === "CASH" ? (
                               <div className="relative">
                                 <span className="absolute left-2 top-2 text-muted-foreground font-mono">
-                                  ₹
+                                  {currencySymbol}
                                 </span>
                                 <Input
                                   type="number"
@@ -884,7 +878,7 @@ export function CashierCounter({
                                   : "text-foreground"
                               }`}
                             >
-                              ₹{cashChangeAmount.toFixed(2)}
+                              {formatMoney(cashChangeAmount)}
                             </span>
                           </div>
                         )}
@@ -910,7 +904,7 @@ export function CashierCounter({
                     </div>
                     <div>
                       <Label htmlFor="cart-discount" className="text-xs">
-                        Additional Bill Discount (₹)
+                        Additional Bill Discount ({currencySymbol})
                       </Label>
                       <Input
                         id="cart-discount"
@@ -932,14 +926,14 @@ export function CashierCounter({
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Total Amount Tendered:</span>
                   <span className="font-mono font-semibold text-foreground">
-                    ₹{totalPaid.toFixed(2)} / ₹{grandTotal.toFixed(2)}
+                    {formatMoney(totalPaid)} / {formatMoney(grandTotal)}
                   </span>
                 </div>
 
                 {remainingDue > 0 && (
                   <div className="flex items-center justify-between text-xs font-semibold text-amber-600 bg-amber-500/10 p-2 rounded-lg">
                     <span>Remaining Balance Due:</span>
-                    <span className="font-mono">₹{remainingDue.toFixed(2)}</span>
+                    <span className="font-mono">{formatMoney(remainingDue)}</span>
                   </div>
                 )}
 
@@ -957,7 +951,7 @@ export function CashierCounter({
                     <Wallet className="h-5 w-5" />
                     {checkoutMutation.isPending
                       ? "Recording Payment..."
-                      : `Complete Payment (₹${grandTotal.toFixed(2)})`}
+                      : `Complete Payment (${formatMoney(grandTotal)})`}
                     <ArrowRight className="h-4 w-4 ml-auto" />
                   </Button>
                 ) : (
@@ -1001,7 +995,7 @@ export function CashierCounter({
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="opening-cash">Opening Cash Drawer Float (₹)</Label>
+              <Label htmlFor="opening-cash">Opening Cash Drawer Float ({currencySymbol})</Label>
               <Input
                 id="opening-cash"
                 type="number"
@@ -1073,20 +1067,20 @@ export function CashierCounter({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Bill:</span>
                 <span className="font-mono font-bold">
-                  ₹{Number(completedSale?.totalAmount).toFixed(2)}
+                  {formatMoney(completedSale?.totalAmount)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount Paid:</span>
                 <span className="font-mono font-bold text-emerald-600">
-                  ₹{Number(completedSale?.paidAmount).toFixed(2)}
+                  {formatMoney(completedSale?.paidAmount)}
                 </span>
               </div>
               {Number(completedSale?.changeAmount) > 0 && (
                 <div className="flex justify-between pt-1 border-t text-sm font-bold text-emerald-600">
                   <span>Change Given:</span>
                   <span className="font-mono">
-                    ₹{Number(completedSale?.changeAmount).toFixed(2)}
+                    {formatMoney(completedSale?.changeAmount)}
                   </span>
                 </div>
               )}

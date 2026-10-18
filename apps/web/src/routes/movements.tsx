@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ListPage, type ListRow } from "@/components/foundation/list-page";
 import type { Column } from "@/components/foundation/data-table";
 import { useInventoryMovements } from "@/hooks/queries/useInventoryMovements";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 
 const columns: Column<ListRow>[] = [
   { key: "date", header: "Timestamp" },
@@ -30,6 +31,7 @@ export const Route = createFileRoute("/movements")({
 });
 
 function MovementsPage() {
+  const { currencyCode, formatMoney } = useActiveCurrency();
   const [page] = useState(1);
   const { data: movementsData } = useInventoryMovements({ page });
 
@@ -43,8 +45,8 @@ function MovementsPage() {
           date: new Date(m.createdAt).toLocaleString(),
           type: m.movementType.replace("_", " "),
           quantity: qtyStr,
-          cost: `₹${Number(m.unitCost).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
-          total: `₹${Number(m.totalCost).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+          cost: formatMoney(Number(m.unitCost), currencyCode),
+          total: formatMoney(Number(m.totalCost), currencyCode),
           reference: m.referenceType
             ? `${m.referenceType}: ${m.referenceId || "N/A"}`
             : "Manual Transaction",

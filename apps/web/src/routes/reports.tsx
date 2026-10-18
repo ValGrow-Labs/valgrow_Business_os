@@ -66,6 +66,8 @@ import { useCustomers } from "@/hooks/queries/useCustomers";
 import { useBranches } from "@/hooks/queries/useBranches";
 import { useWarehouses } from "@/hooks/queries/useWarehouses";
 import { useLocations } from "@/hooks/queries/useLocations";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
+import { formatMoney as formatMoneyUtil, formatCompactMoney } from "@/lib/currencies";
 
 const title = "Business Intelligence & Reports";
 const description =
@@ -82,6 +84,7 @@ export const Route = createFileRoute("/reports")({
 });
 
 function ReportsPage() {
+  const { currencyCode, currencySymbol, formatMoney } = useActiveCurrency();
   const [activeTab, setActiveTab] = useState<"sales" | "customers" | "inventory">("sales");
 
   // Masters
@@ -157,9 +160,9 @@ function ReportsPage() {
       "Phone",
       "City",
       "Total Orders",
-      "Total Purchases (₹)",
-      "Total Paid (₹)",
-      "Outstanding Balance (₹)",
+      `Total Purchases (${currencySymbol})`,
+      `Total Paid (${currencySymbol})`,
+      `Outstanding Balance (${currencySymbol})`,
       "Last Purchase Date",
       "Status",
     ];
@@ -173,7 +176,7 @@ function ReportsPage() {
       c.totalPurchases,
       c.totalPaid,
       c.outstandingAmount,
-      c.lastPurchaseDate ? new Date(c.lastPurchaseDate).toLocaleDateString("en-IN") : "Never",
+      c.lastPurchaseDate ? new Date(c.lastPurchaseDate).toLocaleDateString(currencyCode === "INR" ? "en-IN" : "en-US") : "Never",
       c.status,
     ]);
     exportReportToCsv("Customer_Report", headers, rows);
@@ -395,7 +398,7 @@ function ReportsPage() {
           <motion.div variants={staggerContainer(0.05)} initial="hidden" animate="show" className="grid grid-cols-2 gap-3 lg:grid-cols-5 [&>*]:h-full">
             <motion.div variants={staggerItem}><StatCard
               label="Total Revenue"
-              value={isSalesLoading ? "…" : `₹${(salesReport?.summary.totalSales || 0).toLocaleString("en-IN")}`}
+              value={isSalesLoading ? "…" : formatMoney(salesReport?.summary.totalSales || 0, currencyCode)}
               hint="Persisted completed sales"
               tone="brand"
             /></motion.div>
@@ -406,22 +409,22 @@ function ReportsPage() {
             /></motion.div>
             <motion.div variants={staggerItem}><StatCard
               label="Total Tax"
-              value={isSalesLoading ? "…" : `₹${(salesReport?.summary.totalTax || 0).toLocaleString("en-IN")}`}
+              value={isSalesLoading ? "…" : formatMoney(salesReport?.summary.totalTax || 0, currencyCode)}
               hint="GST / VAT collected"
             /></motion.div>
             <motion.div variants={staggerItem}><StatCard
               label="Total Discounts"
-              value={isSalesLoading ? "…" : `₹${(salesReport?.summary.totalDiscount || 0).toLocaleString("en-IN")}`}
+              value={isSalesLoading ? "…" : formatMoney(salesReport?.summary.totalDiscount || 0, currencyCode)}
               hint="Promotions & cart discounts"
             /></motion.div>
             <motion.div variants={staggerItem}><StatCard
               label="Total Paid"
-              value={isSalesLoading ? "…" : `₹${(salesReport?.summary.totalPaid || 0).toLocaleString("en-IN")}`}
+              value={isSalesLoading ? "…" : formatMoney(salesReport?.summary.totalPaid || 0, currencyCode)}
               hint="Collected cash & digital payments"
             /></motion.div>
           </motion.div>
 
-          <SalesCharts report={salesReport} isLoading={isSalesLoading} />
+          <SalesCharts report={salesReport} isLoading={isSalesLoading} currencyCode={currencyCode} />
 
           {/* Sales Transactions Table */}
           <div className="panel space-y-3 p-4">
@@ -467,20 +470,20 @@ function ReportsPage() {
                           {r.number}
                         </TableCell>
                         <TableCell className="text-xs">
-                          {new Date(r.date).toLocaleString("en-IN")}
+                          {new Date(r.date).toLocaleString(currencyCode === "INR" ? "en-IN" : "en-US")}
                         </TableCell>
                         <TableCell className="font-medium text-xs">{r.customerName}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{r.branchName}</TableCell>
-                        <TableCell className="text-right tabular text-xs">₹{r.subtotal.toFixed(2)}</TableCell>
-                        <TableCell className="text-right tabular text-xs">₹{r.tax.toFixed(2)}</TableCell>
+                        <TableCell className="text-right tabular text-xs">{formatMoney(r.subtotal, currencyCode)}</TableCell>
+                        <TableCell className="text-right tabular text-xs">{formatMoney(r.tax, currencyCode)}</TableCell>
                         <TableCell className="text-right tabular text-xs text-destructive">
-                          -₹{r.discount.toFixed(2)}
+                          -{formatMoney(r.discount, currencyCode)}
                         </TableCell>
                         <TableCell className="text-right tabular font-bold text-xs">
-                          ₹{r.total.toFixed(2)}
+                          {formatMoney(r.total, currencyCode)}
                         </TableCell>
                         <TableCell className="text-right tabular text-xs text-success">
-                          ₹{r.paid.toFixed(2)}
+                          {formatMoney(r.paid, currencyCode)}
                         </TableCell>
                         <TableCell className="text-xs">
                           <Badge variant="neutral">{r.paymentMethods || "CASH"}</Badge>
@@ -582,17 +585,17 @@ function ReportsPage() {
             /></motion.div>
             <motion.div variants={staggerItem}><StatCard
               label="Total Purchases"
-              value={isCustLoading ? "…" : `₹${(customerReport?.summary.totalPurchases || 0).toLocaleString("en-IN")}`}
+              value={isCustLoading ? "…" : formatMoney(customerReport?.summary.totalPurchases || 0, currencyCode)}
               hint="Gross customer volume"
             /></motion.div>
             <motion.div variants={staggerItem}><StatCard
               label="Total Paid"
-              value={isCustLoading ? "…" : `₹${(customerReport?.summary.totalPaid || 0).toLocaleString("en-IN")}`}
+              value={isCustLoading ? "…" : formatMoney(customerReport?.summary.totalPaid || 0, currencyCode)}
               hint="Collections received"
             /></motion.div>
             <motion.div variants={staggerItem}><StatCard
               label="Outstanding Due"
-              value={isCustLoading ? "…" : `₹${(customerReport?.summary.totalOutstanding || 0).toLocaleString("en-IN")}`}
+              value={isCustLoading ? "…" : formatMoney(customerReport?.summary.totalOutstanding || 0, currencyCode)}
               hint="Pending customer receivables"
             /></motion.div>
           </motion.div>
@@ -646,16 +649,16 @@ function ReportsPage() {
                         <TableCell className="text-xs">{c.city}</TableCell>
                         <TableCell className="text-center font-semibold text-xs">{c.totalOrders}</TableCell>
                         <TableCell className="text-right tabular font-semibold text-xs">
-                          ₹{c.totalPurchases.toLocaleString("en-IN")}
+                          {formatMoney(c.totalPurchases, currencyCode)}
                         </TableCell>
                         <TableCell className="text-right tabular text-xs text-success">
-                          ₹{c.totalPaid.toLocaleString("en-IN")}
+                          {formatMoney(c.totalPaid, currencyCode)}
                         </TableCell>
                         <TableCell className="text-right tabular text-xs font-bold text-warning">
-                          ₹{c.outstandingAmount.toLocaleString("en-IN")}
+                          {formatMoney(c.outstandingAmount, currencyCode)}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {c.lastPurchaseDate ? new Date(c.lastPurchaseDate).toLocaleDateString("en-IN") : "Never"}
+                          {c.lastPurchaseDate ? new Date(c.lastPurchaseDate).toLocaleDateString(currencyCode === "INR" ? "en-IN" : "en-US") : "Never"}
                         </TableCell>
                         <TableCell className="text-xs">
                           <StatusBadge value={c.status} />
@@ -848,7 +851,7 @@ function ReportsPage() {
                     invReport.records.map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="text-xs">
-                          {new Date(r.createdAt).toLocaleString("en-IN")}
+                          {new Date(r.createdAt).toLocaleString(currencyCode === "INR" ? "en-IN" : "en-US")}
                         </TableCell>
                         <TableCell className="text-xs">
                           <div className="font-medium">{r.productName}</div>
@@ -872,10 +875,10 @@ function ReportsPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right tabular text-xs">
-                          ₹{r.unitCost.toFixed(2)}
+                          {formatMoney(r.unitCost, currencyCode)}
                         </TableCell>
                         <TableCell className="text-right tabular font-semibold text-xs">
-                          ₹{r.totalCost.toFixed(2)}
+                          {formatMoney(r.totalCost, currencyCode)}
                         </TableCell>
                         <TableCell className="font-mono text-xs text-primary">
                           {r.referenceType}: {r.referenceId}
@@ -897,9 +900,6 @@ function ReportsPage() {
   );
 }
 
-const inrShort = (v: number) =>
-  v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`;
-
 function ChartCard({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <section className="panel flex flex-col p-5">
@@ -910,13 +910,23 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle: str
   );
 }
 
-function ChartTip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+function ChartTip({
+  active,
+  payload,
+  label,
+  currencyCode = "INR",
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number }>;
+  label?: string;
+  currencyCode?: string | undefined;
+}) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
       <p className="font-medium">{label}</p>
       <p className="tabular mt-0.5 text-muted-foreground">
-        ₹{Number(payload[0]!.value || 0).toLocaleString("en-IN")}
+        {formatMoneyUtil(Number(payload[0]!.value || 0), currencyCode)}
       </p>
     </div>
   );
@@ -924,14 +934,22 @@ function ChartTip({ active, payload, label }: { active?: boolean; payload?: Arra
 
 const axisTick = { fontSize: 11, fill: "var(--color-muted-foreground)" };
 
-function SalesCharts({ report, isLoading }: { report: SalesReportResult | undefined; isLoading: boolean }) {
+function SalesCharts({
+  report,
+  isLoading,
+  currencyCode = "INR",
+}: {
+  report: SalesReportResult | undefined;
+  isLoading: boolean;
+  currencyCode?: string | undefined;
+}) {
   const byDate = useMemo(
     () =>
       (report?.breakdowns.salesByDate ?? []).map((d) => ({
-        label: new Date(d.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+        label: new Date(d.date).toLocaleDateString(currencyCode === "INR" ? "en-IN" : "en-US", { day: "numeric", month: "short" }),
         value: d.totalSales,
       })),
-    [report],
+    [report, currencyCode],
   );
   const byProduct = useMemo(
     () =>
@@ -952,6 +970,8 @@ function SalesCharts({ report, isLoading }: { report: SalesReportResult | undefi
     );
   }
 
+  const formatShort = (v: number) => formatCompactMoney(v, currencyCode);
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <ChartCard title="Revenue trend" subtitle="Daily sales for the selected filters">
@@ -965,8 +985,8 @@ function SalesCharts({ report, isLoading }: { report: SalesReportResult | undefi
             </defs>
             <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={axisTick} minTickGap={24} />
-            <YAxis tickLine={false} axisLine={false} width={52} tick={axisTick} tickFormatter={inrShort} />
-            <Tooltip content={<ChartTip />} cursor={{ stroke: "var(--color-border)" }} />
+            <YAxis tickLine={false} axisLine={false} width={52} tick={axisTick} tickFormatter={formatShort} />
+            <Tooltip content={<ChartTip currencyCode={currencyCode} />} cursor={{ stroke: "var(--color-border)" }} />
             <Area type="monotone" dataKey="value" stroke="var(--color-chart-1)" strokeWidth={2} fill="url(#reportFill)" />
           </AreaChart>
         </ResponsiveContainer>
@@ -975,9 +995,9 @@ function SalesCharts({ report, isLoading }: { report: SalesReportResult | undefi
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={byProduct} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid horizontal={false} stroke="var(--color-border)" strokeDasharray="3 3" />
-            <XAxis type="number" tickLine={false} axisLine={false} tick={axisTick} tickFormatter={inrShort} />
+            <XAxis type="number" tickLine={false} axisLine={false} tick={axisTick} tickFormatter={formatShort} />
             <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} width={120} tick={axisTick} />
-            <Tooltip content={<ChartTip />} cursor={{ fill: "var(--color-accent)" }} />
+            <Tooltip content={<ChartTip currencyCode={currencyCode} />} cursor={{ fill: "var(--color-accent)" }} />
             <Bar dataKey="value" fill="var(--color-chart-1)" radius={[0, 4, 4, 0]} barSize={14} />
           </BarChart>
         </ResponsiveContainer>

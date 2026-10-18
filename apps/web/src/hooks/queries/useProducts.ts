@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
 export interface ProductItem {
@@ -26,6 +26,7 @@ export interface ProductItem {
   tax?: { id: string; name: string; rate: number | string; isInclusive: boolean } | null;
   variants?: any[];
   priceLevels?: any[];
+  stockLevels?: { onHand: number | string; reserved: number | string }[];
 }
 
 export interface ProductsResponse {
@@ -39,15 +40,15 @@ export interface ProductsResponse {
 }
 
 export interface ProductParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  categoryId?: string;
-  brandId?: string;
-  status?: string;
-  type?: string;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
+  page?: number | undefined;
+  limit?: number | undefined;
+  search?: string | undefined;
+  categoryId?: string | undefined;
+  brandId?: string | undefined;
+  status?: string | undefined;
+  type?: string | undefined;
+  sortBy?: string | undefined;
+  sortOrder?: "asc" | "desc" | undefined;
 }
 
 export function useProducts(params?: ProductParams) {
@@ -67,6 +68,7 @@ export function useProducts(params?: ProductParams) {
   return useQuery<ProductsResponse>({
     queryKey: ["products", params],
     queryFn: () => apiClient<ProductsResponse>(`/products${queryStr}`),
+    placeholderData: keepPreviousData,
   });
 }
 

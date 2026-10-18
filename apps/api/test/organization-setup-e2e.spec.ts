@@ -32,6 +32,9 @@ describe("Organization, Branch, and Warehouse Unified Setup Flow (E2E)", () => {
     prisma = app.get(PrismaService);
 
     // Pre-test cleanup
+    await prisma.pOSSession.deleteMany({
+      where: { openedBy: { email: "setup.tester@valgrow-flow.test" } },
+    });
     await prisma.user.deleteMany({
       where: { email: "setup.tester@valgrow-flow.test" },
     });
@@ -68,6 +71,9 @@ describe("Organization, Branch, and Warehouse Unified Setup Flow (E2E)", () => {
 
   afterAll(async () => {
     if (prisma) {
+      await prisma.pOSSession.deleteMany({
+        where: { openedBy: { email: "setup.tester@valgrow-flow.test" } },
+      });
       await prisma.user.deleteMany({
         where: { email: "setup.tester@valgrow-flow.test" },
       });
@@ -333,5 +339,27 @@ describe("Organization, Branch, and Warehouse Unified Setup Flow (E2E)", () => {
     expect(await prisma.organization.count()).toBe(existingOrgCount);
     expect(await prisma.branch.count()).toBe(existingBranchCount);
     expect(await prisma.warehouse.count()).toBe(existingWarehouseCount);
+  });
+
+  // =========================================================================
+  // 8. Currency Verification in /auth/me and Organization Context Switching
+  // =========================================================================
+  it("8: should return configured currency in /auth/me for active organization and organizations list", async () => {
+    const meRes = await request(app.getHttpServer())
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${userToken}`)
+      .set("Cookie", userCookie)
+      .set("x-organization-id", createdOrgId)
+      .expect(200);
+
+    expect(meRes.body.activeOrganization).toBeDefined();
+    expect(meRes.body.activeOrganization.id).toBe(createdOrgId);
+    expect(meRes.body.activeOrganization.currency).toBe("USD");
+
+    // All organizations in the user list must also include their configured currency
+    expect(Array.isArray(meRes.body.organizations)).toBe(true);
+    const usdOrg = meRes.body.organizations.find((o: any) => o.id === createdOrgId);
+    expect(usdOrg).toBeDefined();
+    expect(usdOrg.currency).toBe("USD");
   });
 });

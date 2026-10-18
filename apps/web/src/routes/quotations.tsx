@@ -18,6 +18,7 @@ import { useWarehouses } from "@/hooks/queries/useWarehouses";
 import { useProducts } from "@/hooks/queries/useProducts";
 import { useProductVariants } from "@/hooks/queries/useProductVariants";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   Dialog,
   DialogContent,
@@ -61,6 +62,7 @@ export const Route = createFileRoute("/quotations")({
 });
 
 function QuotationsPage() {
+  const { currencySymbol, formatMoney } = useActiveCurrency();
   const { data: currentUser } = useCurrentUser();
   const permissions = currentUser?.permissions || [];
 
@@ -259,9 +261,9 @@ function QuotationsPage() {
         quotationNumber: q.quotationNumber,
         customerName: q.customer?.name || "N/A",
         quotationDate: new Date(q.quotationDate).toLocaleDateString(),
-        subtotal: `₹${Number(q.subtotalAmount).toLocaleString("en-IN")}`,
-        tax: `₹${Number(q.taxAmount).toLocaleString("en-IN")}`,
-        total: `₹${Number(q.totalAmount).toLocaleString("en-IN")}`,
+        subtotal: formatMoney(q.subtotalAmount),
+        tax: formatMoney(q.taxAmount),
+        total: formatMoney(q.totalAmount),
         status: q.status,
       }))
     : [];
@@ -444,7 +446,7 @@ function QuotationsPage() {
                     <Input
                       type="number"
                       className="h-8 text-xs"
-                      placeholder="Price (₹)"
+                      placeholder={`Price (${currencySymbol})`}
                       value={row.unitPrice}
                       onChange={(e) => updateItemRow(idx, "unitPrice", Number(e.target.value))}
                     />

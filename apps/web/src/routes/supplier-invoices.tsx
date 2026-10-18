@@ -9,6 +9,7 @@ import {
 } from "@/hooks/queries/useSupplierInvoices";
 import { useSuppliers } from "@/hooks/queries/useSuppliers";
 import { usePurchaseOrders, usePurchaseOrder } from "@/hooks/queries/usePurchaseOrders";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ export const Route = createFileRoute("/supplier-invoices")({
 });
 
 function SupplierInvoicesPage() {
+  const { currencySymbol, formatMoney } = useActiveCurrency();
   const { data: invoices } = useSupplierInvoices();
   const { data: suppliers } = useSuppliers();
   const { data: orders } = usePurchaseOrders();
@@ -132,9 +134,9 @@ function SupplierInvoicesPage() {
           poNumber: inv.purchaseOrder ? inv.purchaseOrder.orderNumber : "N/A",
           invoiceDate: new Date(inv.invoiceDate).toLocaleDateString(),
           dueDate: new Date(inv.dueDate).toLocaleDateString(),
-          totalAmount: `₹${total.toLocaleString("en-IN")}`,
-          paidAmount: `₹${paid.toLocaleString("en-IN")}`,
-          outstanding: `₹${outstanding.toLocaleString("en-IN")}`,
+          totalAmount: formatMoney(total),
+          paidAmount: formatMoney(paid),
+          outstanding: formatMoney(outstanding),
           status: inv.status,
         };
       })
@@ -148,7 +150,7 @@ function SupplierInvoicesPage() {
     },
     {
       label: "Total Balance Due",
-      value: `₹${invoices?.reduce((s, i) => s + (Number(i.totalAmount) - Number(i.paidAmount)), 0).toLocaleString("en-IN") || 0}`,
+      value: formatMoney(invoices?.reduce((s, i) => s + (Number(i.totalAmount) - Number(i.paidAmount)), 0) || 0),
     },
   ];
 
@@ -238,7 +240,7 @@ function SupplierInvoicesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Subtotal Amount (₹) *</Label>
+              <Label>Subtotal Amount ({currencySymbol}) *</Label>
               <Input
                 type="number"
                 value={subtotalAmount}
@@ -247,7 +249,7 @@ function SupplierInvoicesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Tax Amount (₹)</Label>
+              <Label>Tax Amount ({currencySymbol})</Label>
               <Input
                 type="number"
                 value={taxAmount}
@@ -282,6 +284,7 @@ function SupplierInvoicesPage() {
 }
 
 function ThreeWayMatchModal({ invoiceId, onClose }: { invoiceId: string; onClose: () => void }) {
+  const { formatMoney } = useActiveCurrency();
   const { data: matchResult, isLoading } = useThreeWayMatch(invoiceId);
 
   return (
@@ -334,13 +337,13 @@ function ThreeWayMatchModal({ invoiceId, onClose }: { invoiceId: string; onClose
                 <div>
                   <span className="text-muted-foreground block">PO Total</span>
                   <span className="font-semibold text-sm">
-                    ₹{Number(matchResult.summary.poTotal).toLocaleString("en-IN")}
+                    {formatMoney(matchResult.summary.poTotal)}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block">Invoice Total</span>
                   <span className="font-semibold text-sm">
-                    ₹{Number(matchResult.summary.invoiceTotal).toLocaleString("en-IN")}
+                    {formatMoney(matchResult.summary.invoiceTotal)}
                   </span>
                 </div>
                 <div>

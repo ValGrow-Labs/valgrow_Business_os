@@ -37,6 +37,7 @@ export interface UserMeResponse {
     name: string;
     slug: string;
     plan: string;
+    currency: string;
     role: string;
   }>;
 }

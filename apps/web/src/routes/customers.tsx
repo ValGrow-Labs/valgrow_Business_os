@@ -18,6 +18,7 @@ import {
 } from "@/hooks/queries/useCustomers";
 import { useCustomer360 } from "@/hooks/queries/useCustomer360";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,7 @@ export const Route = createFileRoute("/customers")({
 });
 
 function CustomersPage() {
+  const { currencyCode, currencySymbol, formatMoney } = useActiveCurrency();
   const { data: currentUser } = useCurrentUser();
   const permissions = currentUser?.permissions || [];
 
@@ -79,7 +81,7 @@ function CustomersPage() {
   const [country, setCountry] = useState("India");
   const [postalCode, setPostalCode] = useState("");
   const [taxIdNumber, setTaxIdNumber] = useState("");
-  const [currency, setCurrency] = useState("INR");
+  const [currency, setCurrency] = useState(currencyCode || "INR");
   const [creditLimit, setCreditLimit] = useState<number>(0);
   const [paymentTerms, setPaymentTerms] = useState("NET30");
 
@@ -94,7 +96,7 @@ function CustomersPage() {
     setCountry("India");
     setPostalCode("");
     setTaxIdNumber("");
-    setCurrency("INR");
+    setCurrency(currencyCode || "INR");
     setCreditLimit(0);
     setPaymentTerms("NET30");
     setErrorMsg(null);
@@ -112,7 +114,7 @@ function CustomersPage() {
     setCountry(customer.country || "India");
     setPostalCode(customer.postalCode || "");
     setTaxIdNumber(customer.taxIdNumber || customer.taxNumber || "");
-    setCurrency(customer.currency || "INR");
+    setCurrency(customer.currency || currencyCode || "INR");
     setCreditLimit(customer.creditLimit || 0);
     setPaymentTerms(customer.paymentTerms || "NET30");
     setErrorMsg(null);
@@ -241,7 +243,7 @@ function CustomersPage() {
         email: c.email || "N/A",
         phone: c.phone || "N/A",
         currency: c.currency,
-        creditLimit: `₹${Number(c.creditLimit).toLocaleString("en-IN")}`,
+        creditLimit: formatMoney(c.creditLimit, c.currency || currencyCode),
         paymentTerms: c.paymentTerms || "NET30",
         status: c.status === "ACTIVE" ? "Active" : c.status,
       }))
@@ -376,7 +378,7 @@ function CustomersPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="creditLimit">Credit Limit (₹)</Label>
+              <Label htmlFor="creditLimit">Credit Limit ({currencySymbol})</Label>
               <Input
                 id="creditLimit"
                 type="number"
@@ -447,6 +449,7 @@ function CustomersPage() {
 }
 
 function Customer360Dialog({ customer, onClose }: { customer: CustomerItem; onClose: () => void }) {
+  const { formatMoney } = useActiveCurrency();
   const { data: c360, isLoading } = useCustomer360(customer.id);
   const [activeTab, setActiveTab] = useState<"TIMELINE" | "METRICS" | "CONTACTS" | "SALES" | "CRM">(
     "TIMELINE",
@@ -545,19 +548,19 @@ function Customer360Dialog({ customer, onClose }: { customer: CustomerItem; onCl
                   <div className="p-3 rounded-md border border-border bg-muted/20">
                     <p className="text-muted-foreground">Total Revenue / Purchases</p>
                     <p className="text-base font-bold text-foreground">
-                      ₹{c360.metrics.totalPurchases.toLocaleString("en-IN")}
+                      {formatMoney(c360.metrics.totalPurchases)}
                     </p>
                   </div>
                   <div className="p-3 rounded-md border border-border bg-muted/20">
                     <p className="text-muted-foreground">Outstanding Balance</p>
                     <p className="text-base font-bold text-destructive">
-                      ₹{c360.metrics.outstandingBalance.toLocaleString("en-IN")}
+                      {formatMoney(c360.metrics.outstandingBalance)}
                     </p>
                   </div>
                   <div className="p-3 rounded-md border border-border bg-muted/20">
                     <p className="text-muted-foreground">Won Opportunities Value</p>
                     <p className="text-base font-bold text-success">
-                      ₹{c360.metrics.wonOpportunitiesValue.toLocaleString("en-IN")}
+                      {formatMoney(c360.metrics.wonOpportunitiesValue)}
                     </p>
                   </div>
                   <div className="p-3 rounded-md border border-border bg-muted/20">
@@ -608,7 +611,7 @@ function Customer360Dialog({ customer, onClose }: { customer: CustomerItem; onCl
                       <div key={so.id} className="p-2 border-b border-border flex justify-between">
                         <span>{so.orderNumber}</span>
                         <span>
-                          ₹{Number(so.totalAmount).toLocaleString("en-IN")} ({so.status})
+                          {formatMoney(so.totalAmount)} ({so.status})
                         </span>
                       </div>
                     ))}
@@ -620,7 +623,7 @@ function Customer360Dialog({ customer, onClose }: { customer: CustomerItem; onCl
                     {c360?.posHistory.map((pos: any) => (
                       <div key={pos.id} className="p-2 border-b border-border flex justify-between">
                         <span>Receipt #{pos.receiptNumber}</span>
-                        <span>₹{Number(pos.totalAmount).toLocaleString("en-IN")}</span>
+                        <span>{formatMoney(pos.totalAmount)}</span>
                       </div>
                     ))}
                   </div>
@@ -640,7 +643,7 @@ function Customer360Dialog({ customer, onClose }: { customer: CustomerItem; onCl
                           {opp.opportunityNumber} - {opp.name}
                         </span>
                         <span className="font-medium">
-                          ₹{Number(opp.estimatedValue).toLocaleString("en-IN")} ({opp.status})
+                          {formatMoney(opp.estimatedValue)} ({opp.status})
                         </span>
                       </div>
                     ))}

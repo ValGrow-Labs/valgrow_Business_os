@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/foundation/page-header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useTaxSummary } from "@/hooks/queries/useTaxReports";
 import { Calculator } from "lucide-react";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 
 export const Route = createFileRoute("/tax-reports")({
   head: () => ({
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/tax-reports")({
 });
 
 function TaxReportsPage() {
+  const { currencyCode, formatMoney } = useActiveCurrency();
   const { data: taxData, isLoading } = useTaxSummary();
 
   return (
@@ -36,7 +38,7 @@ function TaxReportsPage() {
             </CardHeader>
             <CardContent className="pt-4 space-y-2">
               <div className="text-3xl font-extrabold font-mono">
-                ₹{(taxData?.totalOutputTaxCollected || 0).toLocaleString("en-IN")}
+                {formatMoney(taxData?.totalOutputTaxCollected || 0, currencyCode)}
               </div>
               <p className="text-xs text-muted-foreground">Total tax collected on sales invoices and retail transactions.</p>
             </CardContent>
@@ -51,7 +53,7 @@ function TaxReportsPage() {
             </CardHeader>
             <CardContent className="pt-4 space-y-2">
               <div className="text-3xl font-extrabold font-mono text-success">
-                ₹{(taxData?.totalInputTaxClaimed || 0).toLocaleString("en-IN")}
+                {formatMoney(taxData?.totalInputTaxClaimed || 0, currencyCode)}
               </div>
               <p className="text-xs text-muted-foreground">Eligible Input Tax Credit (ITC) paid on vendor invoices.</p>
             </CardContent>
@@ -67,10 +69,12 @@ function TaxReportsPage() {
                   {taxData?.netTaxPayable && taxData.netTaxPayable > 0 ? "Net Payable to Tax Authority" : "Net Carry-forward Credit"}
                 </div>
                 <div className="text-4xl font-extrabold font-mono text-primary mt-1">
-                  ₹
-                  {taxData?.netTaxPayable && taxData.netTaxPayable > 0
-                    ? taxData.netTaxPayable.toLocaleString("en-IN")
-                    : (taxData?.netTaxRefundable || 0).toLocaleString("en-IN")}
+                  {formatMoney(
+                    taxData?.netTaxPayable && taxData.netTaxPayable > 0
+                      ? taxData.netTaxPayable
+                      : (taxData?.netTaxRefundable || 0),
+                    currencyCode,
+                  )}
                 </div>
               </div>
             </CardContent>

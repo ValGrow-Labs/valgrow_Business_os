@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { usePurchaseOrders } from "@/hooks/queries/usePurchaseOrders";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import {
   Contact,
   ShoppingBag,
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/purchasing")({
 });
 
 function PurchasingDashboardPage() {
+  const { formatMoney } = useActiveCurrency();
   const { data: poData, isLoading: poLoading } = usePurchaseOrders();
 
   const actions = [
@@ -157,7 +159,7 @@ function PurchasingDashboardPage() {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <div className="font-semibold text-foreground text-sm">
-                        ₹{Number(po.totalAmount || 0).toLocaleString("en-IN")}
+                        {formatMoney(po.totalAmount || 0, po.currency)}
                       </div>
                     </div>
                     <Link to="/purchase-orders">

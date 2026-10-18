@@ -149,6 +149,12 @@ export class ProductsService {
               minQuantity: true,
             },
           },
+          stockLevels: {
+            select: {
+              onHand: true,
+              reserved: true,
+            },
+          },
         },
       }),
       this.prisma.product.count({ where }),

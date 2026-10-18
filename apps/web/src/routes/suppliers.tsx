@@ -35,6 +35,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
+import { CurrencySelect } from "@/components/ui/currency-select";
 
 const title = "Suppliers";
 const description = "Supplier profiles, payment terms, contact details, and vendor relationships.";
@@ -62,12 +64,13 @@ function SuppliersPage() {
   const [code, setCode] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [email, setEmail] = useState("");
+  const { currencyCode } = useActiveCurrency();
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("India");
   const [taxIdNumber, setTaxIdNumber] = useState("");
-  const [currency, setCurrency] = useState("INR");
+  const [currency, setCurrency] = useState(currencyCode || "INR");
   const [paymentTerms, setPaymentTerms] = useState("NET30");
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
@@ -83,7 +86,7 @@ function SuppliersPage() {
     setCity("");
     setCountry("India");
     setTaxIdNumber("");
-    setCurrency("INR");
+    setCurrency(currencyCode || "INR");
     setPaymentTerms("NET30");
     setNotes("");
     setStatus("ACTIVE");
@@ -349,19 +352,11 @@ function SuppliersPage() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="currency">Currency</Label>
-                  <Select value={currency} onValueChange={(val) => setCurrency(val)}>
-                    <SelectTrigger id="currency">
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="INR">INR (₹)</SelectItem>
-                      <SelectItem value="USD">USD ($)</SelectItem>
-                      <SelectItem value="EUR">EUR (€)</SelectItem>
-                      <SelectItem value="GBP">GBP (£)</SelectItem>
-                      <SelectItem value="AED">AED (د.إ)</SelectItem>
-                      <SelectItem value="SGD">SGD (S$)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <CurrencySelect
+                    id="currency"
+                    value={currency}
+                    onValueChange={(val) => setCurrency(val)}
+                  />
                 </div>
 
                 <div className="space-y-1.5">

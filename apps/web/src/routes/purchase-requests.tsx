@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Eye, Send, CheckCircle2, XCircle, Ban, Trash2 } from "lucide-react";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 
 const title = "Purchase Requests";
 const description = "Internal requisitions, stock requests, and approval workflow.";
@@ -48,6 +49,7 @@ export interface PRFormLineItem {
 }
 
 function PurchaseRequestsPage() {
+  const { currencyCode, formatMoney } = useActiveCurrency();
   const { data: requests } = usePurchaseRequests();
   const { data: productsData } = useProducts();
   const { data: warehouses } = useWarehouses();
@@ -196,7 +198,7 @@ function PurchaseRequestsPage() {
           requester: pr.requester ? `${pr.requester.firstName} ${pr.requester.lastName}` : "N/A",
           warehouse: pr.warehouse ? pr.warehouse.name : "N/A",
           itemCount: String(pr.items.length),
-          estimatedTotal: `₹${totalEst.toLocaleString("en-IN")}`,
+          estimatedTotal: formatMoney(totalEst, currencyCode),
           requiredDate: pr.requiredDate ? new Date(pr.requiredDate).toLocaleDateString() : "N/A",
           status: pr.status,
         };

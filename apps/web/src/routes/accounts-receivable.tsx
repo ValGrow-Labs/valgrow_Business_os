@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useCustomerBalances, useCustomerAging, useCustomerStatement } from "@/hooks/queries/useArSubledger";
 import { Calendar, UserCheck, FileText } from "lucide-react";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 
 export const Route = createFileRoute("/accounts-receivable")({
   head: () => ({
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/accounts-receivable")({
 });
 
 function AccountsReceivablePage() {
+  const { currencyCode, formatMoney } = useActiveCurrency();
   const { data: balances, isLoading: balLoading } = useCustomerBalances();
   const { data: aging } = useCustomerAging();
 
@@ -65,14 +67,13 @@ function AccountsReceivablePage() {
                       No customer balances recorded.
                     </td>
                   </tr>
-                ) : (
-                  balances?.map((b) => (
+                ) : (                    balances?.map((b) => (
                     <tr key={b.customer.id} className="hover:bg-accent/5">
                       <td className="px-4 py-3 font-mono font-bold text-primary">{b.customer.customerCode}</td>
                       <td className="px-4 py-3 font-medium">{b.customer.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{b.customer.email || b.customer.phone || "-"}</td>
                       <td className="px-4 py-3 text-right font-mono font-bold">
-                        ₹{Number(b.totalOutstanding).toLocaleString("en-IN")}
+                        {formatMoney(Number(b.totalOutstanding), currencyCode)}
                       </td>
                       <td className="px-4 py-3">
                         <button
@@ -115,9 +116,9 @@ function AccountsReceivablePage() {
                             <Badge variant={tx.type === "INVOICE" ? "outline" : "default"}>{tx.type}</Badge>
                           </td>
                           <td className="px-4 py-2 font-mono">{tx.reference}</td>
-                          <td className="px-4 py-2 text-right font-mono">{tx.debit > 0 ? `₹${tx.debit.toLocaleString("en-IN")}` : "-"}</td>
-                          <td className="px-4 py-2 text-right font-mono">{tx.credit > 0 ? `₹${tx.credit.toLocaleString("en-IN")}` : "-"}</td>
-                          <td className="px-4 py-2 text-right font-mono font-bold">₹{tx.runningBalance.toLocaleString("en-IN")}</td>
+                          <td className="px-4 py-2 text-right font-mono">{tx.debit > 0 ? formatMoney(tx.debit, currencyCode) : "-"}</td>
+                          <td className="px-4 py-2 text-right font-mono">{tx.credit > 0 ? formatMoney(tx.credit, currencyCode) : "-"}</td>
+                          <td className="px-4 py-2 text-right font-mono font-bold">{formatMoney(tx.runningBalance, currencyCode)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -135,31 +136,31 @@ function AccountsReceivablePage() {
                 <Card>
                   <CardHeader className="py-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">Current</span>
-                    <span className="text-xl font-bold">₹{aging.summary.current.toLocaleString("en-IN")}</span>
+                    <span className="text-xl font-bold">{formatMoney(aging.summary.current, currencyCode)}</span>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="py-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">1 - 30 Days</span>
-                    <span className="text-xl font-bold">₹{aging.summary.days1To30.toLocaleString("en-IN")}</span>
+                    <span className="text-xl font-bold">{formatMoney(aging.summary.days1To30, currencyCode)}</span>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="py-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">31 - 60 Days</span>
-                    <span className="text-xl font-bold text-warning">₹{aging.summary.days31To60.toLocaleString("en-IN")}</span>
+                    <span className="text-xl font-bold text-warning">{formatMoney(aging.summary.days31To60, currencyCode)}</span>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="py-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">61 - 90 Days</span>
-                    <span className="text-xl font-bold text-destructive/80">₹{aging.summary.days61To90.toLocaleString("en-IN")}</span>
+                    <span className="text-xl font-bold text-destructive/80">{formatMoney(aging.summary.days61To90, currencyCode)}</span>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="py-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">&gt; 90 Days</span>
-                    <span className="text-xl font-bold text-destructive">₹{aging.summary.daysOver90.toLocaleString("en-IN")}</span>
+                    <span className="text-xl font-bold text-destructive">{formatMoney(aging.summary.daysOver90, currencyCode)}</span>
                   </CardHeader>
                 </Card>
               </div>
@@ -181,12 +182,12 @@ function AccountsReceivablePage() {
                     {aging.customers.map((c) => (
                       <tr key={c.customer.id} className="hover:bg-accent/5">
                         <td className="px-4 py-3 font-medium">{c.customer.name} ({c.customer.customerCode})</td>
-                        <td className="px-4 py-3 text-right font-mono">₹{c.current.toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-3 text-right font-mono">₹{c.days1To30.toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-3 text-right font-mono text-warning">₹{c.days31To60.toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-3 text-right font-mono text-destructive/80">₹{c.days61To90.toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-3 text-right font-mono text-destructive">₹{c.daysOver90.toLocaleString("en-IN")}</td>
-                        <td className="px-4 py-3 text-right font-mono font-bold">₹{c.total.toLocaleString("en-IN")}</td>
+                        <td className="px-4 py-3 text-right font-mono">{formatMoney(c.current, currencyCode)}</td>
+                        <td className="px-4 py-3 text-right font-mono">{formatMoney(c.days1To30, currencyCode)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-warning">{formatMoney(c.days31To60, currencyCode)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-destructive/80">{formatMoney(c.days61To90, currencyCode)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-destructive">{formatMoney(c.daysOver90, currencyCode)}</td>
+                        <td className="px-4 py-3 text-right font-mono font-bold">{formatMoney(c.total, currencyCode)}</td>
                       </tr>
                     ))}
                   </tbody>

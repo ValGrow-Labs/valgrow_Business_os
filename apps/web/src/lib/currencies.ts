@@ -1029,3 +1029,96 @@ export function searchCurrencies(query: string): Currency[] {
       c.symbol.toLowerCase().includes(q)
   );
 }
+
+/**
+ * Get currency symbol for an ISO 4217 code.
+ * Falls back to the code itself, or fallback string if not found.
+ */
+export function getCurrencySymbol(code?: string | null, fallback = "---"): string {
+  if (!code) return fallback;
+  const curr = getCurrency(code);
+  return curr ? curr.symbol : code;
+}
+
+export interface FormatMoneyOptions extends Intl.NumberFormatOptions {
+  fallbackSymbol?: string;
+}
+
+/**
+ * Formats a monetary amount according to the ISO 4217 currency.
+ *
+ * Requirements:
+ * - Uses Intl.NumberFormat with the ISO currency code.
+ * - Handles INR with Indian locale grouping ("en-IN"), and other currencies with "en-US"
+ *   (or standard grouping) so numbers format accurately.
+ * - Respects currency minor units (e.g. JPY has 0 decimals, USD/INR has 2).
+ * - Gracefully handles missing, null, or invalid currency codes without crashing.
+ * - Returns a clear fallback indicator if currency is unavailable or invalid.
+ */
+export function formatMoney(
+  amount: number | string | null | undefined,
+  currencyCode?: string | null,
+  options?: FormatMoneyOptions
+): string {
+  const num = typeof amount === "number" ? amount : Number(amount);
+  const isValidNum = !isNaN(num) && isFinite(num);
+  const safeNum = isValidNum ? num : 0;
+
+  const cleanCode = (currencyCode || "").trim().toUpperCase();
+
+  if (!cleanCode) {
+    // Currency is genuinely missing / not configured
+    const formatted = safeNum.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+      ...options,
+    });
+    return `${formatted} (---)`;
+  }
+
+  try {
+    const locale = cleanCode === "INR" ? "en-IN" : "en-US";
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: cleanCode,
+      ...options,
+    }).format(safeNum);
+  } catch (err) {
+    console.warn(`formatMoney: invalid currency code "${cleanCode}"`, err);
+    const formatted = safeNum.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+      ...options,
+    });
+    return `${formatted} (${cleanCode})`;
+  }
+}
+
+/**
+ * Formats compact numbers with currency symbol (e.g., "$1.2M", "₹5.4L", "€200k").
+ */
+export function formatCompactMoney(
+  amount: number | string | null | undefined,
+  currencyCode?: string | null
+): string {
+  const num = typeof amount === "number" ? amount : Number(amount);
+  if (isNaN(num) || !isFinite(num)) return "0";
+  const symbol = getCurrencySymbol(currencyCode, "");
+
+  const cleanCode = (currencyCode || "").trim().toUpperCase();
+  if (cleanCode === "INR") {
+    const abs = Math.abs(num);
+    const sign = num < 0 ? "-" : "";
+    if (abs >= 10000000) return `${sign}${symbol}${(abs / 10000000).toFixed(1)}Cr`;
+    if (abs >= 100000) return `${sign}${symbol}${(abs / 100000).toFixed(1)}L`;
+    if (abs >= 1000) return `${sign}${symbol}${(abs / 1000).toFixed(0)}k`;
+    return `${sign}${symbol}${abs}`;
+  }
+
+  const abs = Math.abs(num);
+  const sign = num < 0 ? "-" : "";
+  if (abs >= 1000000) return `${sign}${symbol}${(abs / 1000000).toFixed(1)}M`;
+  if (abs >= 1000) return `${sign}${symbol}${(abs / 1000).toFixed(0)}k`;
+  return `${sign}${symbol}${abs}`;
+}
+

@@ -14,6 +14,7 @@ import {
   useRemovePOSCartItem,
 } from "@/hooks/queries/usePOSCarts";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import { ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,7 @@ interface BillingDeskProps {
 
 export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
   const queryClient = useQueryClient();
+  const { formatMoney } = useActiveCurrency();
   const { data: currentUser } = useCurrentUser();
   const currentUserId = currentUser?.user?.id;
   const isOwner = currentUser?.role?.name === "Owner";
@@ -472,10 +474,7 @@ export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-foreground">
-                          ₹{Number(ticket.totalAmount).toLocaleString("en-IN", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {formatMoney(ticket.totalAmount)}
                         </span>
 
                         {isPendingClaim ? (
@@ -638,7 +637,7 @@ export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          ₹{Number(item.unitPrice).toFixed(2)}
+                          {formatMoney(item.unitPrice)}
                         </TableCell>
                         <TableCell className="text-center">
                           {isClaimedByMe ? (
@@ -673,7 +672,7 @@ export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
                           )}
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold">
-                          ₹{Number(item.totalAmount).toFixed(2)}
+                          {formatMoney(item.totalAmount)}
                         </TableCell>
                         {isClaimedByMe && (
                           <TableCell className="text-center">
@@ -698,30 +697,27 @@ export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Subtotal</span>
                   <span className="font-mono">
-                    ₹{Number(activeTicket.subtotalAmount).toFixed(2)}
+                    {formatMoney(activeTicket.subtotalAmount)}
                   </span>
                 </div>
                 {Number(activeTicket.discountAmount) > 0 && (
                   <div className="flex items-center justify-between text-xs text-emerald-600">
                     <span>Discount</span>
                     <span className="font-mono">
-                      -₹{Number(activeTicket.discountAmount).toFixed(2)}
+                      -{formatMoney(activeTicket.discountAmount)}
                     </span>
                   </div>
                 )}
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Tax Amount</span>
                   <span className="font-mono">
-                    ₹{Number(activeTicket.taxAmount).toFixed(2)}
+                    {formatMoney(activeTicket.taxAmount)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-base font-bold pt-2 border-t text-foreground">
                   <span>Total Amount Due</span>
                   <span className="font-mono text-primary text-lg">
-                    ₹{Number(activeTicket.totalAmount).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                    {formatMoney(activeTicket.totalAmount)}
                   </span>
                 </div>
 
@@ -776,7 +772,7 @@ export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Bill:</span>
                 <span className="font-bold text-primary font-mono text-sm">
-                  ₹{Number(activeTicket?.totalAmount).toFixed(2)}
+                  {formatMoney(activeTicket?.totalAmount)}
                 </span>
               </div>
             </div>

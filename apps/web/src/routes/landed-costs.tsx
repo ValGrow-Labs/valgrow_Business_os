@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
+import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 
 const title = "Landed Costs";
 const description =
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/landed-costs")({
 });
 
 function LandedCostsPage() {
+  const { currencyCode, currencySymbol, formatMoney } = useActiveCurrency();
   const { data: landedCosts } = useLandedCosts();
   const { data: postedGRNs } = useGoodsReceipts("POSTED");
 
@@ -71,7 +73,7 @@ function LandedCostsPage() {
         id: lc.id,
         grnNumber: lc.goodsReceipt ? lc.goodsReceipt.receiptNumber : "N/A",
         costType: lc.costType,
-        amount: `₹${Number(lc.amount).toLocaleString("en-IN")}`,
+        amount: formatMoney(Number(lc.amount), currencyCode),
         notes: lc.notes || "N/A",
         createdAt: new Date(lc.createdAt).toLocaleDateString(),
       }))
@@ -81,7 +83,7 @@ function LandedCostsPage() {
     { label: "Total Landed Costs", value: String(landedCosts?.length || 0) },
     {
       label: "Total Allocated Amount",
-      value: `₹${landedCosts?.reduce((s, l) => s + Number(l.amount), 0).toLocaleString("en-IN") || 0}`,
+      value: formatMoney(landedCosts?.reduce((s, l) => s + Number(l.amount), 0) || 0, currencyCode),
     },
     {
       label: "Freight Allocations",
@@ -152,7 +154,7 @@ function LandedCostsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Cost Amount (₹) *</Label>
+              <Label>Cost Amount ({currencySymbol}) *</Label>
               <Input
                 type="number"
                 min={1}
