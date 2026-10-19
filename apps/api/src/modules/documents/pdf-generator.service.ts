@@ -401,7 +401,10 @@ export class PdfGeneratorService {
       throw new NotFoundException("POS Sale not found");
     }
 
-    const doc = new PDFDocument({ size: [226, 600], margin: 10 });
+    const itemsCount = sale.salesOrder?.items?.length || 0;
+    const paymentsCount = sale.payments?.length || 1;
+    const estimatedHeight = Math.max(450, 240 + itemsCount * 30 + paymentsCount * 18);
+    const doc = new PDFDocument({ size: [226, estimatedHeight], margin: 10 });
     const chunks: Buffer[] = [];
 
     return new Promise((resolve, reject) => {

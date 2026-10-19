@@ -30,13 +30,20 @@ async function main() {
   }
 
   const input = identifierArg.trim().toLowerCase();
-  const candidateEmails = [input];
+  const candidateEmails = new Set<string>([input]);
   if (!input.includes("@")) {
-    candidateEmails.push(`${input}@valgrow.dev`);
+    candidateEmails.add(`${input}@valgrow.dev`);
+    if (input === "salesperson") candidateEmails.add("salesperson1@valgrow.dev");
+    if (input === "billing") candidateEmails.add("billing1@valgrow.dev");
+    if (input === "cashier") candidateEmails.add("cashier1@valgrow.dev");
+  } else {
+    if (input === "salesperson@valgrow.dev") candidateEmails.add("salesperson1@valgrow.dev");
+    if (input === "billing@valgrow.dev") candidateEmails.add("billing1@valgrow.dev");
+    if (input === "cashier@valgrow.dev") candidateEmails.add("cashier1@valgrow.dev");
   }
 
   const user = await prisma.user.findFirst({
-    where: { email: { in: candidateEmails } },
+    where: { email: { in: Array.from(candidateEmails) } },
   });
 
   if (!user) {

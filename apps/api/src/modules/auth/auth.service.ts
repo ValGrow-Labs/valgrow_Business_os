@@ -164,12 +164,29 @@ export class AuthService {
     };
   }
 
-  async login(dto: LoginDto, res: Response) {
-    const input = dto.email.trim().toLowerCase();
-    const candidateEmails = [input];
+  private resolveCandidateEmails(rawInput: string): string[] {
+    const input = rawInput.trim().toLowerCase();
+    const candidates = new Set<string>();
+    candidates.add(input);
+
     if (!input.includes("@")) {
-      candidateEmails.push(`${input}@valgrow.dev`);
+      candidates.add(`${input}@valgrow.dev`);
+      if (input === "salesperson") candidates.add("salesperson1@valgrow.dev");
+      if (input === "billing") candidates.add("billing1@valgrow.dev");
+      if (input === "cashier") candidates.add("cashier1@valgrow.dev");
+      if (input === "admin") candidates.add("alex.verma@valgrow.dev");
+    } else {
+      if (input === "salesperson@valgrow.dev") candidates.add("salesperson1@valgrow.dev");
+      if (input === "billing@valgrow.dev") candidates.add("billing1@valgrow.dev");
+      if (input === "cashier@valgrow.dev") candidates.add("cashier1@valgrow.dev");
+      if (input === "admin@valgrow.dev") candidates.add("alex.verma@valgrow.dev");
     }
+
+    return Array.from(candidates);
+  }
+
+  async login(dto: LoginDto, res: Response) {
+    const candidateEmails = this.resolveCandidateEmails(dto.email);
 
     const user = await this.prisma.user.findFirst({
       where: { email: { in: candidateEmails } },
@@ -313,11 +330,7 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
-    const input = dto.email.trim().toLowerCase();
-    const candidateEmails = [input];
-    if (!input.includes("@")) {
-      candidateEmails.push(`${input}@valgrow.dev`);
-    }
+    const candidateEmails = this.resolveCandidateEmails(dto.email);
 
     const user = await this.prisma.user.findFirst({
       where: { email: { in: candidateEmails } },

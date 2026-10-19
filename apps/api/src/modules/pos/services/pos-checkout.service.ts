@@ -156,17 +156,74 @@ export class PosCheckoutService {
       if (cart.workflowStatus === "CANCELLED") {
         throw new BadRequestException("Cannot checkout a cancelled POS Cart");
       }
+      if (cart.workflowStatus === "DRAFT") {
+        throw new BadRequestException(
+          "Cannot checkout a cart in DRAFT status. Order must be sent to Billing Desk and forwarded to Cashier Counter before payment can be collected.",
+        );
+      }
       if (
         cart.workflowStatus === "SENT_TO_BILLING" ||
-        cart.workflowStatus === "BILLING_IN_PROGRESS" ||
-        cart.workflowStatus === "READY_FOR_PAYMENT"
+        cart.workflowStatus === "BILLING_IN_PROGRESS"
       ) {
         throw new BadRequestException(
-          `Cannot checkout cart in status '${cart.workflowStatus}'. Bill must be claimed by cashier first.`,
+          `Cannot checkout cart in status '${cart.workflowStatus}'. Bill must be processed by Billing Staff and forwarded to Cashier Counter.`,
+        );
+      }
+      if (cart.workflowStatus === "READY_FOR_PAYMENT") {
+        throw new BadRequestException(
+          "Cannot checkout cart in status 'READY_FOR_PAYMENT'. Bill must be claimed by cashier first.",
+        );
+      }
+      if (cart.workflowStatus !== "PAYMENT_IN_PROGRESS") {
+        throw new BadRequestException(
+          `Cannot checkout cart in status '${cart.workflowStatus}'. Expected 'PAYMENT_IN_PROGRESS'.`,
         );
       }
       if (!cart.items || cart.items.length === 0) {
         throw new BadRequestException("POS Cart is empty");
+      }
+
+      // Verify that caller is the cashier who claimed the bill
+      if (
+        cart.cashierId &&
+        cart.cashierId !== cashierId
+      ) {
+        throw new ConflictException(
+          "Bill was claimed by another cashier. Only the assigned cashier can complete checkout.",
+        );
+      }
+
+      // Verify caller has pos.checkout permission or is Owner
+      const callerMember = await tx.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId,
+            userId: cashierId,
+          },
+        },
+        include: {
+          role: {
+            include: {
+              permissions: {
+                include: { permission: true },
+              },
+            },
+          },
+        },
+      });
+      if (!callerMember) {
+        throw new BadRequestException("User is not a member of this organization");
+      }
+      const isCallerOwner = callerMember.role?.name === "Owner";
+      const hasCheckoutPerm =
+        isCallerOwner ||
+        callerMember.role?.permissions.some(
+          (rp) => rp.permission.key === "pos.checkout",
+        );
+      if (!hasCheckoutPerm) {
+        throw new BadRequestException(
+          "User does not have permission to complete checkout. Only authorized Cashiers can process payments.",
+        );
       }
 
       // Atomic lock & status update: prevents concurrent duplicate checkout on the same cart
@@ -175,7 +232,8 @@ export class PosCheckoutService {
         where: {
           id: dto.cartId,
           organizationId,
-          workflowStatus: { in: ["DRAFT", "PAYMENT_IN_PROGRESS"] },
+          workflowStatus: "PAYMENT_IN_PROGRESS",
+          cashierId,
         },
         data: {
           workflowStatus: "PAID",
@@ -198,8 +256,8 @@ export class PosCheckoutService {
         if (!customer) throw new BadRequestException("Customer not found");
       }
 
-      // Find default bin location in warehouse
-      const defaultLocation = await tx.location.findFirst({
+      // Find default bin location in warehouse, or auto-create default storage bin
+      let defaultLocation = await tx.location.findFirst({
         where: {
           warehouseId: session.warehouseId,
           organizationId,
@@ -207,9 +265,17 @@ export class PosCheckoutService {
         },
       });
       if (!defaultLocation) {
-        throw new BadRequestException(
-          `No location bin configured for warehouse ${session.warehouseId}`,
-        );
+        defaultLocation = await tx.location.create({
+          data: {
+            organizationId,
+            warehouseId: session.warehouseId,
+            name: "Default Storage",
+            code: "BIN-01",
+            bin: "01",
+            isDefault: true,
+            status: "ACTIVE",
+          },
+        });
       }
 
       // 3. Stock Validation & Price Calculation (server-authoritative)

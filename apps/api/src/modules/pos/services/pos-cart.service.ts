@@ -2,10 +2,12 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
 import {
   CreatePosCartDto,
+  UpdatePosCartDto,
   AddPosCartItemDto,
   UpdatePosCartItemDto,
 } from "../dto/cart.dto";
@@ -123,10 +125,83 @@ export class PosCartService {
     });
   }
 
+  async updateCart(
+    organizationId: string,
+    cartId: string,
+    dto: UpdatePosCartDto,
+    userId?: string,
+  ) {
+    const cart = await this.getCart(organizationId, cartId);
+    if (cart.status !== "ACTIVE" && cart.status !== "HELD") {
+      throw new BadRequestException(`Cannot modify a ${cart.status} cart`);
+    }
+    if (
+      cart.workflowStatus !== "DRAFT" &&
+      cart.workflowStatus !== "BILLING_IN_PROGRESS"
+    ) {
+      throw new BadRequestException(
+        `Cannot update cart details when cart is in '${cart.workflowStatus}' status`,
+      );
+    }
+    if (
+      cart.workflowStatus === "BILLING_IN_PROGRESS" &&
+      cart.billingStaffId &&
+      userId &&
+      cart.billingStaffId !== userId
+    ) {
+      throw new ConflictException(
+        "Only the billing staff member who claimed this cart can update it",
+      );
+    }
+
+    if (dto.customerId) {
+      const customer = await this.prisma.customer.findFirst({
+        where: { id: dto.customerId, organizationId, deletedAt: null },
+      });
+      if (!customer) throw new BadRequestException("Customer not found");
+    }
+
+    return this.prisma.pOSCart.update({
+      where: { id: cartId },
+      data: {
+        customerId: dto.customerId !== undefined ? dto.customerId : undefined,
+        notes: dto.notes !== undefined ? dto.notes : undefined,
+      },
+      include: {
+        session: true,
+        customer: true,
+        salesperson: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        billingStaff: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        cashier: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        cancelledBy: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        items: {
+          include: {
+            product: {
+              select: { id: true, name: true, sku: true, barcode: true, images: true },
+            },
+            variant: { select: { id: true, name: true, sku: true, barcode: true } },
+          },
+        },
+        transitions: {
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+  }
+
   async addItem(
     organizationId: string,
     cartId: string,
     dto: AddPosCartItemDto,
+    userId?: string,
   ) {
     const cart = await this.getCart(organizationId, cartId);
     if (cart.status !== "ACTIVE" && cart.status !== "HELD") {
@@ -138,6 +213,16 @@ export class PosCartService {
     ) {
       throw new BadRequestException(
         `Cannot modify items when cart is in '${cart.workflowStatus}' status`,
+      );
+    }
+    if (
+      cart.workflowStatus === "BILLING_IN_PROGRESS" &&
+      cart.billingStaffId &&
+      userId &&
+      cart.billingStaffId !== userId
+    ) {
+      throw new ConflictException(
+        "Only the billing staff member who claimed this cart can modify its items",
       );
     }
 
@@ -250,6 +335,7 @@ export class PosCartService {
     cartId: string,
     itemId: string,
     dto: UpdatePosCartItemDto,
+    userId?: string,
   ) {
     const cart = await this.getCart(organizationId, cartId);
     if (cart.status !== "ACTIVE" && cart.status !== "HELD") {
@@ -261,6 +347,16 @@ export class PosCartService {
     ) {
       throw new BadRequestException(
         `Cannot modify items when cart is in '${cart.workflowStatus}' status`,
+      );
+    }
+    if (
+      cart.workflowStatus === "BILLING_IN_PROGRESS" &&
+      cart.billingStaffId &&
+      userId &&
+      cart.billingStaffId !== userId
+    ) {
+      throw new ConflictException(
+        "Only the billing staff member who claimed this cart can modify its items",
       );
     }
 
@@ -301,7 +397,12 @@ export class PosCartService {
     });
   }
 
-  async removeItem(organizationId: string, cartId: string, itemId: string) {
+  async removeItem(
+    organizationId: string,
+    cartId: string,
+    itemId: string,
+    userId?: string,
+  ) {
     const cart = await this.getCart(organizationId, cartId);
     if (cart.status !== "ACTIVE" && cart.status !== "HELD") {
       throw new BadRequestException(`Cannot modify a ${cart.status} cart`);
@@ -312,6 +413,16 @@ export class PosCartService {
     ) {
       throw new BadRequestException(
         `Cannot modify items when cart is in '${cart.workflowStatus}' status`,
+      );
+    }
+    if (
+      cart.workflowStatus === "BILLING_IN_PROGRESS" &&
+      cart.billingStaffId &&
+      userId &&
+      cart.billingStaffId !== userId
+    ) {
+      throw new ConflictException(
+        "Only the billing staff member who claimed this cart can modify its items",
       );
     }
 

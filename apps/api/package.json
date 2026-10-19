@@ -12,6 +12,7 @@
     "start:prod": "node dist/src/main.js",
     "seed": "ts-node src/seed/seed.ts",
     "seed:pos-users": "ts-node src/seed/seed-pos-users.ts",
+    "reset:pos-accounts": "ts-node src/seed/reset-pos-accounts.ts",
     "verify:pos-users": "ts-node src/seed/verify-pos-users.ts",
     "set-password": "ts-node src/seed/set-user-password.ts",
     "seed:prod": "node dist/src/seed/seed.js",

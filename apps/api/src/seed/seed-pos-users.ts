@@ -216,11 +216,11 @@ async function main() {
   }
 
   // 5. Configure Users Idempotently
-  const envPassword = process.env.TEST_USER_PASSWORD || process.env.DEV_USER_PASSWORD;
-  let defaultPasswordHash: string | null = null;
-  if (envPassword) {
-    defaultPasswordHash = await bcrypt.hash(envPassword, 12);
-  }
+  const envPassword =
+    process.env.TEST_USER_PASSWORD ||
+    process.env.DEV_USER_PASSWORD ||
+    "DevelopmentPass123!";
+  const defaultPasswordHash = await bcrypt.hash(envPassword, 12);
 
   const testAccounts = [
     {

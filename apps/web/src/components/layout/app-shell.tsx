@@ -151,33 +151,48 @@ function SidebarNav({
   layoutGroup: string;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: currentUser } = useCurrentUser();
+  const isOwner = currentUser?.role?.name === "Owner";
+  const userPermissions = currentUser?.permissions || [];
+
+  const hasPermission = (permission?: string | string[]) => {
+    if (!permission || isOwner) return true;
+    if (Array.isArray(permission)) {
+      return permission.some((p) => userPermissions.includes(p));
+    }
+    return userPermissions.includes(permission);
+  };
 
   return (
     <ScrollArea className="h-full">
       <TooltipProvider delayDuration={0}>
         <nav className={cn("space-y-4 py-3", compact ? "px-2" : "px-3")}>
-          {navGroups.map((group, idx) => (
-            <div key={group.label || idx} className="space-y-0.5">
-              {group.label ? (
-                compact ? (
-                  <div className="mx-auto my-2 h-px w-5 bg-sidebar-border" />
-                ) : (
-                  <p className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">
-                    {group.label}
-                  </p>
-                )
-              ) : null}
-              {group.items.map((item) => {
-                const active = !item.soon && isActivePath(pathname, item.url);
-                const link = (
-                  <Link
-                    key={item.title}
-                    to={item.url}
-                    onClick={onNavigate}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={compact ? item.title : undefined}
-                    data-tour={`nav-${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                    className={cn(
+          {navGroups.map((group, idx) => {
+            const visibleItems = group.items.filter((item) => hasPermission(item.permission));
+            if (visibleItems.length === 0) return null;
+
+            return (
+              <div key={group.label || idx} className="space-y-0.5">
+                {group.label ? (
+                  compact ? (
+                    <div className="mx-auto my-2 h-px w-5 bg-sidebar-border" />
+                  ) : (
+                    <p className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">
+                      {group.label}
+                    </p>
+                  )
+                ) : null}
+                {visibleItems.map((item) => {
+                  const active = !item.soon && isActivePath(pathname, item.url);
+                  const link = (
+                    <Link
+                      key={item.title}
+                      to={item.url}
+                      onClick={onNavigate}
+                      aria-current={active ? "page" : undefined}
+                      aria-label={compact ? item.title : undefined}
+                      data-tour={`nav-${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                      className={cn(
                       "group relative flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors",
                       compact && "justify-center px-0",
                       active
@@ -218,7 +233,8 @@ function SidebarNav({
                 );
               })}
             </div>
-          ))}
+          );
+        })}
         </nav>
       </TooltipProvider>
     </ScrollArea>

@@ -10,9 +10,14 @@ import {
   type POSQueueCartItem,
 } from "@/hooks/queries/usePOSWorkflow";
 import {
+  useAddPOSCartItem,
   useUpdatePOSCartItem,
   useRemovePOSCartItem,
 } from "@/hooks/queries/usePOSCarts";
+import {
+  usePOSProductSearch,
+  type POSProductItem,
+} from "@/hooks/queries/usePOSProducts";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import { ApiError } from "@/lib/api-client";
@@ -81,6 +86,8 @@ export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
   const [forwardNotes, setForwardNotes] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [showAddItemDialog, setShowAddItemDialog] = useState(false);
+  const [addItemSearch, setAddItemSearch] = useState("");
 
   // Query: Billing Queue (polls every 5s)
   const {
@@ -134,8 +141,37 @@ export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
   const sendToPaymentMutation = useSendToPayment();
   const returnToQueueMutation = useReturnToQueue();
   const cancelMutation = useCancelPOSTransaction();
+  const addItemMutation = useAddPOSCartItem();
   const updateItemMutation = useUpdatePOSCartItem();
   const removeItemMutation = useRemovePOSCartItem();
+
+  // Product Search Query for Adding Items
+  const { data: searchResult, isLoading: isSearchLoading } = usePOSProductSearch({
+    search: addItemSearch.trim() || undefined,
+    warehouseId: activeTicket?.warehouseId || warehouseId || undefined,
+    limit: 8,
+  });
+  const searchProducts: POSProductItem[] = searchResult?.data || [];
+
+  const handleAddProductToTicket = async (product: POSProductItem, variantId?: string) => {
+    if (!activeTicket || !isClaimedByMe) return;
+    const price = Number(product.retailPrice || product.costPrice || 0);
+    try {
+      await addItemMutation.mutateAsync({
+        cartId: activeTicket.id,
+        dto: {
+          productId: product.id,
+          variantId: variantId || undefined,
+          quantity: 1,
+          unitPrice: price,
+        },
+      });
+      refetchQueue();
+      toast.success(`Added ${product.name} to ticket`);
+    } catch (err: any) {
+      toast.error("Failed to add product", { description: err.message });
+    }
+  };
 
   // Handle Claim
   const handleClaim = async (ticket: POSQueueCartItem) => {
@@ -580,6 +616,18 @@ export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => {
+                          setAddItemSearch("");
+                          setShowAddItemDialog(true);
+                        }}
+                        className="text-xs h-8 gap-1 border-primary/30 text-primary hover:bg-primary/10"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Product
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={handleReturnToQueue}
                         disabled={returnToQueueMutation.isPending}
                         className="text-xs h-8 gap-1"
@@ -852,6 +900,89 @@ export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
               onClick={handleCancelTicket}
             >
               {cancelMutation.isPending ? "Cancelling..." : "Confirm Cancellation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ADD PRODUCT DIALOG */}
+      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
+              Add Product to Ticket #{activeTicket?.cartNumber || activeTicket?.id.slice(0, 8)}
+            </DialogTitle>
+            <DialogDescription>
+              Search and add items to verify or update the customer&apos;s order before billing.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products by name, SKU, or scan barcode..."
+                value={addItemSearch}
+                onChange={(e) => setAddItemSearch(e.target.value)}
+                className="pl-9 text-xs"
+                autoFocus
+              />
+            </div>
+
+            <div className="max-h-60 overflow-y-auto space-y-2 border rounded-lg p-2">
+              {isSearchLoading ? (
+                <div className="flex items-center justify-center p-6 text-xs text-muted-foreground">
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Searching inventory…
+                </div>
+              ) : searchProducts.length === 0 ? (
+                <div className="p-6 text-center text-xs text-muted-foreground">
+                  No products found matching &quot;{addItemSearch}&quot;
+                </div>
+              ) : (
+                searchProducts.map((p) => {
+                  const unitPrice = Number(p.retailPrice || p.costPrice || 0);
+                  const onHand = Number(p.availableStock ?? 0);
+                  return (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between p-2.5 rounded-md hover:bg-muted/50 border border-transparent hover:border-border transition-colors text-xs"
+                    >
+                      <div className="min-w-0 flex-1 pr-3">
+                        <p className="font-semibold text-foreground truncate">{p.name}</p>
+                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5">
+                          <span>SKU: {p.sku || p.id.slice(0, 8)}</span>
+                          <span>Stock: {onHand}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="font-mono font-bold text-foreground">
+                          ₹{unitPrice.toFixed(2)}
+                        </span>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs px-2.5"
+                          disabled={addItemMutation.isPending || onHand <= 0}
+                          onClick={() => handleAddProductToTicket(p)}
+                        >
+                          <Plus className="mr-1 h-3 w-3" />
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAddItemDialog(false)}
+            >
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>

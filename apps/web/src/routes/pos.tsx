@@ -27,6 +27,7 @@ import {
 import {
   usePOSCart,
   useCreatePOSCart,
+  useUpdatePOSCart,
   useAddPOSCartItem,
   useUpdatePOSCartItem,
   useRemovePOSCartItem,
@@ -34,12 +35,7 @@ import {
   useResumePOSCart,
   useClearPOSCart,
 } from "@/hooks/queries/usePOSCarts";
-import {
-  usePOSCheckout,
-  usePOSSales,
-  type CustomerPaymentMethod,
-  type POSSaleResult,
-} from "@/hooks/queries/usePOSCheckout";
+import { usePOSSales } from "@/hooks/queries/usePOSCheckout";
 import { useSendToBilling } from "@/hooks/queries/usePOSWorkflow";
 import { BillingDesk } from "@/components/pos/billing-desk";
 import { CashierCounter } from "@/components/pos/cashier-counter";
@@ -119,12 +115,26 @@ function POSRegisterPage() {
   const canCashier = isOwner || permissions.includes("pos.cashier");
   const canCreateCart = isOwner || permissions.includes("pos.create");
 
+  const isSalesperson = currentUser?.role?.name === "Salesperson" || (!canBilling && !canCashier && !isOwner);
+  const isBillingStaff = currentUser?.role?.name === "Billing Staff" || (canBilling && !canCashier && !isOwner);
+  const isCashier = currentUser?.role?.name === "Cashier" || (canCashier && !canBilling && !isOwner);
+
   // Determine initial active tab based on role & permissions
   const [activeTab, setActiveTab] = useState<POSTab>(() => {
-    if (canBilling && !canCreateCart && !canCheckout) return "billing";
-    if (canCashier && !canCreateCart) return "cashier";
+    if (isBillingStaff) return "billing";
+    if (isCashier) return "cashier";
     return "register";
   });
+
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role?.name === "Billing Staff" || (canBilling && !canCashier && !isOwner)) {
+        setActiveTab("billing");
+      } else if (currentUser.role?.name === "Cashier" || (canCashier && !canBilling && !isOwner)) {
+        setActiveTab("cashier");
+      }
+    }
+  }, [currentUser?.role?.name, canBilling, canCashier, isOwner]);
 
   const activeOrgId = currentUser?.activeOrganization?.id || getActiveOrgId() || undefined;
 
@@ -257,6 +267,7 @@ function POSRegisterPage() {
   );
 
   const createCartMutation = useCreatePOSCart();
+  const updateCartMutation = useUpdatePOSCart();
   const addItemMutation = useAddPOSCartItem();
   const updateItemMutation = useUpdatePOSCartItem();
   const removeItemMutation = useRemovePOSCartItem();
@@ -439,8 +450,10 @@ function POSRegisterPage() {
   const handleConfirmSendToBilling = async () => {
     if (!activeCartId) return;
     try {
+      const custId = selectedCustomerId !== "walkin" ? selectedCustomerId : null;
       const result = await sendToBillingMutation.mutateAsync({
         cartId: activeCartId,
+        customerId: custId,
         notes: sendToBillingNotes.trim() || undefined,
       });
 
@@ -593,6 +606,16 @@ function POSRegisterPage() {
       setShowAddCustomerModal(false);
       resetAddCustomerForm();
       setSelectedCustomerId(createdCustomer.id);
+      if (activeCartId && !isCartLocked) {
+        try {
+          await updateCartMutation.mutateAsync({
+            cartId: activeCartId,
+            dto: { customerId: createdCustomer.id },
+          });
+        } catch (updateErr: any) {
+          console.error("Failed to link new customer to active cart", updateErr);
+        }
+      }
       toast.success(`Customer "${createdCustomer.name}" created and selected`);
     } catch (err: any) {
       setCreateCustomerError(err.message || "Failed to create customer");
@@ -605,69 +628,31 @@ function POSRegisterPage() {
   // Selected Customer State
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("walkin");
 
-  // Checkout Modal State
-  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
-  const [payments, setPayments] = useState<
-    {
-      paymentMethod: CustomerPaymentMethod;
-      amount: number;
-      receivedAmount?: number | undefined;
-      referenceNumber?: string | undefined;
-    }[]
-  >([{ paymentMethod: "CASH", amount: 0, receivedAmount: 0 }]);
-  const [cartDiscount, setCartDiscount] = useState("0");
+  // Keep selectedCustomerId in sync with activeCart
+  useEffect(() => {
+    if (activeCart?.customerId) {
+      setSelectedCustomerId(activeCart.customerId);
+    } else if (activeCart && !activeCart.customerId) {
+      setSelectedCustomerId("walkin");
+    }
+  }, [activeCart?.id, activeCart?.customerId]);
 
-  const checkoutMutation = usePOSCheckout();
-  const [completedSale, setCompletedSale] = useState<POSSaleResult | null>(null);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-
-  // Open Checkout Dialog
-  const handleOpenCheckout = () => {
-    if (!activeCart || activeCart.items.length === 0 || isCartLocked) return;
-    const grandTotal = Number(activeCart.totalAmount);
-    setPayments([{ paymentMethod: "CASH", amount: grandTotal, receivedAmount: grandTotal }]);
-    setCartDiscount("0");
-    setShowCheckoutModal(true);
+  const handleCustomerSelect = async (val: string) => {
+    setSelectedCustomerId(val);
+    if (activeCartId && !isCartLocked) {
+      const custId = val === "walkin" ? null : val;
+      try {
+        await updateCartMutation.mutateAsync({
+          cartId: activeCartId,
+          dto: { customerId: custId },
+        });
+      } catch (err: any) {
+        console.error("Failed to update cart customer", err);
+      }
+    }
   };
 
-  // Add Split Payment Method
-  const handleAddPaymentRow = () => {
-    setPayments((prev) => [...prev, { paymentMethod: "UPI", amount: 0 }]);
-  };
 
-  const handleRemovePaymentRow = (index: number) => {
-    setPayments((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Submit Checkout
-  const handleConfirmCheckout = () => {
-    if (!activeSession || !activeCartId) return;
-
-    checkoutMutation.mutate(
-      {
-        sessionId: activeSession.id,
-        cartId: activeCartId,
-        customerId: selectedCustomerId !== "walkin" ? selectedCustomerId : undefined,
-        payments: payments.map((p) => ({
-          paymentMethod: p.paymentMethod,
-          amount: Number(p.amount),
-          receivedAmount:
-            p.paymentMethod === "CASH" ? Number(p.receivedAmount || p.amount) : undefined,
-          referenceNumber: p.referenceNumber || undefined,
-        })),
-        cartDiscountAmount: Number(cartDiscount || 0),
-      },
-      {
-        onSuccess: (saleResult) => {
-          setCompletedSale(saleResult);
-          setShowCheckoutModal(false);
-          setShowSuccessModal(true);
-          setActiveCartId(null);
-          setSelectedCustomerId("walkin");
-        },
-      },
-    );
-  };
 
   // Refunds Modal State
   const [showRefundModal, setShowRefundModal] = useState(false);
@@ -690,8 +675,6 @@ function POSRegisterPage() {
       if (
         showCloseModal ||
         showHeldModal ||
-        showCheckoutModal ||
-        showSuccessModal ||
         showRefundModal ||
         showAddCustomerModal ||
         showSendToBillingModal ||
@@ -752,8 +735,6 @@ function POSRegisterPage() {
     isCartLocked,
     showCloseModal,
     showHeldModal,
-    showCheckoutModal,
-    showSuccessModal,
     showRefundModal,
     showAddCustomerModal,
     showSendToBillingModal,
@@ -777,7 +758,7 @@ function POSRegisterPage() {
     <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-surface px-4 py-2 sm:px-6">
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 rounded-lg border bg-surface-2 p-1">
-          {(canCreateCart || canCheckout || isOwner) && (
+          {(canCreateCart || isOwner) && !isBillingStaff && !isCashier && (
             <button
               type="button"
               onClick={() => setActiveTab("register")}
@@ -792,7 +773,7 @@ function POSRegisterPage() {
             </button>
           )}
 
-          {(canBilling || isOwner) && (
+          {(canBilling || isOwner) && !isSalesperson && !isCashier && (
             <button
               type="button"
               onClick={() => setActiveTab("billing")}
@@ -807,7 +788,7 @@ function POSRegisterPage() {
             </button>
           )}
 
-          {(canCashier || canCheckout || isOwner) && (
+          {(canCashier || canCheckout || isOwner) && !isSalesperson && !isBillingStaff && (
             <button
               type="button"
               onClick={() => setActiveTab("cashier")}
@@ -1406,7 +1387,7 @@ function POSRegisterPage() {
                   </Label>
                   <Select
                     value={selectedCustomerId}
-                    onValueChange={(val) => setSelectedCustomerId(val)}
+                    onValueChange={(val) => handleCustomerSelect(val)}
                     disabled={isCartLocked}
                   >
                     <SelectTrigger id="pos-customer-select" className="h-8 text-[13px] w-full">
@@ -1609,49 +1590,25 @@ function POSRegisterPage() {
                     </Button>
                   </div>
 
-                  {/* Dual Mode: Single-user Checkout vs Multi-user Send to Billing */}
-                  {canCheckout ? (
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        size="lg"
-                        className="h-11 w-full text-base font-semibold"
-                        onClick={handleOpenCheckout}
-                        disabled={!activeCart?.items.length}
-                      >
-                        Charge {money(activeCart?.totalAmount)}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="default"
-                        className="h-10 w-full text-sm font-medium border"
-                        onClick={() => setShowSendToBillingModal(true)}
-                        disabled={!activeCart?.items.length || sendToBillingMutation.isPending}
-                      >
-                        <Send className="mr-2 h-4 w-4 text-primary" />
-                        Send to Billing Desk
-                      </Button>
-                    </div>
-                  ) : (
-                    /* Pure Salesperson Terminal Action: Send to Billing */
-                    <Button
-                      size="lg"
-                      className="h-12 w-full text-base font-semibold"
-                      onClick={() => setShowSendToBillingModal(true)}
-                      disabled={!activeCart?.items.length || sendToBillingMutation.isPending}
-                    >
-                      {sendToBillingMutation.isPending ? (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          Submitting Ticket…
-                        </>
-                      ) : (
-                        <>
-                          <Send className="mr-2 h-4 w-4" />
-                          Send to Billing ({money(activeCart?.totalAmount)})
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  {/* Sales Register Action: Send to Billing Desk */}
+                  <Button
+                    size="lg"
+                    className="h-12 w-full text-base font-semibold"
+                    onClick={() => setShowSendToBillingModal(true)}
+                    disabled={!activeCart?.items.length || sendToBillingMutation.isPending}
+                  >
+                    {sendToBillingMutation.isPending ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting Ticket…
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-4 w-4" />
+                        Send to Billing Desk ({money(activeCart?.totalAmount)})
+                      </>
+                    )}
+                  </Button>
                 </>
               )}
             </div>
@@ -1810,279 +1767,8 @@ function POSRegisterPage() {
           </DialogContent>
         </Dialog>
 
-        {/* CHECKOUT MODAL (For single-user cashier checkout) */}
-        <Dialog open={showCheckoutModal} onOpenChange={setShowCheckoutModal}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Collect payment</DialogTitle>
-              <DialogDescription>
-                Take payment with one method or split it across several.
-              </DialogDescription>
-            </DialogHeader>
 
-            <div className="space-y-5 py-1 text-sm">
-              <div className="tabular rounded-lg border bg-surface-2/60 p-4 space-y-1.5">
-                <div className="flex justify-between text-[13px] text-muted-foreground">
-                  <span>Staff</span>
-                  <span className="font-medium text-foreground">{cashierName}</span>
-                </div>
-                <div className="flex justify-between text-[13px] text-muted-foreground">
-                  <span>Customer</span>
-                  <span className="font-medium text-foreground">
-                    {selectedCustomerId === "walkin"
-                      ? "Walk-in Customer"
-                      : customers.find((c) => c.id === selectedCustomerId)?.name ||
-                        "Walk-in Customer"}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[13px] text-muted-foreground pt-1 border-t">
-                  <span>Subtotal</span>
-                  <span>{money(activeCart?.subtotalAmount)}</span>
-                </div>
-                <div className="flex justify-between text-[13px] text-muted-foreground">
-                  <span>Tax</span>
-                  <span>{money(activeCart?.taxAmount)}</span>
-                </div>
-                <div className="mt-3 flex items-end justify-between border-t pt-3">
-                  <span className="text-sm font-medium">Amount due</span>
-                  <span className="font-display text-2xl font-semibold tracking-tight">
-                    {money(activeCart?.totalAmount)}
-                  </span>
-                </div>
-              </div>
 
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Payment methods</span>
-                  <Button variant="ghost" size="xs" onClick={handleAddPaymentRow}>
-                    <Plus />
-                    Split payment
-                  </Button>
-                </div>
-
-                <AnimatePresence initial={false}>
-                  {payments.map((p, idx) => (
-                    <motion.div
-                      key={idx}
-                      layout
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="flex items-center gap-2"
-                    >
-                      <Select
-                        value={p.paymentMethod}
-                        onValueChange={(val) => {
-                          setPayments((prev) =>
-                            prev.map((item, i) =>
-                              i === idx
-                                ? { ...item, paymentMethod: val as CustomerPaymentMethod }
-                                : item,
-                            ),
-                          );
-                        }}
-                      >
-                        <SelectTrigger className="h-9 w-36 text-[13px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CASH">Cash</SelectItem>
-                          <SelectItem value="CREDIT_CARD">Card</SelectItem>
-                          <SelectItem value="UPI">UPI</SelectItem>
-                          <SelectItem value="BANK_TRANSFER">Bank transfer</SelectItem>
-                          <SelectItem value="OTHER">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="Amount"
-                        value={p.amount || ""}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setPayments((prev) =>
-                            prev.map((item, i) =>
-                              i === idx
-                                ? {
-                                    ...item,
-                                    amount: val,
-                                    receivedAmount:
-                                      item.paymentMethod === "CASH" ? val : item.receivedAmount,
-                                  }
-                                : item,
-                            ),
-                          );
-                        }}
-                        className="tabular h-9"
-                      />
-
-                      {p.paymentMethod === "CASH" && (
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="Received"
-                          value={p.receivedAmount || ""}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            setPayments((prev) =>
-                              prev.map((item, i) =>
-                                i === idx ? { ...item, receivedAmount: val } : item,
-                              ),
-                            );
-                          }}
-                          className="tabular h-9 w-28"
-                        />
-                      )}
-
-                      {payments.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Remove payment"
-                          className="h-9 w-9 shrink-0 hover:text-destructive"
-                          onClick={() => handleRemovePaymentRow(idx)}
-                        >
-                          <X />
-                        </Button>
-                      )}
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-
-              {payments.some(
-                (p) =>
-                  p.paymentMethod === "CASH" && p.receivedAmount && p.receivedAmount > p.amount,
-              ) && (
-                <div className="flex items-center justify-between rounded-lg bg-success-soft px-4 py-3 text-success">
-                  <span className="text-[13px] font-medium">Change due to customer</span>
-                  <span className="tabular text-base font-semibold">
-                    {money(
-                      payments
-                        .filter((p) => p.paymentMethod === "CASH")
-                        .reduce(
-                          (sum, p) => sum + ((p.receivedAmount || p.amount) - p.amount),
-                          0,
-                        ),
-                    )}
-                  </span>
-                </div>
-              )}
-
-              {checkoutMutation.isError && (
-                <div
-                  role="alert"
-                  className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive-soft p-3 text-[13px] text-destructive"
-                >
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  {(checkoutMutation.error as any)?.message || "Checkout failed"}
-                </div>
-              )}
-            </div>
-
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setShowCheckoutModal(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleConfirmCheckout} disabled={checkoutMutation.isPending}>
-                {checkoutMutation.isPending ? (
-                  <>
-                    <RefreshCw className="animate-spin" />
-                    Processing…
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 />
-                    Complete sale
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* POST-CHECKOUT RECEIPT MODAL */}
-        <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader className="items-center text-center sm:text-center">
-              <motion.div
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", stiffness: 420, damping: 18, delay: 0.05 }}
-                className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-success-soft text-success"
-              >
-                <CheckCircle2 className="h-6 w-6" />
-              </motion.div>
-              <DialogTitle>Sale completed</DialogTitle>
-              <DialogDescription className="font-mono text-[13px]">
-                Receipt #{completedSale?.sale.receiptNumber}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="tabular space-y-2 rounded-lg border bg-surface-2/60 p-4 text-[13px]">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Staff</span>
-                <span className="font-medium">
-                  {completedSale?.sale.cashier
-                    ? `${completedSale.sale.cashier.firstName} ${completedSale.sale.cashier.lastName}`
-                    : cashierName}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Customer</span>
-                <span className="font-medium">
-                  {completedSale?.sale.customer?.name || "Walk-in Customer"}
-                </span>
-              </div>
-
-              <div className="flex justify-between border-t pt-2">
-                <span className="text-muted-foreground">Total paid</span>
-                <span className="font-semibold">{money(completedSale?.sale.totalAmount)}</span>
-              </div>
-
-              {Number(completedSale?.sale.changeAmount || 0) > 0 && (
-                <div className="flex justify-between font-medium text-success">
-                  <span>Change returned</span>
-                  <span>{money(completedSale?.sale.changeAmount)}</span>
-                </div>
-              )}
-
-              <div className="space-y-1 border-t pt-2">
-                {completedSale?.sale.payments.map((p) => (
-                  <div key={p.id} className="flex justify-between text-muted-foreground">
-                    <span>{p.paymentMethod.replace(/_/g, " ")}</span>
-                    <span>{money(p.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <DialogFooter className="flex-row gap-2 sm:justify-between">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() =>
-                  handleDownloadReceipt(completedSale?.sale.id, completedSale?.sale.receiptNumber)
-                }
-              >
-                <Printer />
-                Receipt
-              </Button>
-
-              <Button
-                className="flex-1"
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  setCompletedSale(null);
-                }}
-              >
-                New sale
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* CLOSE REGISTER MODAL */}
         <Dialog open={showCloseModal} onOpenChange={setShowCloseModal}>

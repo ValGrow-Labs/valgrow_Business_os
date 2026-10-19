@@ -70,3 +70,13 @@ export class UpdatePosCartItemDto {
   @Min(0)
   discountAmount?: number;
 }
+
+export class UpdatePosCartDto {
+  @IsString()
+  @IsOptional()
+  customerId?: string | null;
+
+  @IsString()
+  @IsOptional()
+  notes?: string | null;
+}

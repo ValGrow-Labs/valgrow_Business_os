@@ -13,6 +13,10 @@ import { POSTransactionStatus } from "@prisma/client";
 export class SendToBillingDto {
   @IsString()
   @IsOptional()
+  customerId?: string | null;
+
+  @IsString()
+  @IsOptional()
   notes?: string;
 }
 

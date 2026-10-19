@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -18,8 +18,11 @@ import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import {
   usePOSSessions,
   useOpenPOSSession,
+  useClosePOSSession,
   type POSSessionItem,
 } from "@/hooks/queries/usePOSSessions";
+import { useBranches } from "@/hooks/queries/useBranches";
+import { useWarehouses } from "@/hooks/queries/useWarehouses";
 import { ApiError, downloadFile } from "@/lib/api-client";
 import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import { Button } from "@/components/ui/button";
@@ -46,6 +49,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Printer,
+  Download,
   Plus,
   Trash2,
   Wallet,
@@ -60,8 +64,8 @@ interface CashierCounterProps {
 }
 
 export function CashierCounter({
-  branchId,
-  warehouseId,
+  branchId: propBranchId,
+  warehouseId: propWarehouseId,
   activeSession: propSession,
 }: CashierCounterProps) {
   const queryClient = useQueryClient();
@@ -73,6 +77,30 @@ export function CashierCounter({
   const canCancel = isOwner || permissions.includes("pos.cancel");
   const canOpenSession = isOwner || permissions.includes("pos.session");
 
+  // Fetch branches and warehouses for fallback selection
+  const { data: branches = [] } = useBranches();
+  const { data: warehouses = [] } = useWarehouses();
+
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(propBranchId || "");
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>(propWarehouseId || "");
+
+  useEffect(() => {
+    const firstBranch = branches[0];
+    if (!selectedBranchId && firstBranch) {
+      setSelectedBranchId(firstBranch.id);
+    }
+  }, [branches, selectedBranchId]);
+
+  useEffect(() => {
+    const firstWarehouse = warehouses[0];
+    if (!selectedWarehouseId && firstWarehouse) {
+      setSelectedWarehouseId(firstWarehouse.id);
+    }
+  }, [warehouses, selectedWarehouseId]);
+
+  const effectiveBranchId = propBranchId || selectedBranchId || branches[0]?.id;
+  const effectiveWarehouseId = propWarehouseId || selectedWarehouseId || warehouses[0]?.id;
+
   // Fallback to active open session if not passed as prop
   const { data: openSessions } = usePOSSessions("OPEN");
   const activeSession = propSession || openSessions?.[0];
@@ -82,6 +110,12 @@ export function CashierCounter({
   const [openTerminalId, setOpenTerminalId] = useState("CASH-REG-01");
   const [openOpeningCash, setOpenOpeningCash] = useState("1000");
   const openSessionMutation = useOpenPOSSession();
+
+  // Close Shift State
+  const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
+  const [closingCash, setClosingCash] = useState("");
+  const [closeNotes, setCloseNotes] = useState("");
+  const closeSessionMutation = useClosePOSSession();
 
   // Search & Filter State
   const [search, setSearch] = useState("");
@@ -98,6 +132,7 @@ export function CashierCounter({
   const [paymentNotes, setPaymentNotes] = useState("");
 
   // Post-Checkout Receipt State
+  const [completedResult, setCompletedResult] = useState<POSSaleResult | null>(null);
   const [completedSale, setCompletedSale] = useState<POSSaleResult["sale"] | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
@@ -112,8 +147,8 @@ export function CashierCounter({
     isRefetching,
     refetch: refetchQueue,
   } = usePaymentQueue({
-    branchId: branchId || undefined,
-    warehouseId: warehouseId || undefined,
+    branchId: effectiveBranchId || undefined,
+    warehouseId: effectiveWarehouseId || undefined,
   });
 
   const allItems = queueResponse?.items || [];
@@ -269,6 +304,7 @@ export function CashierCounter({
         notes: paymentNotes || undefined,
       });
 
+      setCompletedResult(result);
       setCompletedSale(result.sale);
       setShowReceiptModal(true);
       setSelectedCartId(null);
@@ -348,7 +384,34 @@ export function CashierCounter({
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] gap-4">
       {/* REGISTER SHIFT STATUS BANNER */}
-      {!activeSession && (
+      {activeSession ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs">
+          <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200">
+            <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div>
+              <span className="font-bold">Register Active:</span>
+              <span className="ml-1.5 font-mono font-semibold">{activeSession.terminalId}</span>
+              <span className="mx-2 opacity-50">·</span>
+              <span>Opening Float: <span className="font-mono font-semibold">₹{Number(activeSession.openingCash).toFixed(2)}</span></span>
+              <span className="mx-2 opacity-50">·</span>
+              <span>Cashier: <span className="font-medium">{activeSession.openedBy?.firstName || (currentUser?.user ? `${currentUser.user.firstName} ${currentUser.user.lastName}`.trim() : "Cashier")}</span></span>
+            </div>
+          </div>
+          {canOpenSession && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-medium"
+              onClick={() => {
+                setClosingCash(String(activeSession.openingCash || ""));
+                setShowCloseShiftModal(true);
+              }}
+            >
+              Close Register Shift
+            </Button>
+          )}
+        </div>
+      ) : (
         <div className="flex items-center justify-between p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs">
           <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-300">
             <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
@@ -985,6 +1048,42 @@ export function CashierCounter({
           </DialogHeader>
 
           <div className="space-y-3 py-2 text-xs">
+            {branches.length > 0 && (
+              <div className="space-y-1">
+                <Label htmlFor="shift-branch">Branch Location</Label>
+                <select
+                  id="shift-branch"
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  className="w-full h-8 text-xs bg-background border rounded-md px-2 focus:ring-1 focus:ring-primary outline-hidden"
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.code || "BR"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {warehouses.length > 0 && (
+              <div className="space-y-1">
+                <Label htmlFor="shift-warehouse">Warehouse / Dispense Point</Label>
+                <select
+                  id="shift-warehouse"
+                  value={selectedWarehouseId}
+                  onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                  className="w-full h-8 text-xs bg-background border rounded-md px-2 focus:ring-1 focus:ring-primary outline-hidden"
+                >
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({w.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="space-y-1">
               <Label htmlFor="terminal-id">Register Terminal ID</Label>
               <Input
@@ -1018,15 +1117,17 @@ export function CashierCounter({
             <Button
               size="sm"
               onClick={async () => {
-                if (!branchId || !warehouseId) {
-                  toast.error("Branch and Warehouse configuration missing.");
+                const targetBranch = effectiveBranchId;
+                const targetWarehouse = effectiveWarehouseId;
+                if (!targetBranch || !targetWarehouse) {
+                  toast.error("Branch and Warehouse configuration missing. Please ensure at least one branch and warehouse exists.");
                   return;
                 }
                 try {
                   await openSessionMutation.mutateAsync({
-                    branchId,
-                    warehouseId,
-                    terminalId: openTerminalId.trim() || "REG-01",
+                    branchId: targetBranch,
+                    warehouseId: targetWarehouse,
+                    terminalId: openTerminalId.trim() || "CASH-REG-01",
                     openingCash: parseFloat(openOpeningCash) || 0,
                   });
                   setShowOpenShiftModal(false);
@@ -1043,53 +1144,211 @@ export function CashierCounter({
         </DialogContent>
       </Dialog>
 
+      {/* CLOSE SHIFT MODAL */}
+      <Dialog open={showCloseShiftModal} onOpenChange={setShowCloseShiftModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CircleDollarSign className="h-5 w-5 text-primary" />
+              Close Register Shift
+            </DialogTitle>
+            <DialogDescription>
+              Count cash drawer funds and reconcile today&apos;s shift before signing off.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="space-y-1">
+              <Label htmlFor="close-cash">Actual Closing Cash Count (₹)</Label>
+              <Input
+                id="close-cash"
+                type="number"
+                min="0"
+                step="0.01"
+                value={closingCash}
+                onChange={(e) => setClosingCash(e.target.value)}
+                placeholder="Count physical cash in drawer..."
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="close-notes">Reconciliation Notes</Label>
+              <Textarea
+                id="close-notes"
+                value={closeNotes}
+                onChange={(e) => setCloseNotes(e.target.value)}
+                placeholder="Optional shift notes, discrepancy remarks, etc."
+                className="text-xs resize-none h-16"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCloseShiftModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={async () => {
+                if (!activeSession) return;
+                try {
+                  const dto: { closingCash: number; notes?: string } = {
+                    closingCash: parseFloat(closingCash) || 0,
+                  };
+                  if (closeNotes.trim()) {
+                    dto.notes = closeNotes.trim();
+                  }
+                  await closeSessionMutation.mutateAsync({
+                    id: activeSession.id,
+                    dto,
+                  });
+                  setShowCloseShiftModal(false);
+                  toast.success("Register shift closed successfully!");
+                } catch (err: any) {
+                  toast.error("Failed to close shift", { description: err.message });
+                }
+              }}
+              disabled={closeSessionMutation.isPending}
+            >
+              {closeSessionMutation.isPending ? "Closing..." : "Confirm & Close Shift"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* POST-CHECKOUT SUCCESS RECEIPT MODAL */}
       <Dialog open={showReceiptModal} onOpenChange={setShowReceiptModal}>
-        <DialogContent className="sm:max-w-md text-center">
-          <div className="flex flex-col items-center py-4 space-y-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
-              <CheckCircle2 className="h-8 w-8" />
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="flex flex-col items-center py-2 space-y-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+              <CheckCircle2 className="h-6 w-6" />
             </div>
 
-            <div>
+            <div className="text-center">
               <DialogTitle className="text-lg font-bold">
                 Payment Received &amp; Sale Complete!
               </DialogTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                Receipt Number:{" "}
-                <span className="font-mono font-bold text-foreground">
-                  {completedSale?.receiptNumber}
-                </span>
-              </p>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                Receipt #{completedSale?.receiptNumber} recorded successfully
+              </DialogDescription>
             </div>
 
-            <div className="w-full bg-muted/40 p-4 rounded-xl space-y-2 text-xs text-left">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Total Bill:</span>
-                <span className="font-mono font-bold">
-                  {formatMoney(completedSale?.totalAmount)}
-                </span>
+            {/* Thermal Printable Receipt Preview */}
+            <div
+              id="pos-thermal-receipt"
+              className="w-full bg-white text-black p-4 rounded-lg border border-dashed text-xs font-mono space-y-2 dark:bg-zinc-950 dark:text-zinc-100"
+            >
+              <div className="text-center border-b pb-2 space-y-0.5">
+                <p className="font-bold text-sm tracking-wide">VALGROW RETAIL POS</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {completedSale?.branch?.name || "Main Retail Store"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Receipt: {completedSale?.receiptNumber}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {new Date(completedSale?.createdAt || Date.now()).toLocaleString()}
+                </p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Amount Paid:</span>
-                <span className="font-mono font-bold text-emerald-600">
-                  {formatMoney(completedSale?.paidAmount)}
-                </span>
-              </div>
-              {Number(completedSale?.changeAmount) > 0 && (
-                <div className="flex justify-between pt-1 border-t text-sm font-bold text-emerald-600">
-                  <span>Change Given:</span>
-                  <span className="font-mono">
-                    {formatMoney(completedSale?.changeAmount)}
+
+              <div className="text-[11px] py-1 border-b space-y-0.5 text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Customer:</span>
+                  <span className="font-semibold text-foreground">
+                    {completedSale?.customer?.name || "Retail Walk-in"}
                   </span>
                 </div>
-              )}
+                <div className="flex justify-between">
+                  <span>Cashier:</span>
+                  <span className="font-semibold text-foreground">
+                    {completedSale?.cashier
+                      ? `${completedSale.cashier.firstName} ${completedSale.cashier.lastName}`
+                      : "Counter Staff"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="py-1 border-b space-y-1">
+                {(completedResult?.cartItems || []).map((ci: any, idx: number) => {
+                  const qty = Number(ci.quantity || 1);
+                  const price = Number(ci.unitPrice || 0);
+                  const lineTotal = Number(ci.totalAmount || qty * price);
+                  return (
+                    <div key={idx} className="flex justify-between text-[11px]">
+                      <span className="truncate pr-2">
+                        {ci.product?.name || `Item ${idx + 1}`} × {qty}
+                      </span>
+                      <span className="font-bold shrink-0">
+                        {formatMoney(lineTotal)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Financial Totals */}
+              <div className="space-y-1 text-[11px] pt-1">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>{formatMoney(completedSale?.subtotalAmount || 0)}</span>
+                </div>
+                {Number(completedSale?.discountAmount || 0) > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>Discount:</span>
+                    <span>-{formatMoney(completedSale?.discountAmount)}</span>
+                  </div>
+                )}
+                {Number(completedSale?.taxAmount || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span>Tax / GST:</span>
+                    <span>{formatMoney(completedSale?.taxAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold border-t pt-1">
+                  <span>GRAND TOTAL:</span>
+                  <span>{formatMoney(completedSale?.totalAmount || 0)}</span>
+                </div>
+              </div>
+
+              {/* Payments Tendered */}
+              <div className="border-t pt-1 space-y-0.5 text-[10px]">
+                {(completedSale?.payments || []).map((pm, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <span>Payment ({pm.paymentMethod}):</span>
+                    <span>{formatMoney(pm.amount)}</span>
+                  </div>
+                ))}
+                {Number(completedSale?.changeAmount || 0) > 0 && (
+                  <div className="flex justify-between font-bold text-emerald-600 pt-0.5">
+                    <span>Change Returned:</span>
+                    <span>{formatMoney(completedSale?.changeAmount)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center text-[10px] text-muted-foreground pt-2 border-t">
+                <p>Thank you for shopping with us!</p>
+                <p>Please retain this receipt for returns/exchanges.</p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full pt-2">
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-2 w-full pt-2">
               <Button
                 variant="outline"
-                className="flex-1 gap-1.5"
+                className="flex-1 gap-1.5 text-xs"
+                onClick={() => window.print()}
+              >
+                <Printer className="h-4 w-4" />
+                Print Receipt
+              </Button>
+              <Button
+                variant="secondary"
+                className="flex-1 gap-1.5 text-xs"
                 onClick={() => {
                   if (completedSale) {
                     handleDownloadReceipt(
@@ -1099,14 +1358,15 @@ export function CashierCounter({
                   }
                 }}
               >
-                <Printer className="h-4 w-4" />
-                Print / PDF Receipt
+                <Download className="h-4 w-4" />
+                Download PDF
               </Button>
               <Button
-                className="flex-1"
+                className="flex-1 text-xs"
                 onClick={() => {
                   setShowReceiptModal(false);
                   setCompletedSale(null);
+                  setCompletedResult(null);
                 }}
               >
                 Next Customer

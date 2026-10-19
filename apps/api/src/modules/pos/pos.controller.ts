@@ -26,6 +26,7 @@ import { PdfGeneratorService } from "../documents/pdf-generator.service";
 import { OpenPosSessionDto, ClosePosSessionDto } from "./dto/session.dto";
 import {
   CreatePosCartDto,
+  UpdatePosCartDto,
   AddPosCartItemDto,
   UpdatePosCartItemDto,
 } from "./dto/cart.dto";
@@ -250,35 +251,49 @@ export class PosController {
     return this.workflowService.getWorkflowHistory(orgId, id);
   }
 
+  @Patch("carts/:id")
+  @RequirePermissions("pos.create")
+  updateCart(
+    @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id") id: string,
+    @Body() dto: UpdatePosCartDto,
+  ) {
+    return this.cartService.updateCart(orgId, id, dto, userId);
+  }
+
   @Post("carts/:id/items")
   @RequirePermissions("pos.create")
   addItem(
     @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
     @Param("id") id: string,
     @Body() dto: AddPosCartItemDto,
   ) {
-    return this.cartService.addItem(orgId, id, dto);
+    return this.cartService.addItem(orgId, id, dto, userId);
   }
 
   @Patch("carts/:id/items/:itemId")
   @RequirePermissions("pos.create")
   updateItem(
     @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
     @Param("id") id: string,
     @Param("itemId") itemId: string,
     @Body() dto: UpdatePosCartItemDto,
   ) {
-    return this.cartService.updateItem(orgId, id, itemId, dto);
+    return this.cartService.updateItem(orgId, id, itemId, dto, userId);
   }
 
   @Delete("carts/:id/items/:itemId")
   @RequirePermissions("pos.create")
   removeItem(
     @CurrentOrg("id") orgId: string,
+    @CurrentUser("id") userId: string,
     @Param("id") id: string,
     @Param("itemId") itemId: string,
   ) {
-    return this.cartService.removeItem(orgId, id, itemId);
+    return this.cartService.removeItem(orgId, id, itemId, userId);
   }
 
   @Post("carts/:id/hold")

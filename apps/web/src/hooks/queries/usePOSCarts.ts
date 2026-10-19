@@ -85,11 +85,39 @@ export interface UpdatePOSCartItemDto {
   discountAmount?: number;
 }
 
+export interface UpdatePOSCartDto {
+  customerId?: string | null;
+  notes?: string | null;
+}
+
 export function usePOSCart(id?: string) {
   return useQuery<POSCartData>({
     queryKey: ["pos-cart", id],
     queryFn: () => apiClient<POSCartData>(`/pos/carts/${id}`),
     enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const status = query.state.data?.workflowStatus;
+      if (status && status !== "PAID" && status !== "CANCELLED") {
+        return 3000;
+      }
+      return false;
+    },
+  });
+}
+
+export function useUpdatePOSCart() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ cartId, dto }: { cartId: string; dto: UpdatePOSCartDto }) =>
+      apiClient<POSCartData>(`/pos/carts/${cartId}`, {
+        method: "PATCH",
+        body: JSON.stringify(dto),
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["pos-cart", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["pos-billing-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["pos-payment-queue"] });
+    },
   });
 }
 

@@ -126,6 +126,64 @@ function LoginPage() {
         <Button type="button" variant="outline" size="lg" className="w-full">
           Continue with SSO
         </Button>
+
+        {/* Development Quick Accounts Helper */}
+        <div className="mt-4 rounded-lg border border-dashed border-border/80 bg-surface-2/50 p-3 text-xs">
+          <div className="flex items-center justify-between text-muted-foreground mb-2">
+            <span className="font-medium">Test Accounts Quick Fill</span>
+            <span className="text-[10px] uppercase tracking-wider font-semibold">Dev</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              className="flex items-center justify-between rounded px-2 py-1.5 text-left transition hover:bg-surface border bg-surface/70"
+              onClick={() => {
+                setEmail("salesperson1");
+                setPassword("DevelopmentPass123!");
+                setErrorMsg(null);
+              }}
+            >
+              <span className="font-medium text-foreground">Salesperson</span>
+              <span className="font-mono text-[10px] text-muted-foreground">salesperson1</span>
+            </button>
+            <button
+              type="button"
+              className="flex items-center justify-between rounded px-2 py-1.5 text-left transition hover:bg-surface border bg-surface/70"
+              onClick={() => {
+                setEmail("billing1");
+                setPassword("DevelopmentPass123!");
+                setErrorMsg(null);
+              }}
+            >
+              <span className="font-medium text-foreground">Billing Staff</span>
+              <span className="font-mono text-[10px] text-muted-foreground">billing1</span>
+            </button>
+            <button
+              type="button"
+              className="flex items-center justify-between rounded px-2 py-1.5 text-left transition hover:bg-surface border bg-surface/70"
+              onClick={() => {
+                setEmail("cashier1");
+                setPassword("DevelopmentPass123!");
+                setErrorMsg(null);
+              }}
+            >
+              <span className="font-medium text-foreground">Cashier</span>
+              <span className="font-mono text-[10px] text-muted-foreground">cashier1</span>
+            </button>
+            <button
+              type="button"
+              className="flex items-center justify-between rounded px-2 py-1.5 text-left transition hover:bg-surface border bg-surface/70"
+              onClick={() => {
+                setEmail("alex.verma@valgrow.dev");
+                setPassword("DevelopmentPass123!");
+                setErrorMsg(null);
+              }}
+            >
+              <span className="font-medium text-foreground">Owner</span>
+              <span className="font-mono text-[10px] text-muted-foreground">alex.verma</span>
+            </button>
+          </div>
+        </div>
       </form>
     </AuthLayout>
   );

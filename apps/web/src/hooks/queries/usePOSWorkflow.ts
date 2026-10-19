@@ -158,10 +158,18 @@ export function usePOSTransactionHistory(cartId?: string) {
 export function useSendToBilling() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ cartId, notes }: { cartId: string; notes?: string | undefined }) =>
+    mutationFn: ({
+      cartId,
+      customerId,
+      notes,
+    }: {
+      cartId: string;
+      customerId?: string | null | undefined;
+      notes?: string | undefined;
+    }) =>
       apiClient<POSQueueCartItem>(`/pos/carts/${cartId}/send-to-billing`, {
         method: "POST",
-        body: JSON.stringify({ notes }),
+        body: JSON.stringify({ customerId, notes }),
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["pos-cart", data.id] });

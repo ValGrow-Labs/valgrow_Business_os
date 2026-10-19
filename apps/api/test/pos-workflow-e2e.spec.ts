@@ -782,6 +782,21 @@ describe("ValGrow Business OS — Multi-User POS Workflow E2E Tests (Phase 1)", 
         .send({ productId: productAId, quantity: 1, unitPrice: 1500 });
     });
 
+    it("should reject checkout when cart is in DRAFT", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/pos/checkout")
+        .set("Authorization", `Bearer ${cashier1Token}`)
+        .set("x-organization-id", orgAId)
+        .send({
+          sessionId: cashierSessionId,
+          cartId,
+          payments: [{ paymentMethod: "CASH", amount: 1500 }],
+        })
+        .expect(400);
+
+      expect(res.body.message).toContain("DRAFT");
+    });
+
     it("should reject checkout when cart is in SENT_TO_BILLING", async () => {
       await request(app.getHttpServer())
         .post(`/pos/carts/${cartId}/send-to-billing`)
@@ -886,11 +901,67 @@ describe("ValGrow Business OS — Multi-User POS Workflow E2E Tests (Phase 1)", 
         .expect(403);
     });
 
-    it("should prevent billing clerk from claiming payment or checkout (403)", async () => {
+    it("should prevent salesperson from sending cart directly to payment (403)", async () => {
+      // Create a draft cart
+      const cartRes = await request(app.getHttpServer())
+        .post("/pos/carts")
+        .set("Authorization", `Bearer ${salespersonToken}`)
+        .set("x-organization-id", orgAId)
+        .send({ branchId: branchAId, warehouseId: warehouseAId });
+      const draftCartId = cartRes.body.id;
+
+      await request(app.getHttpServer())
+        .post(`/pos/carts/${draftCartId}/send-to-payment`)
+        .set("Authorization", `Bearer ${salespersonToken}`)
+        .set("x-organization-id", orgAId)
+        .expect(403);
+    });
+
+    it("should prevent salesperson from calling checkout directly (403)", async () => {
+      const cartRes = await request(app.getHttpServer())
+        .post("/pos/carts")
+        .set("Authorization", `Bearer ${salespersonToken}`)
+        .set("x-organization-id", orgAId)
+        .send({ branchId: branchAId, warehouseId: warehouseAId });
+      const draftCartId = cartRes.body.id;
+
+      await request(app.getHttpServer())
+        .post("/pos/checkout")
+        .set("Authorization", `Bearer ${salespersonToken}`)
+        .set("x-organization-id", orgAId)
+        .send({
+          sessionId: cashierSessionId,
+          cartId: draftCartId,
+          payments: [{ paymentMethod: "CASH", amount: 1000 }],
+        })
+        .expect(403);
+    });
+
+    it("should prevent billing clerk from claiming payment or accessing payment queue (403)", async () => {
       await request(app.getHttpServer())
         .get("/pos/payment/queue")
         .set("Authorization", `Bearer ${billingStaff1Token}`)
         .set("x-organization-id", orgAId)
+        .expect(403);
+    });
+
+    it("should prevent billing clerk from calling checkout directly (403)", async () => {
+      const cartRes = await request(app.getHttpServer())
+        .post("/pos/carts")
+        .set("Authorization", `Bearer ${salespersonToken}`)
+        .set("x-organization-id", orgAId)
+        .send({ branchId: branchAId, warehouseId: warehouseAId });
+      const draftCartId = cartRes.body.id;
+
+      await request(app.getHttpServer())
+        .post("/pos/checkout")
+        .set("Authorization", `Bearer ${billingStaff1Token}`)
+        .set("x-organization-id", orgAId)
+        .send({
+          sessionId: cashierSessionId,
+          cartId: draftCartId,
+          payments: [{ paymentMethod: "CASH", amount: 1000 }],
+        })
         .expect(403);
     });
 

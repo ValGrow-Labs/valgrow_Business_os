@@ -77,12 +77,27 @@ export class PosWorkflowService {
       const cartNumber =
         cart.cartNumber || (await this.generateCartNumber(organizationId, tx));
 
+      // Validate customer if provided in dto
+      let finalCustomerId = cart.customerId;
+      if (dto?.customerId !== undefined) {
+        if (dto.customerId) {
+          const customer = await tx.customer.findFirst({
+            where: { id: dto.customerId, organizationId, deletedAt: null },
+          });
+          if (!customer) throw new BadRequestException("Customer not found");
+          finalCustomerId = dto.customerId;
+        } else {
+          finalCustomerId = null;
+        }
+      }
+
       const updated = await tx.pOSCart.update({
         where: { id: cartId },
         data: {
           cartNumber,
           workflowStatus: "SENT_TO_BILLING",
           salespersonId: cart.salespersonId || actorId,
+          customerId: finalCustomerId,
           notes: dto?.notes || cart.notes,
         },
         include: {

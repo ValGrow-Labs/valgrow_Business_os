@@ -50,6 +50,7 @@ export type NavItem = {
   url: string;
   icon: LucideIcon;
   soon?: boolean;
+  permission?: string | string[];
 };
 
 export type NavGroup = {
@@ -69,9 +70,9 @@ export const navGroups: NavGroup[] = [
   {
     label: "OPERATIONS",
     items: [
-      { title: "POS", url: "/pos", icon: ShoppingBag },
-      { title: "Billing Desk", url: "/pos-billing", icon: Receipt },
-      { title: "Cashier Counter", url: "/pos-cashier", icon: CreditCard },
+      { title: "POS", url: "/pos", icon: ShoppingBag, permission: "pos.create" },
+      { title: "Billing Desk", url: "/pos-billing", icon: Receipt, permission: "pos.billing" },
+      { title: "Cashier Counter", url: "/pos-cashier", icon: CreditCard, permission: ["pos.cashier", "pos.checkout"] },
       { title: "Products", url: "/products", icon: Package },
       { title: "Inventory", url: "/inventory", icon: Boxes },
       { title: "Purchasing", url: "/purchasing", icon: ShoppingCart },
