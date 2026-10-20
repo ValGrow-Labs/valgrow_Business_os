@@ -2,7 +2,12 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListPage, StatusBadge, type ListRow } from "@/components/foundation/list-page";
 import type { Column } from "@/components/foundation/data-table";
-import { useOrganizations, useCreateOrganization } from "@/hooks/queries/useOrganizations";
+import {
+  useOrganizations,
+  useCreateOrganization,
+  useUpdateOrganization,
+  type OrganizationItem,
+} from "@/hooks/queries/useOrganizations";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import { setActiveOrgId } from "@/lib/api-client";
 import {
@@ -34,11 +39,14 @@ import {
   Info,
   AlertCircle,
   ArrowRight,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { CreatedOrganizationResult } from "@/hooks/queries/useOrganizations";
 import { CurrencySelect } from "@/components/ui/currency-select";
 import { formatCurrencyLabel } from "@/lib/currencies";
+import { CountrySelect } from "@/components/ui/country-select";
+import { formatCountryName } from "@/lib/countries";
 
 const columns: Column<ListRow>[] = [
   { key: "name", header: "Setting" },
@@ -101,10 +109,76 @@ function OrganizationSettingsPage() {
   const activeOrg = userMe?.activeOrganization;
   const currentOrgItem = orgsData?.find((o) => o.id === activeOrg?.id);
 
+  const updateOrgMutation = useUpdateOrganization();
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingOrg, setEditingOrg] = useState<OrganizationItem | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editLegalName, setEditLegalName] = useState("");
+  const [editCurrency, setEditCurrency] = useState("INR");
+  const [editCountry, setEditCountry] = useState("India");
+  const [editTimezone, setTimezoneEdit] = useState("Asia/Kolkata");
+  const [editFiscalYearStart, setFiscalYearStartEdit] = useState("April");
+  const [editValidationError, setEditValidationError] = useState<string | null>(null);
+
+  const handleOpenEditModal = (org: OrganizationItem) => {
+    setEditingOrg(org);
+    setEditName(org.name || "");
+    setEditLegalName(org.legalName || "");
+    setEditCurrency(org.currency || "INR");
+    setEditCountry(org.country ? formatCountryName(org.country) : "India");
+    setTimezoneEdit(org.timezone || "Asia/Kolkata");
+    setFiscalYearStartEdit((org as any).fiscalYearStart || "April");
+    setEditValidationError(null);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOrg) return;
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      setEditValidationError("Organization name is required.");
+      return;
+    }
+
+    try {
+      setEditValidationError(null);
+      await updateOrgMutation.mutateAsync({
+        id: editingOrg.id,
+        data: {
+          name: trimmed,
+          legalName: editLegalName.trim() || undefined,
+          country: editCountry.trim() || undefined,
+          currency: editCurrency,
+          timezone: editTimezone,
+          fiscalYearStart: editFiscalYearStart,
+        },
+      });
+      toast.success(`Organization "${trimmed}" updated successfully!`);
+      setShowEditModal(false);
+      refetchOrgs();
+    } catch (err: any) {
+      const errMsg = err?.data?.message || err?.message || "Failed to update organization";
+      const displayMsg = Array.isArray(errMsg) ? errMsg.join(", ") : errMsg;
+      setEditValidationError(displayMsg);
+      toast.error(displayMsg);
+    }
+  };
+
   const rows: ListRow[] = [
     {
       name: "Legal name",
       value: currentOrgItem?.legalName || activeOrg?.name || "ValGrow Holdings",
+      scope: "Global",
+      status: "Active",
+    },
+    {
+      name: "Country",
+      value: currentOrgItem?.country
+        ? formatCountryName(currentOrgItem.country)
+        : (activeOrg as any)?.country
+          ? formatCountryName((activeOrg as any).country)
+          : "India",
       scope: "Global",
       status: "Active",
     },
@@ -215,7 +289,9 @@ function OrganizationSettingsPage() {
         return;
       }
       if (associateWithBranch && !createBranch) {
-        setValidationError("Cannot associate warehouse with a branch when branch creation is disabled.");
+        setValidationError(
+          "Cannot associate warehouse with a branch when branch creation is disabled.",
+        );
         return;
       }
     }
@@ -252,8 +328,7 @@ function OrganizationSettingsPage() {
       toast.success(`Organization "${trimmedName}" setup completed successfully!`);
       refetchOrgs();
     } catch (err: any) {
-      const errMsg =
-        err?.data?.message || err?.message || "Failed to create organization";
+      const errMsg = err?.data?.message || err?.message || "Failed to create organization";
       const displayMsg = Array.isArray(errMsg) ? errMsg.join(", ") : errMsg;
       setValidationError(displayMsg);
       toast.error(displayMsg);
@@ -282,9 +357,7 @@ function OrganizationSettingsPage() {
             <div className="flex items-center justify-between pb-3 border-b border-border/60">
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Your Organizations
-                </h3>
+                <h3 className="text-sm font-semibold text-foreground">Your Organizations</h3>
               </div>
               <Badge variant="outline" className="text-xs">
                 {orgsData.length} Workspace{orgsData.length === 1 ? "" : "s"}
@@ -318,20 +391,34 @@ function OrganizationSettingsPage() {
                         <span>•</span>
                         <span>{formatCurrencyLabel(org.currency)}</span>
                         <span>•</span>
+                        <span>{org.country ? formatCountryName(org.country) : "India"}</span>
+                        <span>•</span>
                         <span>{org.plan}</span>
                       </div>
                     </div>
-                    {!isActive && (
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleSwitchOrg(org.id)}
-                        className="h-7 text-xs text-muted-foreground hover:text-foreground shrink-0"
+                        onClick={() => handleOpenEditModal(org)}
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground shrink-0"
                       >
-                        Switch
+                        <Pencil className="h-3 w-3 mr-1" />
+                        Edit
                       </Button>
-                    )}
+                      {!isActive && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSwitchOrg(org.id)}
+                          className="h-7 text-xs text-muted-foreground hover:text-foreground shrink-0"
+                        >
+                          Switch
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -372,15 +459,17 @@ function OrganizationSettingsPage() {
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-primary" />
                     <div>
-                      <p className="text-xs font-semibold text-foreground">
-                        {createdResult.name}
-                      </p>
+                      <p className="text-xs font-semibold text-foreground">{createdResult.name}</p>
                       <p className="text-[11px] text-muted-foreground">
-                        Currency: {formatCurrencyLabel(createdResult.currency)} • Country: {createdResult.country || "India"}
+                        Currency: {formatCurrencyLabel(createdResult.currency)} • Country:{" "}
+                        {formatCountryName(createdResult.country) || "India"}
                       </p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] text-emerald-600 border-emerald-500/30"
+                  >
                     Created
                   </Badge>
                 </div>
@@ -394,7 +483,8 @@ function OrganizationSettingsPage() {
                       </p>
                       {createdResult.branch && (
                         <p className="text-[11px] text-muted-foreground">
-                          Code: {createdResult.branch.code || "HQ-01"} • City: {createdResult.branch.city}
+                          Code: {createdResult.branch.code || "HQ-01"} • City:{" "}
+                          {createdResult.branch.city}
                         </p>
                       )}
                     </div>
@@ -409,11 +499,14 @@ function OrganizationSettingsPage() {
                     <Warehouse className="h-4 w-4 text-amber-500" />
                     <div>
                       <p className="text-xs font-semibold text-foreground">
-                        {createdResult.warehouse ? createdResult.warehouse.name : "No initial warehouse"}
+                        {createdResult.warehouse
+                          ? createdResult.warehouse.name
+                          : "No initial warehouse"}
                       </p>
                       {createdResult.warehouse && (
                         <p className="text-[11px] text-muted-foreground">
-                          Code: {createdResult.warehouse.code} • Linked to Branch: {createdResult.warehouse.branchId ? "Yes" : "No"}
+                          Code: {createdResult.warehouse.code} • Linked to Branch:{" "}
+                          {createdResult.warehouse.branchId ? "Yes" : "No"}
                         </p>
                       )}
                     </div>
@@ -426,7 +519,9 @@ function OrganizationSettingsPage() {
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-xs text-muted-foreground">
                 <p>
-                  Would you like to switch to <strong className="text-foreground">{createdResult.name}</strong> now to begin managing branches, inventory, or opening POS registers?
+                  Would you like to switch to{" "}
+                  <strong className="text-foreground">{createdResult.name}</strong> now to begin
+                  managing branches, inventory, or opening POS registers?
                 </p>
               </div>
 
@@ -469,13 +564,16 @@ function OrganizationSettingsPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px] leading-relaxed">
                   <div>
-                    <span className="font-semibold text-foreground">🏢 Organization:</span> Your company or business workspace.
+                    <span className="font-semibold text-foreground">🏢 Organization:</span> Your
+                    company or business workspace.
                   </div>
                   <div>
-                    <span className="font-semibold text-foreground">🏪 Branch:</span> A shop, office, or business location.
+                    <span className="font-semibold text-foreground">🏪 Branch:</span> A shop,
+                    office, or business location.
                   </div>
                   <div>
-                    <span className="font-semibold text-foreground">📦 Warehouse:</span> The place where products are stored.
+                    <span className="font-semibold text-foreground">📦 Warehouse:</span> The place
+                    where products are stored.
                   </div>
                 </div>
               </div>
@@ -519,24 +617,12 @@ function OrganizationSettingsPage() {
 
                     <div>
                       <Label htmlFor="org-country">Country</Label>
-                      <Select value={country} onValueChange={setCountry}>
-                        <SelectTrigger id="org-country" className="mt-1">
-                          <SelectValue placeholder="Select country" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="India">India</SelectItem>
-                          <SelectItem value="United States">United States</SelectItem>
-                          <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                          <SelectItem value="UAE">United Arab Emirates</SelectItem>
-                          <SelectItem value="Germany">Germany</SelectItem>
-                          <SelectItem value="China">China</SelectItem>
-                          <SelectItem value="Japan">Japan</SelectItem>
-                          <SelectItem value="Singapore">Singapore</SelectItem>
-                          <SelectItem value="Australia">Australia</SelectItem>
-                          <SelectItem value="Canada">Canada</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <CountrySelect
+                        id="org-country"
+                        value={country}
+                        onValueChange={setCountry}
+                        className="mt-1"
+                      />
                     </div>
 
                     <div>
@@ -710,7 +796,9 @@ function OrganizationSettingsPage() {
                             <Label
                               htmlFor="associate-branch-checkbox"
                               className={`text-xs cursor-pointer select-none ${
-                                !createBranch ? "text-muted-foreground/50" : "text-foreground font-medium"
+                                !createBranch
+                                  ? "text-muted-foreground/50"
+                                  : "text-foreground font-medium"
                               }`}
                             >
                               Associate with the first branch
@@ -726,7 +814,8 @@ function OrganizationSettingsPage() {
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground italic py-1">
-                      No initial warehouse will be created. You can create warehouses later in Warehouse settings.
+                      No initial warehouse will be created. You can create warehouses later in
+                      Warehouse settings.
                     </p>
                   )}
                 </div>
@@ -765,6 +854,142 @@ function OrganizationSettingsPage() {
               </form>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Organization Modal */}
+      <Dialog
+        open={showEditModal}
+        onOpenChange={(open) => {
+          setShowEditModal(open);
+          if (!open) {
+            setEditingOrg(null);
+            setEditValidationError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              Edit Organization
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Update organization identity, country, and regional preferences.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveEdit} className="space-y-4 pt-2">
+            <div>
+              <Label htmlFor="edit-org-name">Organization Name *</Label>
+              <Input
+                id="edit-org-name"
+                value={editName}
+                onChange={(e) => {
+                  setEditName(e.target.value);
+                  if (editValidationError) setEditValidationError(null);
+                }}
+                className="mt-1"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-org-country">Country</Label>
+              <CountrySelect
+                id="edit-org-country"
+                value={editCountry}
+                onValueChange={setEditCountry}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-org-currency">Default Currency</Label>
+              <CurrencySelect
+                id="edit-org-currency"
+                value={editCurrency}
+                onValueChange={setEditCurrency}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-org-legal-name">Legal Name (Optional)</Label>
+              <Input
+                id="edit-org-legal-name"
+                placeholder="e.g. Acme Innovations Pvt Ltd"
+                value={editLegalName}
+                onChange={(e) => setEditLegalName(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="edit-org-timezone">Time Zone</Label>
+                <Select value={editTimezone} onValueChange={setTimezoneEdit}>
+                  <SelectTrigger id="edit-org-timezone" className="mt-1">
+                    <SelectValue placeholder="Select timezone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST +5:30)</SelectItem>
+                    <SelectItem value="Asia/Dubai">Asia/Dubai (GST +4:00)</SelectItem>
+                    <SelectItem value="Asia/Singapore">Asia/Singapore (SGT +8:00)</SelectItem>
+                    <SelectItem value="Europe/London">Europe/London (GMT/BST)</SelectItem>
+                    <SelectItem value="America/New_York">America/New_York (EST/EDT)</SelectItem>
+                    <SelectItem value="America/Los_Angeles">
+                      America/Los_Angeles (PST/PDT)
+                    </SelectItem>
+                    <SelectItem value="UTC">UTC (Universal Coordinated)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-org-fiscal-year">Fiscal Year Start</Label>
+                <Select value={editFiscalYearStart} onValueChange={setFiscalYearStartEdit}>
+                  <SelectTrigger id="edit-org-fiscal-year" className="mt-1">
+                    <SelectValue placeholder="Select start month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="January">January</SelectItem>
+                    <SelectItem value="April">April</SelectItem>
+                    <SelectItem value="July">July</SelectItem>
+                    <SelectItem value="October">October</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {editValidationError && (
+              <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{editValidationError}</span>
+              </div>
+            )}
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowEditModal(false)}
+                disabled={updateOrgMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateOrgMutation.isPending}>
+                {updateOrgMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </>

@@ -44,7 +44,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
         memberships: {
           where: { status: "ACTIVE" },
           include: {
-            organization: true,
+            organization: {
+              include: {
+                settings: true,
+              },
+            },
             role: {
               include: {
                 permissions: {
@@ -83,8 +87,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
       );
     }
 
+    const countrySetting = (activeMember.organization as any)?.settings?.find(
+      (s: any) => s.key === "country",
+    );
+
     // Attach verified organization context to request object
-    (req as any).activeOrganization = activeMember.organization;
+    (req as any).activeOrganization = {
+      ...activeMember.organization,
+      country: countrySetting?.value || "India",
+    };
     (req as any).activeMember = activeMember;
 
     const { passwordHash, ...userWithoutPassword } = user;

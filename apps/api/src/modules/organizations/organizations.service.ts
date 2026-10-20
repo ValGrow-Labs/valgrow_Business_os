@@ -57,7 +57,9 @@ export class OrganizationsService {
 
     if (data.createBranch) {
       if (!data.branch?.name?.trim()) {
-        throw new BadRequestException("Branch name is required when creating a branch");
+        throw new BadRequestException(
+          "Branch name is required when creating a branch",
+        );
       }
       branchName = data.branch.name.trim();
       branchCode = data.branch.code?.trim() || "HQ";
@@ -75,10 +77,14 @@ export class OrganizationsService {
     const shouldCreateWarehouse = Boolean(data.createWarehouse);
     if (shouldCreateWarehouse) {
       if (!data.warehouse?.name?.trim()) {
-        throw new BadRequestException("Warehouse name is required when creating a warehouse");
+        throw new BadRequestException(
+          "Warehouse name is required when creating a warehouse",
+        );
       }
       if (!data.warehouse?.code?.trim()) {
-        throw new BadRequestException("Warehouse code is required when creating a warehouse");
+        throw new BadRequestException(
+          "Warehouse code is required when creating a warehouse",
+        );
       }
       if (data.warehouse?.associateWithBranch && !shouldCreateBranch) {
         throw new BadRequestException(
@@ -88,7 +94,9 @@ export class OrganizationsService {
     }
 
     const baseSlug =
-      data.slug?.trim() || this.generateSlug(trimmedName) || `org-${Date.now()}`;
+      data.slug?.trim() ||
+      this.generateSlug(trimmedName) ||
+      `org-${Date.now()}`;
 
     // Ensure unique slug
     let finalSlug = baseSlug;
@@ -116,16 +124,15 @@ export class OrganizationsService {
       });
 
       // 2. Save Country if provided in organization settings
-      if (data.country?.trim()) {
-        await tx.organizationSettings.create({
-          data: {
-            organizationId: org.id,
-            key: "country",
-            value: data.country.trim(),
-            scope: "Global",
-          },
-        });
-      }
+      const countryToSave = data.country?.trim() || "India";
+      await tx.organizationSettings.create({
+        data: {
+          organizationId: org.id,
+          key: "country",
+          value: countryToSave,
+          scope: "Global",
+        },
+      });
 
       // 3. Create Owner Role
       const ownerRole = await tx.role.create({
@@ -172,7 +179,8 @@ export class OrganizationsService {
         const whName = data.warehouse.name.trim();
         const whCode = data.warehouse.code.trim();
         const associateBranch =
-          data.warehouse.associateWithBranch !== false && Boolean(createdBranch);
+          data.warehouse.associateWithBranch !== false &&
+          Boolean(createdBranch);
 
         createdWarehouse = await tx.warehouse.create({
           data: {
@@ -195,6 +203,7 @@ export class OrganizationsService {
 
       return {
         ...org,
+        country: countryToSave,
         role: ownerRole.name,
         branch: createdBranch
           ? {
@@ -220,15 +229,25 @@ export class OrganizationsService {
     const memberships = await this.prisma.organizationMember.findMany({
       where: { userId, status: "ACTIVE" },
       include: {
-        organization: true,
+        organization: {
+          include: {
+            settings: true,
+          },
+        },
         role: true,
       },
     });
 
-    return memberships.map((m) => ({
-      ...m.organization,
-      role: m.role.name,
-    }));
+    return memberships.map((m) => {
+      const countrySetting = m.organization.settings?.find(
+        (s) => s.key === "country",
+      );
+      return {
+        ...m.organization,
+        country: countrySetting?.value || "India",
+        role: m.role.name,
+      };
+    });
   }
 
   async getOrganizationById(id: string, userId: string) {
@@ -240,7 +259,11 @@ export class OrganizationsService {
         },
       },
       include: {
-        organization: true,
+        organization: {
+          include: {
+            settings: true,
+          },
+        },
         role: true,
       },
     });
@@ -249,8 +272,13 @@ export class OrganizationsService {
       throw new ForbiddenException("Access denied to this organization");
     }
 
+    const countrySetting = membership.organization.settings?.find(
+      (s) => s.key === "country",
+    );
+
     return {
       ...membership.organization,
+      country: countrySetting?.value || "India",
       role: membership.role.name,
     };
   }
@@ -262,7 +290,38 @@ export class OrganizationsService {
       );
     }
 
-    return this.prisma.organization.update({
+    if (data.country !== undefined) {
+      const countryVal =
+        typeof data.country === "string" ? data.country.trim() : "";
+      if (countryVal) {
+        await this.prisma.organizationSettings.upsert({
+          where: {
+            organizationId_key: {
+              organizationId: id,
+              key: "country",
+            },
+          },
+          update: {
+            value: countryVal,
+          },
+          create: {
+            organizationId: id,
+            key: "country",
+            value: countryVal,
+            scope: "Global",
+          },
+        });
+      } else {
+        await this.prisma.organizationSettings.deleteMany({
+          where: {
+            organizationId: id,
+            key: "country",
+          },
+        });
+      }
+    }
+
+    const updated = await this.prisma.organization.update({
       where: { id },
       data: {
         name: data.name,
@@ -273,5 +332,19 @@ export class OrganizationsService {
         plan: data.plan,
       },
     });
+
+    const countrySetting = await this.prisma.organizationSettings.findUnique({
+      where: {
+        organizationId_key: {
+          organizationId: id,
+          key: "country",
+        },
+      },
+    });
+
+    return {
+      ...updated,
+      country: countrySetting?.value || "India",
+    };
   }
 }

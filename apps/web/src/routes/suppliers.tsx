@@ -37,6 +37,7 @@ import { Plus, Trash2, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import { CurrencySelect } from "@/components/ui/currency-select";
+import { CountrySelect } from "@/components/ui/country-select";
 
 const title = "Suppliers";
 const description = "Supplier profiles, payment terms, contact details, and vendor relationships.";
@@ -313,24 +314,11 @@ function SuppliersPage() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="country">Country</Label>
-                  <Select value={country} onValueChange={(val) => setCountry(val)}>
-                    <SelectTrigger id="country">
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="India">India</SelectItem>
-                      <SelectItem value="United States">United States</SelectItem>
-                      <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                      <SelectItem value="UAE">United Arab Emirates</SelectItem>
-                      <SelectItem value="Germany">Germany</SelectItem>
-                      <SelectItem value="China">China</SelectItem>
-                      <SelectItem value="Japan">Japan</SelectItem>
-                      <SelectItem value="Singapore">Singapore</SelectItem>
-                      <SelectItem value="Australia">Australia</SelectItem>
-                      <SelectItem value="Canada">Canada</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <CountrySelect
+                    id="country"
+                    value={country}
+                    onValueChange={(val) => setCountry(val)}
+                  />
                 </div>
 
                 <div className="space-y-1.5">
@@ -361,7 +349,10 @@ function SuppliersPage() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="status">Status</Label>
-                  <Select value={status} onValueChange={(val: "ACTIVE" | "INACTIVE") => setStatus(val)}>
+                  <Select
+                    value={status}
+                    onValueChange={(val: "ACTIVE" | "INACTIVE") => setStatus(val)}
+                  >
                     <SelectTrigger id="status">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -413,7 +404,9 @@ function SuppliersPage() {
                 type="submit"
                 disabled={createSupplierMutation.isPending || !name.trim() || !code.trim()}
               >
-                {createSupplierMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {createSupplierMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 {createSupplierMutation.isPending ? "Saving..." : "Save Supplier"}
               </Button>
             </DialogFooter>
@@ -505,7 +498,11 @@ function SupplierDetailsModal({
                 value={cRole}
                 onChange={(e) => setCRole(e.target.value)}
               />
-              <Input placeholder="Email" value={cEmail} onChange={(e) => CSetEmail(e.target.value)} />
+              <Input
+                placeholder="Email"
+                value={cEmail}
+                onChange={(e) => CSetEmail(e.target.value)}
+              />
               <Button
                 size="sm"
                 onClick={handleAddContact}

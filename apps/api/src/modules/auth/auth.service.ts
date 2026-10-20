@@ -176,10 +176,14 @@ export class AuthService {
       if (input === "cashier") candidates.add("cashier1@valgrow.dev");
       if (input === "admin") candidates.add("alex.verma@valgrow.dev");
     } else {
-      if (input === "salesperson@valgrow.dev") candidates.add("salesperson1@valgrow.dev");
-      if (input === "billing@valgrow.dev") candidates.add("billing1@valgrow.dev");
-      if (input === "cashier@valgrow.dev") candidates.add("cashier1@valgrow.dev");
-      if (input === "admin@valgrow.dev") candidates.add("alex.verma@valgrow.dev");
+      if (input === "salesperson@valgrow.dev")
+        candidates.add("salesperson1@valgrow.dev");
+      if (input === "billing@valgrow.dev")
+        candidates.add("billing1@valgrow.dev");
+      if (input === "cashier@valgrow.dev")
+        candidates.add("cashier1@valgrow.dev");
+      if (input === "admin@valgrow.dev")
+        candidates.add("alex.verma@valgrow.dev");
     }
 
     return Array.from(candidates);
@@ -288,7 +292,11 @@ export class AuthService {
         memberships: {
           where: { status: "ACTIVE" },
           include: {
-            organization: true,
+            organization: {
+              include: {
+                settings: true,
+              },
+            },
             role: {
               include: {
                 permissions: {
@@ -312,20 +320,36 @@ export class AuthService {
     const permissions =
       activeMember?.role?.permissions.map((rp) => rp.permission.key) || [];
 
+    const activeCountrySetting = (
+      activeMember?.organization as any
+    )?.settings?.find((s: any) => s.key === "country");
+    const activeOrganization = activeMember?.organization
+      ? {
+          ...activeMember.organization,
+          country: activeCountrySetting?.value || "India",
+        }
+      : null;
+
     const { passwordHash: _, ...userWithoutPassword } = user;
     return {
       user: userWithoutPassword,
-      activeOrganization: activeMember?.organization || null,
+      activeOrganization,
       role: activeMember?.role || null,
       permissions,
-      organizations: user.memberships.map((m) => ({
-        id: m.organization.id,
-        name: m.organization.name,
-        slug: m.organization.slug,
-        plan: m.organization.plan,
-        currency: m.organization.currency,
-        role: m.role.name,
-      })),
+      organizations: user.memberships.map((m) => {
+        const countrySetting = (m.organization as any)?.settings?.find(
+          (s: any) => s.key === "country",
+        );
+        return {
+          id: m.organization.id,
+          name: m.organization.name,
+          slug: m.organization.slug,
+          plan: m.organization.plan,
+          currency: m.organization.currency,
+          country: countrySetting?.value || "India",
+          role: m.role.name,
+        };
+      }),
     };
   }
 

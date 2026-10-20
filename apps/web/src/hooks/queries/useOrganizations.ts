@@ -10,7 +10,9 @@ export interface OrganizationItem {
   plan: string;
   status: string;
   currency: string;
+  country?: string | null | undefined;
   timezone: string;
+  fiscalYearStart?: string | null | undefined;
   role: string;
 }
 
@@ -46,20 +48,37 @@ export interface CreateOrganizationInput {
   warehouse?: CreateWarehouseSetupInput | undefined;
 }
 
-export interface CreatedOrganizationResult extends OrganizationItem {
+export interface UpdateOrganizationInput {
+  name?: string | undefined;
+  legalName?: string | undefined;
+  currency?: string | undefined;
   country?: string | undefined;
-  branch?: {
-    id: string;
-    name: string;
-    code: string | null;
-    city: string;
-  } | null | undefined;
-  warehouse?: {
-    id: string;
-    name: string;
-    code: string;
-    branchId: string | null;
-  } | null | undefined;
+  city?: string | undefined;
+  timezone?: string | undefined;
+  fiscalYearStart?: string | undefined;
+  plan?: string | undefined;
+}
+
+export interface CreatedOrganizationResult extends OrganizationItem {
+  country?: string | null | undefined;
+  branch?:
+    | {
+        id: string;
+        name: string;
+        code: string | null;
+        city: string;
+      }
+    | null
+    | undefined;
+  warehouse?:
+    | {
+        id: string;
+        name: string;
+        code: string;
+        branchId: string | null;
+      }
+    | null
+    | undefined;
 }
 
 export function useOrganizations() {
@@ -87,3 +106,17 @@ export function useCreateOrganization() {
   });
 }
 
+export function useUpdateOrganization() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateOrganizationInput }) =>
+      apiClient<OrganizationItem>(`/organizations/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+    },
+  });
+}
