@@ -10,6 +10,8 @@
     "dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
     "seed": "ts-node src/seed/seed.ts",
     "seed:pos-users": "ts-node src/seed/seed-pos-users.ts",
     "reset:pos-accounts": "ts-node src/seed/reset-pos-accounts.ts",

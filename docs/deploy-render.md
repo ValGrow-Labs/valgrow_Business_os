@@ -64,7 +64,7 @@ If you prefer setting up the Web Service manually:
      ```
    - **Start Command:**
      ```bash
-     npx prisma db push --skip-generate && node apps/api/dist/src/main.js
+     npx prisma migrate deploy && node apps/api/dist/src/main.js
      ```
    - **Plan:** `Free`
 

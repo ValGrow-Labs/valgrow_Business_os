@@ -24,13 +24,76 @@ export interface ProductQueryOptions {
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private slugify(text: string): string {
+  slugify(text: string): string {
     return text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim()
       .replace(/[^\w\s-]/g, "")
       .replace(/[\s_-]+/g, "-")
       .replace(/^-+|-+$/g, "");
+  }
+
+  async generateUniqueSlug(
+    organizationId: string,
+    baseSlug: string,
+    excludeProductId?: string,
+  ): Promise<string> {
+    const existingProducts = await this.prisma.product.findMany({
+      where: {
+        organizationId,
+        ...(excludeProductId ? { id: { not: excludeProductId } } : {}),
+        OR: [
+          { slug: baseSlug },
+          { slug: { startsWith: `${baseSlug}-` } },
+        ],
+      },
+      select: {
+        slug: true,
+      },
+    });
+
+    const existingSlugs = new Set(existingProducts.map((p) => p.slug));
+
+    if (!existingSlugs.has(baseSlug)) {
+      return baseSlug;
+    }
+
+    let counter = 2;
+    while (existingSlugs.has(`${baseSlug}-${counter}`)) {
+      counter++;
+    }
+
+    return `${baseSlug}-${counter}`;
+  }
+
+  private isSlugConflict(error: any): boolean {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const target = error.meta?.target;
+      if (Array.isArray(target)) {
+        return target.some(
+          (t: string) =>
+            t === "slug" ||
+            t.includes("slug") ||
+            t.includes("Product_organizationId_slug_key"),
+        );
+      }
+      if (typeof target === "string") {
+        return (
+          target.includes("slug") ||
+          target.includes("Product_organizationId_slug_key")
+        );
+      }
+      const modelName = (error.meta?.modelName as string) || "";
+      if (!modelName || modelName === "Product") {
+        return true;
+      }
+    }
+    return false;
   }
 
   private async validateReferences(
@@ -205,35 +268,59 @@ export class ProductsService {
       taxId: dto.taxId,
     });
 
-    const slug = dto.slug || this.slugify(dto.name);
-    return this.prisma.product.create({
-      data: {
-        organizationId,
-        name: dto.name,
-        slug,
-        sku: dto.sku,
-        barcode: dto.barcode,
-        description: dto.description,
-        categoryId: dto.categoryId,
-        brandId: dto.brandId,
-        unitId: dto.unitId,
-        taxId: dto.taxId,
-        type: dto.type || "PHYSICAL",
-        status: dto.status || "ACTIVE",
-        costPrice:
-          dto.costPrice !== undefined
-            ? new Prisma.Decimal(dto.costPrice)
-            : new Prisma.Decimal(0),
-        hasVariants: dto.hasVariants ?? false,
-        images: dto.images,
-      },
-      include: {
-        category: true,
-        brand: true,
-        unit: true,
-        tax: true,
-      },
-    });
+    const name = dto.name.trim();
+    const rawSlug = dto.slug?.trim() || name;
+    const baseSlug = this.slugify(rawSlug) || "product";
+
+    const costPrice =
+      dto.costPrice !== undefined
+        ? new Prisma.Decimal(dto.costPrice)
+        : new Prisma.Decimal(0);
+
+    const maxRetries = 10;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const slug = await this.generateUniqueSlug(organizationId, baseSlug);
+      try {
+        return await this.prisma.product.create({
+          data: {
+            organizationId,
+            name,
+            slug,
+            sku: dto.sku,
+            barcode: dto.barcode,
+            description: dto.description,
+            categoryId: dto.categoryId,
+            brandId: dto.brandId,
+            unitId: dto.unitId,
+            taxId: dto.taxId,
+            type: dto.type || "PHYSICAL",
+            status: dto.status || "ACTIVE",
+            costPrice,
+            hasVariants: dto.hasVariants ?? false,
+            images: dto.images,
+          },
+          include: {
+            category: true,
+            brand: true,
+            unit: true,
+            tax: true,
+          },
+        });
+      } catch (error) {
+        if (this.isSlugConflict(error)) {
+          if (attempt === maxRetries) {
+            throw new BadRequestException(
+              "Could not generate a unique product slug due to concurrent requests. Please try again.",
+            );
+          }
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.floor(Math.random() * 30) + 10),
+          );
+          continue;
+        }
+        throw error;
+      }
+    }
   }
 
   async updateProduct(
@@ -241,7 +328,7 @@ export class ProductsService {
     organizationId: string,
     dto: UpdateProductDto,
   ) {
-    await this.getProductById(id, organizationId);
+    const product = await this.getProductById(id, organizationId);
 
     await this.validateReferences(organizationId, {
       categoryId: dto.categoryId,
@@ -251,24 +338,57 @@ export class ProductsService {
     });
 
     const updateData: any = { ...dto };
-    if (dto.name && !dto.slug) {
-      updateData.slug = this.slugify(dto.name);
+    if (dto.name !== undefined) {
+      updateData.name = dto.name.trim();
     }
 
     if (dto.costPrice !== undefined) {
       updateData.costPrice = new Prisma.Decimal(dto.costPrice);
     }
 
-    return this.prisma.product.update({
-      where: { id },
-      data: updateData,
-      include: {
-        category: true,
-        brand: true,
-        unit: true,
-        tax: true,
-      },
-    });
+    const shouldUpdateSlug =
+      dto.slug !== undefined ||
+      (dto.name !== undefined && dto.name.trim() !== product.name);
+
+    const maxRetries = 10;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      if (shouldUpdateSlug) {
+        const rawSlug =
+          dto.slug?.trim() || dto.name?.trim() || product.name;
+        const baseSlug = this.slugify(rawSlug) || "product";
+        updateData.slug = await this.generateUniqueSlug(
+          organizationId,
+          baseSlug,
+          id,
+        );
+      }
+
+      try {
+        return await this.prisma.product.update({
+          where: { id },
+          data: updateData,
+          include: {
+            category: true,
+            brand: true,
+            unit: true,
+            tax: true,
+          },
+        });
+      } catch (error) {
+        if (this.isSlugConflict(error) && shouldUpdateSlug) {
+          if (attempt === maxRetries) {
+            throw new BadRequestException(
+              "Could not generate a unique product slug due to concurrent requests. Please try again.",
+            );
+          }
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.floor(Math.random() * 30) + 10),
+          );
+          continue;
+        }
+        throw error;
+      }
+    }
   }
 
   async deleteProduct(id: string, organizationId: string) {

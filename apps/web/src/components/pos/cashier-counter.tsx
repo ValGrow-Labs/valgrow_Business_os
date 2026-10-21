@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   usePaymentQueue,
   useClaimPayment,
@@ -54,6 +55,7 @@ import {
   Trash2,
   Wallet,
   ArrowRight,
+  ArrowLeft,
   CircleDollarSign,
 } from "lucide-react";
 
@@ -123,6 +125,9 @@ export function CashierCounter({
 
   // Selected Bill State
   const [selectedCartId, setSelectedCartId] = useState<string | null>(null);
+
+  // Mobile View state ("queue" | "checkout")
+  const [mobileView, setMobileView] = useState<"queue" | "checkout">("queue");
 
   // Payment Form State
   const [paymentLines, setPaymentLines] = useState<POSPaymentItemDto[]>([
@@ -209,6 +214,11 @@ export function CashierCounter({
     try {
       await claimMutation.mutateAsync(bill.id);
       setSelectedCartId(bill.id);
+      setMobileView("checkout");
+      // Reset filter to ALL if it was READY_FOR_PAYMENT so claimed bill stays in list
+      if (statusFilter === "READY_FOR_PAYMENT") {
+        setStatusFilter("ALL");
+      }
       // Auto-initialize payment lines to full amount in cash
       const amt = Number(bill.totalAmount);
       setPaymentLines([{ paymentMethod: "CASH", amount: amt, receivedAmount: amt }]);
@@ -308,6 +318,7 @@ export function CashierCounter({
       setCompletedSale(result.sale);
       setShowReceiptModal(true);
       setSelectedCartId(null);
+      setMobileView("queue");
       toast.success("Payment completed & receipt generated!", {
         description: `Receipt #${result.sale.receiptNumber} recorded.`,
       });
@@ -318,6 +329,7 @@ export function CashierCounter({
         });
         refetchQueue();
         setSelectedCartId(null);
+        setMobileView("queue");
       } else {
         toast.error("Checkout failed", {
           description: err.message || "An unexpected error occurred during payment processing.",
@@ -335,6 +347,7 @@ export function CashierCounter({
         notes: "Released by cashier",
       });
       setSelectedCartId(null);
+      setMobileView("queue");
       toast.info("Bill returned to cashier queue");
     } catch (err: any) {
       toast.error("Failed to release bill", { description: err.message });
@@ -352,6 +365,7 @@ export function CashierCounter({
       setShowCancelDialog(false);
       setCancelReason("");
       setSelectedCartId(null);
+      setMobileView("queue");
       toast.warning("Bill cancelled");
     } catch (err: any) {
       toast.error("Failed to cancel bill", { description: err.message });
@@ -382,42 +396,42 @@ export function CashierCounter({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] gap-4">
+    <div className="flex flex-col w-full h-full min-h-0 flex-1 lg:h-[calc(100dvh-140px)] gap-3 sm:gap-4 overflow-hidden">
       {/* REGISTER SHIFT STATUS BANNER */}
       {activeSession ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs">
-          <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200">
-            <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <div>
+        <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 sm:p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs shrink-0">
+          <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 min-w-0">
+            <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="truncate">
               <span className="font-bold">Register Active:</span>
               <span className="ml-1.5 font-mono font-semibold">{activeSession.terminalId}</span>
-              <span className="mx-2 opacity-50">·</span>
-              <span>Opening Float: <span className="font-mono font-semibold">₹{Number(activeSession.openingCash).toFixed(2)}</span></span>
-              <span className="mx-2 opacity-50">·</span>
-              <span>Cashier: <span className="font-medium">{activeSession.openedBy?.firstName || (currentUser?.user ? `${currentUser.user.firstName} ${currentUser.user.lastName}`.trim() : "Cashier")}</span></span>
+              <span className="mx-1.5 opacity-50">·</span>
+              <span>Float: <span className="font-mono font-semibold">{formatMoney(Number(activeSession.openingCash || 0))}</span></span>
+              <span className="hidden sm:inline mx-1.5 opacity-50">·</span>
+              <span className="hidden sm:inline">Cashier: <span className="font-medium">{activeSession.openedBy?.firstName || (currentUser?.user ? `${currentUser.user.firstName} ${currentUser.user.lastName}`.trim() : "Cashier")}</span></span>
             </div>
           </div>
           {canOpenSession && (
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-medium"
+              className="h-8 text-xs border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-medium shrink-0 min-h-[36px] sm:min-h-0"
               onClick={() => {
                 setClosingCash(String(activeSession.openingCash || ""));
                 setShowCloseShiftModal(true);
               }}
             >
-              Close Register Shift
+              Close Shift
             </Button>
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-between p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs">
-          <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-300">
+        <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 sm:p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs shrink-0">
+          <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 min-w-0">
             <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-            <div>
-              <span className="font-bold">No Register Session Open:</span>
-              <span className="ml-1 opacity-90">
+            <div className="text-xs">
+              <span className="font-bold">No Register Open:</span>
+              <span className="ml-1 opacity-90 hidden sm:inline">
                 You must open a register shift to collect customer payments and reconcile your cash drawer.
               </span>
             </div>
@@ -425,7 +439,7 @@ export function CashierCounter({
           {canOpenSession && (
             <Button
               size="sm"
-              className="h-8 bg-amber-600 hover:bg-amber-700 text-white font-medium"
+              className="h-8 bg-amber-600 hover:bg-amber-700 text-white font-medium shrink-0 min-h-[36px] sm:min-h-0"
               onClick={() => setShowOpenShiftModal(true)}
             >
               Open Register Shift
@@ -435,72 +449,62 @@ export function CashierCounter({
       )}
 
       {/* TOP CONTROLS */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-card border rounded-xl p-4 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-card border rounded-xl p-3 sm:p-4 shadow-xs shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
             <CircleDollarSign className="h-5 w-5" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold tracking-tight">Cashier Counter</h2>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight truncate">Cashier Counter</h2>
               {isRefetching && (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground shrink-0" />
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground truncate hidden sm:block">
               Collect payments for verified tickets, manage cash change, and issue tax receipts.
             </p>
           </div>
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg bg-muted p-1 text-xs">
+        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto no-scrollbar justify-between sm:justify-end">
+          <div className="flex rounded-lg bg-muted p-1 text-xs shrink-0">
             <button
               type="button"
               onClick={() => setStatusFilter("ALL")}
-              className={`px-3 py-1 rounded-md font-medium transition-all ${
+              className={cn(
+                "px-2.5 py-1 rounded-md font-medium transition-all text-xs whitespace-nowrap min-h-[32px]",
                 statusFilter === "ALL"
                   ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
-              All Bills ({allItems.length})
+              All ({allItems.length})
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter("READY_FOR_PAYMENT")}
-              className={`px-3 py-1 rounded-md font-medium transition-all ${
+              className={cn(
+                "px-2.5 py-1 rounded-md font-medium transition-all text-xs whitespace-nowrap min-h-[32px]",
                 statusFilter === "READY_FOR_PAYMENT"
                   ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
-              Ready to Pay (
-              {
-                allItems.filter((i) => i.workflowStatus === "READY_FOR_PAYMENT")
-                  .length
-              }
-              )
+              Ready ({allItems.filter((i) => i.workflowStatus === "READY_FOR_PAYMENT").length})
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter("CLAIMED_BY_ME")}
-              className={`px-3 py-1 rounded-md font-medium transition-all ${
+              className={cn(
+                "px-2.5 py-1 rounded-md font-medium transition-all text-xs whitespace-nowrap min-h-[32px]",
                 statusFilter === "CLAIMED_BY_ME"
                   ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
-              My Claimed (
-              {
-                allItems.filter(
-                  (i) =>
-                    i.workflowStatus === "PAYMENT_IN_PROGRESS" &&
-                    i.cashierId === currentUserId,
-                ).length
-              }
-              )
+              Mine ({allItems.filter((i) => i.workflowStatus === "PAYMENT_IN_PROGRESS" && i.cashierId === currentUserId).length})
             </button>
           </div>
 
@@ -509,20 +513,62 @@ export function CashierCounter({
             size="sm"
             onClick={() => refetchQueue()}
             disabled={isQueueLoading}
-            className="h-8 gap-1.5"
+            className="h-8 gap-1.5 shrink-0 px-2.5 min-h-[36px] sm:min-h-0"
           >
             <RefreshCw
-              className={`h-3.5 w-3.5 ${isQueueLoading ? "animate-spin" : ""}`}
+              className={cn("h-3.5 w-3.5", isQueueLoading && "animate-spin")}
             />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
+      </div>
+
+      {/* Mobile View Switcher (Queue vs Checkout) */}
+      <div className="flex lg:hidden items-center p-1 bg-muted/70 rounded-xl gap-1 shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileView("queue")}
+          className={cn(
+            "flex-1 py-2 text-xs font-semibold rounded-lg transition-all min-h-[40px] flex items-center justify-center gap-1.5",
+            mobileView === "queue"
+              ? "bg-background text-foreground shadow-xs"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <CircleDollarSign className="h-3.5 w-3.5" />
+          Queue ({filteredItems.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (activeBill) {
+              setMobileView("checkout");
+            } else {
+              toast.info("Select or claim a bill first");
+            }
+          }}
+          className={cn(
+            "flex-1 py-2 text-xs font-semibold rounded-lg transition-all min-h-[40px] flex items-center justify-center gap-1.5",
+            mobileView === "checkout"
+              ? "bg-background text-foreground shadow-xs"
+              : "text-muted-foreground hover:text-foreground",
+            !activeBill && "opacity-50",
+          )}
+        >
+          <CreditCard className="h-3.5 w-3.5" />
+          {activeBill ? `Pay #${activeBill.cartNumber || "Bill"}` : "Checkout"}
+        </button>
       </div>
 
       {/* TWO-COLUMN CASHIER SPLIT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0">
         {/* LEFT COLUMN: PAYMENT QUEUE (5 COLS) */}
-        <div className="lg:col-span-5 flex flex-col bg-card border rounded-xl overflow-hidden shadow-xs">
+        <div
+          className={cn(
+            "lg:col-span-5 flex flex-col bg-card border rounded-xl overflow-hidden shadow-xs min-h-0 flex-1",
+            mobileView !== "queue" && "hidden lg:flex",
+          )}
+        >
           <div className="p-3 border-b bg-muted/20">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -574,6 +620,7 @@ export function CashierCounter({
                       setPaymentLines([
                         { paymentMethod: "CASH", amount: amt, receivedAmount: amt },
                       ]);
+                      setMobileView("checkout");
                     }}
                     className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
                       isSelected
@@ -654,7 +701,7 @@ export function CashierCounter({
                         {isReady ? (
                           <Button
                             size="sm"
-                            className="h-7 text-xs px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                            className="h-8 sm:h-7 text-xs px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium min-h-[36px] sm:min-h-0"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleClaim(bill);
@@ -667,10 +714,15 @@ export function CashierCounter({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-xs px-2.5"
+                            className="h-8 sm:h-7 text-xs px-2.5 min-h-[36px] sm:min-h-0"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedCartId(bill.id);
+                              const amt = Number(bill.totalAmount);
+                              setPaymentLines([
+                                { paymentMethod: "CASH", amount: amt, receivedAmount: amt },
+                              ]);
+                              setMobileView("checkout");
                             }}
                           >
                             Process
@@ -686,7 +738,12 @@ export function CashierCounter({
         </div>
 
         {/* RIGHT COLUMN: CHECKOUT & PAYMENT TERMINAL (7 COLS) */}
-        <div className="lg:col-span-7 flex flex-col bg-card border rounded-xl overflow-hidden shadow-xs">
+        <div
+          className={cn(
+            "lg:col-span-7 flex flex-col bg-card border rounded-xl overflow-hidden shadow-xs min-h-0 flex-1",
+            mobileView !== "checkout" && "hidden lg:flex",
+          )}
+        >
           {!activeBill ? (
             <div className="flex flex-col items-center justify-center h-full p-8 text-center text-muted-foreground space-y-3">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/40">
@@ -699,31 +756,49 @@ export function CashierCounter({
                 <p className="text-xs text-muted-foreground max-w-sm mt-1">
                   Select a bill from the payment queue or click &quot;Claim &amp; Pay&quot; to begin checkout and cash collection.
                 </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="lg:hidden mt-3"
+                  onClick={() => setMobileView("queue")}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  View Queue
+                </Button>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full min-h-0 flex-1">
               {/* Cashier Workbench Header */}
-              <div className="p-4 border-b bg-muted/20 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 font-mono font-bold text-sm">
+              <div className="p-3 sm:p-4 border-b bg-muted/20 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setMobileView("queue")}
+                    className="lg:hidden h-8 px-2 text-xs gap-1 -ml-1 text-muted-foreground shrink-0"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Queue
+                  </Button>
+                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 font-mono font-bold text-xs sm:text-sm shrink-0">
                     {activeBill.cartNumber?.slice(-4) || "PAY"}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-base font-bold tracking-tight">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <h3 className="text-sm sm:text-base font-bold tracking-tight truncate">
                         Ticket {activeBill.cartNumber}
                       </h3>
                       <Badge
                         variant="secondary"
-                        className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-xs"
+                        className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] sm:text-xs shrink-0"
                       >
                         {activeBill.workflowStatus === "READY_FOR_PAYMENT"
                           ? "Pending Claim"
                           : "Ready to Pay"}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground truncate">
                       Customer:{" "}
                       <span className="font-medium text-foreground">
                         {activeBill.customer?.name || "Walk-in Retail Customer"}
@@ -985,7 +1060,7 @@ export function CashierCounter({
               </div>
 
               {/* Bottom Payment Submission Footer */}
-              <div className="p-4 border-t bg-muted/10 space-y-3">
+              <div className="p-3 sm:p-4 border-t bg-muted/10 space-y-2.5 sm:space-y-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] shrink-0">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Total Amount Tendered:</span>
                   <span className="font-mono font-semibold text-foreground">
@@ -1003,7 +1078,7 @@ export function CashierCounter({
                 {isClaimedByMe ? (
                   <Button
                     size="lg"
-                    className="w-full gap-2 font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="w-full gap-2 font-bold bg-emerald-600 hover:bg-emerald-700 text-white min-h-[48px] h-12 text-sm sm:text-base"
                     onClick={handleExecuteCheckout}
                     disabled={
                       checkoutMutation.isPending ||
@@ -1011,21 +1086,23 @@ export function CashierCounter({
                       !activeSession
                     }
                   >
-                    <Wallet className="h-5 w-5" />
-                    {checkoutMutation.isPending
-                      ? "Recording Payment..."
-                      : `Complete Payment (${formatMoney(grandTotal)})`}
-                    <ArrowRight className="h-4 w-4 ml-auto" />
+                    <Wallet className="h-5 w-5 shrink-0" />
+                    <span className="truncate">
+                      {checkoutMutation.isPending
+                        ? "Recording Payment..."
+                        : `Complete Payment (${formatMoney(grandTotal)})`}
+                    </span>
+                    <ArrowRight className="h-4 w-4 ml-auto shrink-0" />
                   </Button>
                 ) : (
                   <Button
                     size="lg"
-                    className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                    className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold min-h-[48px] h-12 text-sm sm:text-base"
                     onClick={() => handleClaim(activeBill)}
                     disabled={claimMutation.isPending}
                   >
-                    <CreditCard className="h-5 w-5" />
-                    Claim Bill for Checkout
+                    <CreditCard className="h-5 w-5 shrink-0" />
+                    <span>Claim Bill for Checkout</span>
                   </Button>
                 )}
               </div>

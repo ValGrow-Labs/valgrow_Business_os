@@ -83,6 +83,7 @@ import {
   Receipt,
   CreditCard,
   Lock,
+  ArrowLeft,
 } from "lucide-react";
 
 export const Route = createFileRoute("/pos")({
@@ -125,6 +126,9 @@ function POSRegisterPage() {
     if (isCashier) return "cashier";
     return "register";
   });
+
+  // Mobile Sales Register View switcher ("catalog" | "cart")
+  const [mobileSalesView, setMobileSalesView] = useState<"catalog" | "cart">("catalog");
 
   useEffect(() => {
     if (currentUser) {
@@ -426,6 +430,7 @@ function POSRegisterPage() {
   // Start Next Cart Handler (used after Send to Billing or manually)
   const handleStartNewCart = async () => {
     setTicketConfirmation(null);
+    setMobileSalesView("catalog");
     if (!effectiveBranchId || !effectiveWarehouseId) {
       setActiveCartId(null);
       return;
@@ -755,14 +760,14 @@ function POSRegisterPage() {
 
   // Top Tab Navigation Bar Component
   const renderTopNavBar = () => (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-surface px-4 py-2 sm:px-6">
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 rounded-lg border bg-surface-2 p-1">
+    <div className="flex flex-wrap items-center justify-between gap-2.5 border-b bg-surface px-3 py-2 sm:px-6 shrink-0">
+      <div className="flex items-center gap-2 max-w-full overflow-x-auto no-scrollbar py-0.5">
+        <div className="flex items-center gap-1 rounded-lg border bg-surface-2 p-1 shrink-0">
           {(canCreateCart || isOwner) && !isBillingStaff && !isCashier && (
             <button
               type="button"
               onClick={() => setActiveTab("register")}
-              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-md px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all min-h-[36px] sm:min-h-0 ${
                 activeTab === "register"
                   ? "bg-surface text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -777,7 +782,7 @@ function POSRegisterPage() {
             <button
               type="button"
               onClick={() => setActiveTab("billing")}
-              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-md px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all min-h-[36px] sm:min-h-0 ${
                 activeTab === "billing"
                   ? "bg-surface text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -792,7 +797,7 @@ function POSRegisterPage() {
             <button
               type="button"
               onClick={() => setActiveTab("cashier")}
-              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-md px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all min-h-[36px] sm:min-h-0 ${
                 activeTab === "cashier"
                   ? "bg-surface text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -805,11 +810,11 @@ function POSRegisterPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <PageGuideButton id="pos" />
         {activeSession ? (
           <div className="flex items-center gap-2">
-            <Badge variant={activeSession.status === "OPEN" ? "success" : "warning"}>
+            <Badge variant={activeSession.status === "OPEN" ? "success" : "warning"} className="text-xs">
               <span
                 className={
                   activeSession.status === "OPEN"
@@ -824,7 +829,7 @@ function POSRegisterPage() {
               <Button
                 variant="outline"
                 size="xs"
-                className="text-destructive hover:bg-destructive-soft hover:text-destructive"
+                className="text-destructive hover:bg-destructive-soft hover:text-destructive min-h-[32px]"
                 onClick={() => {
                   setClosingCash(String(activeSession.openingCash || 0));
                   setShowCloseModal(true);
@@ -849,9 +854,9 @@ function POSRegisterPage() {
   if (activeTab === "billing") {
     return (
       <AppShell fullBleed>
-        <div className="flex flex-col lg:h-[calc(100vh-3.5rem)]">
+        <div className="flex flex-col flex-1 h-full min-h-0 lg:h-[calc(100dvh-3.5rem)] overflow-hidden">
           {renderTopNavBar()}
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
             <BillingDesk branchId={effectiveBranchId} warehouseId={effectiveWarehouseId} />
           </div>
         </div>
@@ -863,9 +868,9 @@ function POSRegisterPage() {
   if (activeTab === "cashier") {
     return (
       <AppShell fullBleed>
-        <div className="flex flex-col lg:h-[calc(100vh-3.5rem)]">
+        <div className="flex flex-col flex-1 h-full min-h-0 lg:h-[calc(100dvh-3.5rem)] overflow-hidden">
           {renderTopNavBar()}
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
             <CashierCounter
               branchId={effectiveBranchId}
               warehouseId={effectiveWarehouseId}
@@ -1153,11 +1158,11 @@ function POSRegisterPage() {
   // MAIN ACTIVE REGISTER / SALESPERSON TERMINAL UI
   return (
     <AppShell fullBleed>
-      <div className="flex flex-col lg:h-[calc(100vh-3.5rem)]">
+      <div className="flex flex-col flex-1 h-full min-h-0 lg:h-[calc(100dvh-3.5rem)] overflow-hidden">
         {renderTopNavBar()}
 
         {/* TERMINAL STATUS & ACTIONS BAR */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-surface-2/40 px-4 py-2 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-surface-2/40 px-4 py-2 sm:px-6 shrink-0">
           <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
             <div className="flex items-center gap-2">
               <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary-soft text-primary">
@@ -1235,10 +1240,42 @@ function POSRegisterPage() {
           </div>
         </div>
 
+        {/* MOBILE VIEW SWITCHER (Catalog vs Cart) */}
+        <div className="flex lg:hidden items-center p-1 bg-surface-2 border-b gap-1 shrink-0 px-3 py-1.5">
+          <button
+            type="button"
+            onClick={() => setMobileSalesView("catalog")}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all min-h-[36px] flex items-center justify-center gap-1.5 ${
+              mobileSalesView === "catalog"
+                ? "bg-surface text-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <ShoppingBag className="h-3.5 w-3.5" />
+            <span>Products</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileSalesView("cart")}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all min-h-[36px] flex items-center justify-center gap-1.5 ${
+              mobileSalesView === "cart"
+                ? "bg-surface text-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Calculator className="h-3.5 w-3.5" />
+            <span>Cart {cartCount > 0 ? `(${cartCount} · ${money(activeCart?.totalAmount)})` : "(Empty)"}</span>
+          </button>
+        </div>
+
         {/* MAIN TWO-PANE REGISTER */}
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px]">
           {/* LEFT: SCAN + CATALOG */}
-          <div className="flex min-h-0 flex-col gap-4 p-4 sm:p-6">
+          <div
+            className={`flex min-h-0 flex-col gap-4 p-3 sm:p-6 flex-1 overflow-y-auto ${
+              mobileSalesView !== "catalog" ? "hidden lg:flex" : "flex"
+            }`}
+          >
             <div className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
               <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
                 <div className="relative flex-1">
@@ -1354,26 +1391,37 @@ function POSRegisterPage() {
           {/* RIGHT: CART & WORKFLOW ACTIONS */}
           <div
             id="pos-cart"
-            className="flex min-h-[480px] flex-col border-t bg-surface lg:min-h-0 lg:border-l lg:border-t-0"
+            className={`flex min-h-[480px] flex-col border-t bg-surface lg:min-h-0 lg:border-l lg:border-t-0 flex-1 overflow-y-auto ${
+              mobileSalesView !== "cart" ? "hidden lg:flex" : "flex"
+            }`}
           >
             {/* CART HEADER */}
-            <div className="flex flex-col gap-2.5 border-b px-4 py-3 bg-surface">
+            <div className="flex flex-col gap-2.5 border-b px-4 py-3 bg-surface shrink-0">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="whitespace-nowrap text-sm font-semibold">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setMobileSalesView("catalog")}
+                    className="lg:hidden h-8 px-2 text-xs gap-1 -ml-1 text-muted-foreground shrink-0"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Products
+                  </Button>
+                  <span className="whitespace-nowrap text-sm font-semibold truncate">
                     {activeCart?.cartNumber ? `Ticket #${activeCart.cartNumber}` : "Current order"}
                   </span>
                   {cartItems.length > 0 && (
-                    <Badge variant="brand" className="tabular">
+                    <Badge variant="brand" className="tabular shrink-0 text-xs">
                       {cartCount} {cartCount === 1 ? "item" : "items"}
                     </Badge>
                   )}
                 </div>
 
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-surface-2 px-2.5 py-1 rounded-md border border-border/60">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-surface-2 px-2.5 py-1 rounded-md border border-border/60 shrink-0">
                   <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="shrink-0 font-medium">Salesperson:</span>
-                  <span className="font-semibold text-foreground truncate max-w-[120px]" title={cashierName}>
+                  <span className="hidden sm:inline shrink-0 font-medium">Salesperson:</span>
+                  <span className="font-semibold text-foreground truncate max-w-[100px] sm:max-w-[120px]" title={cashierName}>
                     {cashierName}
                   </span>
                 </div>
@@ -1615,14 +1663,19 @@ function POSRegisterPage() {
           </div>
         </div>
 
-        {/* MOBILE: JUMP TO CART */}
-        {cartItems.length > 0 && (
-          <div className="sticky bottom-0 z-10 border-t bg-background/90 p-3 backdrop-blur lg:hidden">
-            <Button asChild size="lg" className="w-full">
-              <a href="#pos-cart">
-                <ShoppingBag />
-                View cart ({cartCount}) · {money(activeCart?.totalAmount)}
-              </a>
+        {/* MOBILE: STICKY BOTTOM CART BAR */}
+        {cartItems.length > 0 && mobileSalesView === "catalog" && (
+          <div className="sticky bottom-0 z-10 border-t bg-background/95 p-2.5 sm:p-3 backdrop-blur lg:hidden pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+            <Button
+              size="lg"
+              className="w-full min-h-[48px] h-12 text-sm font-semibold justify-between shadow-lg"
+              onClick={() => setMobileSalesView("cart")}
+            >
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="h-4 w-4" />
+                <span>View Cart ({cartCount} {cartCount === 1 ? "item" : "items"})</span>
+              </div>
+              <span className="font-mono font-bold text-base">{money(activeCart?.totalAmount)} →</span>
             </Button>
           </div>
         )}

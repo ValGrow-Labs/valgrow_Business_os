@@ -261,7 +261,33 @@ export class PosWorkflowService {
 
         if (existing.workflowStatus === "BILLING_IN_PROGRESS") {
           if (existing.billingStaffId === actorId) {
-            throw new ConflictException("Cart is already claimed by you");
+            return tx.pOSCart.findUniqueOrThrow({
+              where: { id: cartId },
+              include: {
+                customer: true,
+                salesperson: {
+                  select: { id: true, firstName: true, lastName: true, email: true },
+                },
+                billingStaff: {
+                  select: { id: true, firstName: true, lastName: true, email: true },
+                },
+                branch: { select: { id: true, name: true, code: true } },
+                warehouse: { select: { id: true, name: true, code: true } },
+                items: {
+                  include: {
+                    product: {
+                      select: { id: true, name: true, sku: true, barcode: true },
+                    },
+                    variant: {
+                      select: { id: true, name: true, sku: true, barcode: true },
+                    },
+                  },
+                },
+                transitions: {
+                  orderBy: { createdAt: "desc" },
+                },
+              },
+            });
           }
           throw new ConflictException(
             "Cart is currently being processed by another billing staff member",
@@ -546,7 +572,36 @@ export class PosWorkflowService {
 
         if (existing.workflowStatus === "PAYMENT_IN_PROGRESS") {
           if (existing.cashierId === actorId) {
-            throw new ConflictException("Bill is already claimed by you");
+            return tx.pOSCart.findUniqueOrThrow({
+              where: { id: cartId },
+              include: {
+                customer: true,
+                salesperson: {
+                  select: { id: true, firstName: true, lastName: true, email: true },
+                },
+                billingStaff: {
+                  select: { id: true, firstName: true, lastName: true, email: true },
+                },
+                cashier: {
+                  select: { id: true, firstName: true, lastName: true, email: true },
+                },
+                branch: { select: { id: true, name: true, code: true } },
+                warehouse: { select: { id: true, name: true, code: true } },
+                items: {
+                  include: {
+                    product: {
+                      select: { id: true, name: true, sku: true, barcode: true },
+                    },
+                    variant: {
+                      select: { id: true, name: true, sku: true, barcode: true },
+                    },
+                  },
+                },
+                transitions: {
+                  orderBy: { createdAt: "desc" },
+                },
+              },
+            });
           }
           throw new ConflictException(
             "Bill is currently being processed by another cashier",

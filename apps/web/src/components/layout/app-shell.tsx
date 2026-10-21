@@ -474,7 +474,7 @@ function AppShellInner({ children, rightPanel, fullBleed = false }: AppShellProp
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
+    <div className="flex h-screen h-[100dvh] w-full overflow-hidden bg-background">
       <aside
         data-tour="sidebar"
         className={cn(
@@ -552,9 +552,9 @@ function AppShellInner({ children, rightPanel, fullBleed = false }: AppShellProp
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 overflow-y-auto">
+        <main className="min-w-0 flex-1 overflow-y-auto flex flex-col">
           {fullBleed ? (
-            <PageTransition>{children}</PageTransition>
+            <PageTransition className="min-w-0 flex-1 flex flex-col h-full">{children}</PageTransition>
           ) : (
             <div
               className={cn(

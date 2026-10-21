@@ -19,7 +19,13 @@ export const staggerItem = fadeRise;
 export const overlaySpring: Transition = { type: "spring", stiffness: 400, damping: 30 };
 
 /** Fades and lifts route content in whenever the pathname changes. */
-export function PageTransition({ children }: { children: ReactNode }) {
+export function PageTransition({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return createElement(
     motion.div,
@@ -28,7 +34,7 @@ export function PageTransition({ children }: { children: ReactNode }) {
       variants: fadeRise,
       initial: "hidden",
       animate: "show",
-      className: "min-w-0 space-y-6",
+      className: className ?? "min-w-0 space-y-6",
     },
     children,
   );

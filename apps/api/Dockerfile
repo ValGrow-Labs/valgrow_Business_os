@@ -24,6 +24,5 @@ ENV NODE_ENV=production
 ENV API_PORT=3001
 EXPOSE 3001
 
-# The schema is ahead of the committed migrations, so sync it on start.
-# `db push` refuses destructive changes, so a risky schema change fails loudly instead of losing data.
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node apps/api/dist/src/main.js"]
+# Run safe, versioned migrations on start before starting the API server
+CMD ["sh", "-c", "npx prisma migrate deploy && node apps/api/dist/src/main.js"]

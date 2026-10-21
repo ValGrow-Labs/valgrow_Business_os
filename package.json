@@ -12,6 +12,8 @@
     "dev:api": "npm run dev --workspace=apps/api",
     "build:api": "npm run build --workspace=apps/api",
     "start:api": "node apps/api/dist/src/main.js",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
     "seed": "npm run seed --workspace=apps/api",
     "seed:pos-users": "npm run seed:pos-users --workspace=apps/api",
     "verify:pos-users": "npm run verify:pos-users --workspace=apps/api",

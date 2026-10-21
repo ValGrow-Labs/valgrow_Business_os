@@ -8,9 +8,8 @@ services:
     plan: free
     region: singapore
     buildCommand: npm ci && npx prisma generate && npm run build --workspace=apps/api
-    # The schema is ahead of the committed migrations, so sync it on start.
-    # `db push` refuses destructive changes, so a risky schema change fails loudly instead of losing data.
-    startCommand: npx prisma db push --skip-generate && node apps/api/dist/src/main.js
+    # Run safe, versioned database migrations on deploy before starting the API server
+    startCommand: npx prisma migrate deploy && node apps/api/dist/src/main.js
     healthCheckPath: /health
     autoDeploy: true
     envVars:
