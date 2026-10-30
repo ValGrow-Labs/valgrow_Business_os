@@ -57,7 +57,7 @@ function POSCashierPage() {
               </Link>
             </Button>
             <Button asChild>
-              <Link to="/">Dashboard</Link>
+              <Link to="/dashboard">Dashboard</Link>
             </Button>
           </div>
         </div>

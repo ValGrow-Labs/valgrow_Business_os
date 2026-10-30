@@ -30,6 +30,7 @@ import { Route as CrmTagsRouteImport } from './routes/crm-tags'
 import { Route as CustomerPaymentsRouteImport } from './routes/customer-payments'
 import { Route as CustomerSegmentsRouteImport } from './routes/customer-segments'
 import { Route as CustomersRouteImport } from './routes/customers'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DeliveryNotesRouteImport } from './routes/delivery-notes'
 import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as FilesRouteImport } from './routes/files'
@@ -197,6 +198,11 @@ const CustomerSegmentsRoute = CustomerSegmentsRouteImport.update({
 const CustomersRoute = CustomersRouteImport.update({
   id: '/customers',
   path: '/customers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeliveryNotesRoute = DeliveryNotesRouteImport.update({
@@ -537,6 +543,7 @@ export interface FileRoutesByFullPath {
   '/customer-payments': typeof CustomerPaymentsRoute
   '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
+  '/dashboard': typeof DashboardRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
@@ -623,6 +630,7 @@ export interface FileRoutesByTo {
   '/customer-payments': typeof CustomerPaymentsRoute
   '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
+  '/dashboard': typeof DashboardRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
@@ -710,6 +718,7 @@ export interface FileRoutesById {
   '/customer-payments': typeof CustomerPaymentsRoute
   '/customer-segments': typeof CustomerSegmentsRoute
   '/customers': typeof CustomersRoute
+  '/dashboard': typeof DashboardRoute
   '/delivery-notes': typeof DeliveryNotesRoute
   '/departments': typeof DepartmentsRoute
   '/files': typeof FilesRoute
@@ -798,6 +807,7 @@ export interface FileRouteTypes {
     | '/customer-payments'
     | '/customer-segments'
     | '/customers'
+    | '/dashboard'
     | '/delivery-notes'
     | '/departments'
     | '/files'
@@ -884,6 +894,7 @@ export interface FileRouteTypes {
     | '/customer-payments'
     | '/customer-segments'
     | '/customers'
+    | '/dashboard'
     | '/delivery-notes'
     | '/departments'
     | '/files'
@@ -970,6 +981,7 @@ export interface FileRouteTypes {
     | '/customer-payments'
     | '/customer-segments'
     | '/customers'
+    | '/dashboard'
     | '/delivery-notes'
     | '/departments'
     | '/files'
@@ -1057,6 +1069,7 @@ export interface RootRouteChildren {
   CustomerPaymentsRoute: typeof CustomerPaymentsRoute
   CustomerSegmentsRoute: typeof CustomerSegmentsRoute
   CustomersRoute: typeof CustomersRoute
+  DashboardRoute: typeof DashboardRoute
   DeliveryNotesRoute: typeof DeliveryNotesRoute
   DepartmentsRoute: typeof DepartmentsRoute
   FilesRoute: typeof FilesRoute
@@ -1269,6 +1282,13 @@ declare module '@tanstack/react-router' {
       path: '/customers'
       fullPath: '/customers'
       preLoaderRoute: typeof CustomersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/delivery-notes': {
@@ -1737,6 +1757,7 @@ const rootRouteChildren: RootRouteChildren = {
   CustomerPaymentsRoute: CustomerPaymentsRoute,
   CustomerSegmentsRoute: CustomerSegmentsRoute,
   CustomersRoute: CustomersRoute,
+  DashboardRoute: DashboardRoute,
   DeliveryNotesRoute: DeliveryNotesRoute,
   DepartmentsRoute: DepartmentsRoute,
   FilesRoute: FilesRoute,

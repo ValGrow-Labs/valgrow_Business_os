@@ -39,7 +39,7 @@ function LoginPage() {
       { email, password },
       {
         onSuccess: () => {
-          navigate({ to: "/" });
+          navigate({ to: "/dashboard" });
         },
         onError: (err: any) => {
           setErrorMsg(err?.message || "Invalid credentials. Please try again.");

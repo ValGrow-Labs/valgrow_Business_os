@@ -82,7 +82,7 @@ function HelpContent() {
         ? "You hid the setup checklist. Bring it back to your Overview."
         : "Six quick setup steps, tracked on your Overview.",
       action: (
-        <Link to="/" onClick={restoreChecklist}>
+        <Link to="/dashboard" onClick={restoreChecklist}>
           {state.checklistDismissed ? "Show on Overview" : "Go to Overview"}
         </Link>
       ),

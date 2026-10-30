@@ -18,29 +18,31 @@ export function Breadcrumbs() {
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-[13px]">
       <Link
-        to="/"
+        to="/dashboard"
         className={
-          segments.length === 0
+          segments.length === 0 || (segments.length === 1 && segments[0] === "dashboard")
             ? "truncate font-medium text-foreground"
             : "hidden shrink-0 text-muted-foreground transition-colors hover:text-foreground sm:inline"
         }
       >
-        {segments.length === 0 ? "Overview" : "Home"}
+        Dashboard
       </Link>
-      {segments.map((segment, i) => {
-        const last = i === segments.length - 1;
-        return (
-          <span
-            key={`${segment}-${i}`}
-            className={last ? "flex min-w-0 items-center gap-1" : "hidden items-center gap-1 sm:flex"}
-          >
-            <ChevronRight className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground/60 sm:block" />
-            <span className={last ? "truncate font-medium text-foreground" : "text-muted-foreground"}>
-              {labelize(segment)}
+      {segments
+        .filter((s) => s !== "dashboard")
+        .map((segment, i, arr) => {
+          const last = i === arr.length - 1;
+          return (
+            <span
+              key={`${segment}-${i}`}
+              className={last ? "flex min-w-0 items-center gap-1" : "hidden items-center gap-1 sm:flex"}
+            >
+              <ChevronRight className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground/60 sm:block" />
+              <span className={last ? "truncate font-medium text-foreground" : "text-muted-foreground"}>
+                {labelize(segment)}
+              </span>
             </span>
-          </span>
-        );
-      })}
+          );
+        })}
     </nav>
   );
 }

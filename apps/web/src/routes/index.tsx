@@ -1,40 +1,80 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { AppShell } from "@/components/layout/app-shell";
-import { GettingStarted } from "@/components/onboarding/getting-started";
-import {
-  AttentionCard,
-  KpiGrid,
-  OverviewGreeting,
-  RecentSalesCard,
-  RevenueChartCard,
-} from "@/components/dashboard/overview";
+import { LandingNav } from "@/components/landing/landing-nav";
+import { LandingHero } from "@/components/landing/landing-hero";
+import { LandingProblemSolution } from "@/components/landing/landing-problem-solution";
+import { LandingFeatures } from "@/components/landing/landing-features";
+import { LandingEcosystem } from "@/components/landing/landing-ecosystem";
+import { LandingProductShowcase } from "@/components/landing/landing-product-showcase";
+import { LandingUseCases } from "@/components/landing/landing-use-cases";
+import { LandingWhyValgrow } from "@/components/landing/landing-why-valgrow";
+import { LandingCta } from "@/components/landing/landing-cta";
+import { LandingFooter } from "@/components/landing/landing-footer";
+import { GetStartedDialog } from "@/components/landing/get-started-dialog";
 
+const title = "ValGrow Business OS — Run Your Entire Business From One Platform";
 const description =
-  "ValGrow Business OS — a unified dashboard for organization, people, finance and operations.";
+  "Manage operations, inventory, sales, purchasing, customers, and business performance with one intelligent Business Operating System.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Overview · ValGrow Business OS" },
+      { title },
       { name: "description", content: description },
-      { property: "og:title", content: "Overview · ValGrow Business OS" },
+      { property: "og:title", content: title },
       { property: "og:description", content: description },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: title },
+      { name: "twitter:description", content: description },
     ],
   }),
-  component: Overview,
+  component: LandingPage,
 });
 
-function Overview() {
+function LandingPage() {
+  const [getStartedOpen, setGetStartedOpen] = useState(false);
+
   return (
-    <AppShell>
-      <OverviewGreeting />
-      <GettingStarted />
-      <KpiGrid />
-      <div className="grid gap-6 xl:grid-cols-3">
-        <RevenueChartCard className="xl:col-span-2" />
-        <AttentionCard />
-      </div>
-      <RecentSalesCard />
-    </AppShell>
+    <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-foreground">
+      {/* Sticky Navigation */}
+      <LandingNav onGetStartedClick={() => setGetStartedOpen(true)} />
+
+      {/* Main Landing Sections */}
+      <main className="flex-1">
+        {/* Section 2: Hero */}
+        <LandingHero onGetStartedClick={() => setGetStartedOpen(true)} />
+
+        {/* Section 3: Problem and Solution */}
+        <LandingProblemSolution />
+
+        {/* Section 4: Core Features (The 8 Pillars) */}
+        <LandingFeatures />
+
+        {/* Section 5: Connected Business Ecosystem */}
+        <LandingEcosystem />
+
+        {/* Section 6: Interactive Product Demonstration Showcase */}
+        <LandingProductShowcase />
+
+        {/* Section 7: Built for Growing Businesses */}
+        <LandingUseCases onGetStartedClick={() => setGetStartedOpen(true)} />
+
+        {/* Section 8: Why ValGrow */}
+        <LandingWhyValgrow />
+
+        {/* Section 9: Closing CTA */}
+        <LandingCta onGetStartedClick={() => setGetStartedOpen(true)} />
+      </main>
+
+      {/* Section 10: Footer */}
+      <LandingFooter onGetStartedClick={() => setGetStartedOpen(true)} />
+
+      {/* Interactive Get Started / Access Modal */}
+      <GetStartedDialog
+        open={getStartedOpen}
+        onOpenChange={setGetStartedOpen}
+      />
+    </div>
   );
 }

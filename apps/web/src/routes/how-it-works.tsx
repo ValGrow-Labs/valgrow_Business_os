@@ -265,7 +265,7 @@ function HowItWorksContent() {
             Take the tour
           </Button>
           <Button asChild>
-            <Link to="/">
+            <Link to="/dashboard">
               Go to Overview
               <ArrowRight />
             </Link>

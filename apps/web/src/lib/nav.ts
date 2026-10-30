@@ -62,7 +62,7 @@ export const navGroups: NavGroup[] = [
   {
     label: "",
     items: [
-      { title: "Overview", url: "/", icon: LayoutDashboard },
+      { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
       { title: "Global Search", url: "/search", icon: Search },
       { title: "How it works", url: "/how-it-works", icon: Workflow },
     ],
