@@ -27,11 +27,14 @@ async function buildConfig({ command, mode }: ConfigEnv): Promise<UserConfig> {
     const { nitro } = await import("nitro/vite");
     // In production the browser calls the API through this app's own origin
     // (/api/** -> API_PROXY_TARGET), so auth cookies stay first-party.
-    const apiTarget = process.env["API_PROXY_TARGET"]?.replace(/\/+$/, "");
+    const apiTarget = (
+      process.env["API_PROXY_TARGET"] ||
+      "https://valgrow-api.onrender.com"
+    ).replace(/\/+$/, "");
     plugins.push(
       nitro({
         defaultPreset: "cloudflare-module",
-        ...(apiTarget ? { routeRules: { "/api/**": { proxy: `${apiTarget}/**` } } } : {}),
+        routeRules: { "/api/**": { proxy: `${apiTarget}/**` } },
       }),
     );
   }
