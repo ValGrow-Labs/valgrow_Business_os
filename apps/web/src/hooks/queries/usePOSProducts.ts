@@ -69,12 +69,32 @@ export function usePOSProductSearch(params: {
     ],
     queryFn: () =>
       apiClient<POSProductSearchResult>(`/pos/products/search${qStr ? `?${qStr}` : ""}`),
+    staleTime: 60_000, // 1 minute client cache to prevent repeated product queries
   });
 }
 
+// In-memory barcode result cache to make repeated barcode lookups instant (< 1ms)
+const barcodeCache = new Map<string, POSBarcodeResult>();
+
 export async function findPOSProductByBarcode(code: string): Promise<POSBarcodeResult | null> {
-  if (!code || !code.trim()) return null;
-  return apiClient<POSBarcodeResult | null>(
-    `/pos/products/barcode/${encodeURIComponent(code.trim())}`,
+  const cleanCode = code?.trim();
+  if (!cleanCode) return null;
+
+  if (barcodeCache.has(cleanCode)) {
+    return barcodeCache.get(cleanCode)!;
+  }
+
+  const result = await apiClient<POSBarcodeResult | null>(
+    `/pos/products/barcode/${encodeURIComponent(cleanCode)}`,
   );
+
+  if (result) {
+    barcodeCache.set(cleanCode, result);
+    if (result.product?.sku) barcodeCache.set(result.product.sku, result);
+    if (result.product?.barcode) barcodeCache.set(result.product.barcode, result);
+    if (result.variant?.sku) barcodeCache.set(result.variant.sku, result);
+    if (result.variant?.barcode) barcodeCache.set(result.variant.barcode, result);
+  }
+
+  return result;
 }

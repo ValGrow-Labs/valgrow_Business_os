@@ -176,6 +176,12 @@ export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
           variantId: variantId || undefined,
           quantity: 1,
           unitPrice: price,
+          taxRate: Number(product.tax?.rate || 0),
+        },
+        productInfo: {
+          name: product.name,
+          sku: product.sku,
+          images: (product as any).images,
         },
       });
       refetchQueue();

@@ -285,12 +285,17 @@ export class PosCartService {
     const totalAmount = lineSubtotal.add(taxAmount);
 
     return this.prisma.$transaction(async (tx) => {
-      // Check if item already exists in cart -> increment quantity
-      const existingItem = cart.items.find(
-        (i) =>
-          i.productId === dto.productId &&
-          i.variantId === (dto.variantId || null),
-      );
+      // Lock cart row for update to serialize concurrent cart item modifications atomically
+      await tx.$executeRaw`SELECT 1 FROM "POSCart" WHERE id = ${cartId} FOR UPDATE`;
+
+      // Check if item already exists in cart directly in DB (handles concurrent rapid scans atomically)
+      const existingItem = await tx.pOSCartItem.findFirst({
+        where: {
+          cartId,
+          productId: dto.productId,
+          variantId: dto.variantId || null,
+        },
+      });
 
       if (existingItem) {
         const newQty = existingItem.quantity.add(qty);
@@ -382,6 +387,7 @@ export class PosCartService {
     const totalAmount = lineSubtotal.add(taxAmount);
 
     return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT 1 FROM "POSCart" WHERE id = ${cartId} FOR UPDATE`;
       await tx.pOSCartItem.update({
         where: { id: itemId },
         data: {
@@ -427,6 +433,7 @@ export class PosCartService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT 1 FROM "POSCart" WHERE id = ${cartId} FOR UPDATE`;
       await tx.pOSCartItem.delete({
         where: { id: itemId },
       });
@@ -523,13 +530,31 @@ export class PosCartService {
         totalAmount,
       },
       include: {
+        session: true,
+        customer: true,
+        salesperson: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        billingStaff: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        cashier: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        cancelledBy: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
         items: {
           include: {
-            product: { select: { id: true, name: true, sku: true } },
-            variant: { select: { id: true, name: true, sku: true } },
+            product: {
+              select: { id: true, name: true, sku: true, barcode: true, images: true },
+            },
+            variant: { select: { id: true, name: true, sku: true, barcode: true } },
           },
         },
-        customer: true,
+        transitions: {
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
   }

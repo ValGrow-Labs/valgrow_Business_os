@@ -290,10 +290,10 @@ function POSRegisterPage() {
     customerName?: string | undefined;
   } | null>(null);
 
-  // Auto-create cart when session becomes active (only resume DRAFT carts)
+  // Auto-create cart when session becomes active or when salesperson setup is active
   useEffect(() => {
-    if (activeSession && !activeCartId) {
-      if (activeSession.carts && activeSession.carts.length > 0) {
+    if ((activeSession || salespersonTerminalActive) && !activeCartId && effectiveBranchId && effectiveWarehouseId) {
+      if (activeSession?.carts && activeSession.carts.length > 0) {
         const activeDraftCart = activeSession.carts.find(
           (c: { status: string; workflowStatus?: string }) =>
             c.status === "ACTIVE" && (!c.workflowStatus || c.workflowStatus === "DRAFT"),
@@ -305,35 +305,148 @@ function POSRegisterPage() {
       }
       createCartMutation.mutate(
         {
-          branchId: activeSession.branchId,
-          warehouseId: activeSession.warehouseId,
-          sessionId: activeSession.id,
+          branchId: effectiveBranchId,
+          warehouseId: effectiveWarehouseId,
+          sessionId: activeSession?.id,
+          customerId: selectedCustomerId !== "walkin" ? selectedCustomerId : undefined,
         },
         {
           onSuccess: (newCart) => setActiveCartId(newCart.id),
         },
       );
     }
-  }, [activeSession, activeCartId]);
+  }, [activeSession, activeCartId, salespersonTerminalActive, effectiveBranchId, effectiveWarehouseId]);
 
-  // Product Search State
+  // Product Search State with 250ms debouncing
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [barcodeInput, setBarcodeInput] = useState("");
   const [barcodeError, setBarcodeError] = useState<string | null>(null);
   const [isSearchingBarcode, setIsSearchingBarcode] = useState(false);
   const barcodeRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const { data: searchResult, isLoading: isProductsLoading } = usePOSProductSearch({
-    search: searchQuery || undefined,
+    search: debouncedSearch.trim() || undefined,
     warehouseId: effectiveWarehouseId || undefined,
     limit: 12,
   });
   const products = searchResult?.data || [];
 
+  // Active Cart Creation Promise Lock (ensures rapid scans/clicks don't spawn multiple carts)
+  const cartCreationPromiseRef = useRef<Promise<string> | null>(null);
+  const optimisticCartIdRef = useRef<string | null>(null);
+
+  const getOrCreateActiveCartId = async (): Promise<string | null> => {
+    if (activeCartId && !activeCartId.startsWith("optimistic-") && !isCartLocked) {
+      return activeCartId;
+    }
+
+    if (cartCreationPromiseRef.current) {
+      return cartCreationPromiseRef.current;
+    }
+
+    if (!effectiveBranchId || !effectiveWarehouseId) {
+      return null;
+    }
+
+    const promise = (async () => {
+      try {
+        const newCart = await createCartMutation.mutateAsync({
+          branchId: effectiveBranchId,
+          warehouseId: effectiveWarehouseId,
+          sessionId: activeSession?.id,
+          customerId: selectedCustomerId !== "walkin" ? selectedCustomerId : undefined,
+        });
+        optimisticCartIdRef.current = null;
+        setActiveCartId(newCart.id);
+        if (isCartLocked) {
+          toast.info(`Started fresh cart #${newCart.cartNumber || newCart.id.slice(0, 8)}`);
+        }
+        return newCart.id;
+      } finally {
+        cartCreationPromiseRef.current = null;
+      }
+    })();
+
+    cartCreationPromiseRef.current = promise;
+    return promise;
+  };
+
+  // Add Product Card Handler (Immediate Optimistic UI + Diagnostic Timestamps)
+  const handleAddProductToCart = async (product: POSProductItem, variantId?: string) => {
+    const t0 = performance.now();
+    console.log(`[POS-PERF] 1. Product selection event triggered: "${product.name}" (${product.id}) at +0.00ms`);
+
+    if (!effectiveBranchId || !effectiveWarehouseId) {
+      toast.error("Please select a branch and warehouse first");
+      return;
+    }
+
+    const price = Number(product.retailPrice || product.costPrice || 0);
+    const taxRate = Number(product.tax?.rate || 0);
+    const productInfo = {
+      name: product.name,
+      sku: product.sku,
+      barcode: product.barcode,
+      images: (product as any).images,
+    };
+
+    // 1. Resolve or create immediate optimistic Cart ID synchronously (< 0.1ms)
+    let targetCartId: string;
+    let realCartIdPromise: Promise<string> | undefined;
+
+    if (activeCartId && !activeCartId.startsWith("optimistic-") && !isCartLocked) {
+      targetCartId = activeCartId;
+      console.log(`[POS-PERF] 2. Cart ID resolved to active cart: "${targetCartId}" at +${(performance.now() - t0).toFixed(2)}ms`);
+    } else {
+      // Reuse active optimistic cart ID if a rapid scan or click occurred within milliseconds
+      if (optimisticCartIdRef.current && !isCartLocked) {
+        targetCartId = optimisticCartIdRef.current;
+      } else {
+        targetCartId = `optimistic-${Date.now()}`;
+        optimisticCartIdRef.current = targetCartId;
+        setActiveCartId(targetCartId);
+      }
+      console.log(`[POS-PERF] 2. Cart ID resolved to optimistic ID: "${targetCartId}" at +${(performance.now() - t0).toFixed(2)}ms`);
+
+      realCartIdPromise = getOrCreateActiveCartId().then((resolvedId) => {
+        if (resolvedId && resolvedId !== targetCartId) {
+          setActiveCartId(resolvedId);
+        }
+        return resolvedId || targetCartId;
+      });
+    }
+
+    console.log(`[POS-PERF] 3. Mutation starting for cartId "${targetCartId}" at +${(performance.now() - t0).toFixed(2)}ms`);
+
+    // 2. Fire mutation immediately (optimistic update executes synchronously in onMutate)
+    addItemMutation.mutate({
+      cartId: targetCartId,
+      dto: {
+        productId: product.id,
+        variantId: variantId || undefined,
+        quantity: 1,
+        unitPrice: price,
+        taxRate,
+      },
+      productInfo,
+      ...(realCartIdPromise ? { realCartIdPromise } : {}),
+    });
+  };
+
   // Core Barcode Scanning Processor (Shared by manual form and USB scanner listener)
   const processBarcodeScan = async (code: string) => {
+    const t0 = performance.now();
     const cleanCode = code.trim();
     if (!cleanCode) return;
+    console.log(`[POS-PERF] 1. Barcode scan event: "${cleanCode}" at +0.00ms`);
 
     if (!effectiveBranchId || !effectiveWarehouseId) {
       setBarcodeError("Please select a branch and warehouse first");
@@ -344,36 +457,54 @@ function POSRegisterPage() {
     setIsSearchingBarcode(true);
 
     try {
-      const match = await findPOSProductByBarcode(cleanCode);
-      if (match) {
-        let targetCartId = activeCartId;
+      // 1. Check local catalog in memory first (< 0.1ms lookup)
+      let match: {
+        product: POSProductItem;
+        variant: { id: string; name: string; sku: string; barcode: string | null } | null;
+        price: number;
+      } | null = null;
 
-        // If no active cart, or if current cart is locked (already sent to billing), start a new draft cart
-        if (!targetCartId || isCartLocked) {
-          const newCart = await createCartMutation.mutateAsync({
-            branchId: effectiveBranchId,
-            warehouseId: effectiveWarehouseId,
-            sessionId: activeSession?.id,
-          });
-          targetCartId = newCart.id;
-          setActiveCartId(newCart.id);
-          if (isCartLocked) {
-            toast.info(`Started fresh cart #${newCart.cartNumber || newCart.id.slice(0, 8)}`);
+      const lowerCode = cleanCode.toLowerCase();
+      const localProd = products.find(
+        (p) => p.barcode === cleanCode || p.sku.toLowerCase() === lowerCode,
+      );
+
+      if (localProd) {
+        match = {
+          product: localProd,
+          variant: null,
+          price: Number(localProd.retailPrice || localProd.costPrice || 0),
+        };
+        console.log(`[POS-PERF] 1b. In-memory catalog hit for barcode "${cleanCode}" at +${(performance.now() - t0).toFixed(2)}ms`);
+      } else {
+        for (const p of products) {
+          if (p.variants) {
+            const v = p.variants.find(
+              (varItem) =>
+                varItem.barcode === cleanCode ||
+                varItem.sku.toLowerCase() === lowerCode,
+            );
+            if (v) {
+              const vPrice = v.prices?.[0]?.price ?? Number(p.retailPrice || p.costPrice || 0);
+              match = { product: p, variant: v, price: Number(vPrice) };
+              console.log(`[POS-PERF] 1b. In-memory variant catalog hit for barcode "${cleanCode}" at +${(performance.now() - t0).toFixed(2)}ms`);
+              break;
+            }
           }
         }
+      }
 
-        if (targetCartId) {
-          await addItemMutation.mutateAsync({
-            cartId: targetCartId,
-            dto: {
-              productId: match.product.id,
-              variantId: match.variant?.id || undefined,
-              quantity: 1,
-              unitPrice: Number(match.price || 0),
-            },
-          });
-        }
+      // 2. Fall back to cached network barcode lookup
+      if (!match) {
+        const tNet = performance.now();
+        match = await findPOSProductByBarcode(cleanCode);
+        console.log(`[POS-PERF] 1b. Network barcode lookup for "${cleanCode}" completed in ${(performance.now() - tNet).toFixed(2)}ms`);
+      }
+
+      if (match) {
         setBarcodeInput("");
+        // Delegate to handleAddProductToCart which handles instant optimistic display
+        await handleAddProductToCart(match.product, match.variant?.id);
       } else {
         setBarcodeError(`No product found matching barcode "${cleanCode}"`);
       }
@@ -390,41 +521,6 @@ function POSRegisterPage() {
     if (e) e.preventDefault();
     if (!barcodeInput.trim()) return;
     await processBarcodeScan(barcodeInput);
-  };
-
-  // Add Product Card Handler
-  const handleAddProductToCart = async (product: POSProductItem, variantId?: string) => {
-    if (!effectiveBranchId || !effectiveWarehouseId) {
-      toast.error("Please select a branch and warehouse first");
-      return;
-    }
-
-    let targetCartId = activeCartId;
-
-    // If no cart or if cart is locked, automatically start a fresh cart
-    if (!targetCartId || isCartLocked) {
-      const newCart = await createCartMutation.mutateAsync({
-        branchId: effectiveBranchId,
-        warehouseId: effectiveWarehouseId,
-        sessionId: activeSession?.id,
-      });
-      targetCartId = newCart.id;
-      setActiveCartId(newCart.id);
-      if (isCartLocked) {
-        toast.info(`Started fresh cart #${newCart.cartNumber || newCart.id.slice(0, 8)}`);
-      }
-    }
-
-    const price = Number(product.retailPrice || product.costPrice || 0);
-    await addItemMutation.mutateAsync({
-      cartId: targetCartId,
-      dto: {
-        productId: product.id,
-        variantId: variantId || undefined,
-        quantity: 1,
-        unitPrice: price,
-      },
-    });
   };
 
   // Start Next Cart Handler (used after Send to Billing or manually)
@@ -453,11 +549,18 @@ function POSRegisterPage() {
 
   // Confirm Send to Billing Handler
   const handleConfirmSendToBilling = async () => {
-    if (!activeCartId) return;
+    let targetId = activeCartId;
+    if (cartCreationPromiseRef.current) {
+      targetId = await cartCreationPromiseRef.current;
+    }
+    if (!targetId || targetId.startsWith("optimistic-")) {
+      toast.error("Cart is still synchronizing with server. Please wait a moment.");
+      return;
+    }
     try {
       const custId = selectedCustomerId !== "walkin" ? selectedCustomerId : null;
       const result = await sendToBillingMutation.mutateAsync({
-        cartId: activeCartId,
+        cartId: targetId,
         customerId: custId,
         notes: sendToBillingNotes.trim() || undefined,
       });
@@ -663,7 +766,30 @@ function POSRegisterPage() {
   const [showRefundModal, setShowRefundModal] = useState(false);
   usePOSSales(activeSession?.id);
 
-  // Global USB HID Barcode Scanner Listener
+  // Refs to allow USB HID Barcode Scanner Listener to remain permanently mounted without recreating on every state change
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  const effectiveBranchIdRef = useRef(effectiveBranchId);
+  effectiveBranchIdRef.current = effectiveBranchId;
+
+  const effectiveWarehouseIdRef = useRef(effectiveWarehouseId);
+  effectiveWarehouseIdRef.current = effectiveWarehouseId;
+
+  const anyModalOpenRef = useRef(false);
+  anyModalOpenRef.current = Boolean(
+    showCloseModal ||
+    showHeldModal ||
+    showRefundModal ||
+    showAddCustomerModal ||
+    showSendToBillingModal ||
+    ticketConfirmation
+  );
+
+  const processBarcodeScanRef = useRef(processBarcodeScan);
+  processBarcodeScanRef.current = processBarcodeScan;
+
+  // Global USB HID Barcode Scanner Listener (registered once, immune to mid-scan re-renders)
   useEffect(() => {
     let buffer = "";
     let lastKeyTime = 0;
@@ -671,20 +797,13 @@ function POSRegisterPage() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // 1. Ignore if not in register tab
-      if (activeTab !== "register") return;
+      if (activeTabRef.current !== "register") return;
 
       // 2. Ignore if no branch/warehouse context
-      if (!effectiveBranchId || !effectiveWarehouseId) return;
+      if (!effectiveBranchIdRef.current || !effectiveWarehouseIdRef.current) return;
 
       // 3. Ignore if any modal/dialog is open
-      if (
-        showCloseModal ||
-        showHeldModal ||
-        showRefundModal ||
-        showAddCustomerModal ||
-        showSendToBillingModal ||
-        Boolean(ticketConfirmation)
-      ) {
+      if (anyModalOpenRef.current) {
         buffer = "";
         return;
       }
@@ -718,7 +837,7 @@ function POSRegisterPage() {
           e.preventDefault();
           const scannedCode = buffer;
           buffer = "";
-          processBarcodeScan(scannedCode);
+          processBarcodeScanRef.current(scannedCode);
         } else {
           buffer = "";
         }
@@ -731,20 +850,7 @@ function POSRegisterPage() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [
-    activeTab,
-    effectiveBranchId,
-    effectiveWarehouseId,
-    activeSession,
-    activeCartId,
-    isCartLocked,
-    showCloseModal,
-    showHeldModal,
-    showRefundModal,
-    showAddCustomerModal,
-    showSendToBillingModal,
-    ticketConfirmation,
-  ]);
+  }, []);
 
   // Loading state
   if (isSessionLoading) {
@@ -1153,6 +1259,18 @@ function POSRegisterPage() {
 
   const cartItems = activeCart?.items ?? [];
   const cartCount = cartItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+
+  // Diagnostic logger for Current Order React render showing product
+  const renderedCountRef = useRef(0);
+  useEffect(() => {
+    if (cartItems.length > 0 && cartItems.length !== renderedCountRef.current) {
+      console.log(`[POS-PERF] 6. React render showing Current Order with ${cartItems.length} items at +${performance.now().toFixed(2)}ms`, {
+        cartId: activeCart?.id,
+        items: cartItems.map((i) => `${i.product?.name} (x${i.quantity})`),
+      });
+      renderedCountRef.current = cartItems.length;
+    }
+  }, [cartItems, activeCart?.id]);
   const money = (n: unknown) => formatMoney(n as number);
 
   // MAIN ACTIVE REGISTER / SALESPERSON TERMINAL UI
