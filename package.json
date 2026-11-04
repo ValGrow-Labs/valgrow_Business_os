@@ -21,7 +21,8 @@
     "seed:prod": "node apps/api/dist/src/seed/seed.js",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint apps/web apps/api",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "provision:pos-accounts": "npm run provision:pos-accounts --workspace=apps/api"
   },
   "devDependencies": {
     "prettier": "^3.7.3"

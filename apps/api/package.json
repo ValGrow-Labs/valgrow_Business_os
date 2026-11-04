@@ -20,7 +20,9 @@
     "seed:prod": "node dist/src/seed/seed.js",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "provision:pos-accounts": "ts-node src/seed/provision-pos-accounts.ts",
+    "provision:pos-accounts:prod": "node dist/src/seed/provision-pos-accounts.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
