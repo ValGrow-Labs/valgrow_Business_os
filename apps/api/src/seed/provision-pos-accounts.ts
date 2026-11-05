@@ -1,7 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcrypt";
-import * as crypto from "crypto";
-import * as fs from "fs";
 
 const prisma = new PrismaClient();
 
@@ -26,80 +24,24 @@ async function main() {
     console.log("✓ Target database URL format verified.");
   }
 
-  // B. Target Accounts Definition
-  const targetAccounts = [
-    {
-      loginId: "salesperson1",
-      email: "salesperson1@valgrow.dev",
-      firstName: "Salesperson",
-      lastName: "One",
-      jobTitle: "POS Floor Salesperson",
-      roleName: "Salesperson",
-      envPass: process.env.SALESPERSON_PASSWORD,
-    },
-    {
-      loginId: "billing1",
-      email: "billing1@valgrow.dev",
-      firstName: "Billing",
-      lastName: "Staff One",
-      jobTitle: "POS Billing Specialist",
-      roleName: "Billing Staff",
-      envPass: process.env.BILLING_PASSWORD,
-    },
-    {
-      loginId: "cashier1",
-      email: "cashier1@valgrow.dev",
-      firstName: "Cashier",
-      lastName: "One",
-      jobTitle: "POS Head Cashier",
-      roleName: "Cashier",
-      envPass: process.env.CASHIER_PASSWORD,
-    },
-  ];
+  // B. Secure Password Validation
+  const rawPassword =
+    process.env.POS_USER_PASSWORD ||
+    process.env.PROD_POS_USER_PASSWORD;
 
-  // Resolve passwords for all accounts before any database query
-  const fallbackPass = (process.env.POS_USER_PASSWORD || process.env.PROD_POS_USER_PASSWORD)?.trim();
-  const allowAutoGenerate = process.env.ALLOW_AUTO_GENERATE_PASSWORDS === "true";
-
-  const accountSecrets: Array<{
-    loginId: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    jobTitle: string;
-    roleName: string;
-    plainPassword?: string;
-    passwordHash?: string;
-  }> = [];
-
-  for (const acc of targetAccounts) {
-    let plainPass = acc.envPass?.trim() || fallbackPass;
-    if (!plainPass && allowAutoGenerate) {
-      plainPass = crypto.randomBytes(18).toString("base64url") + "!Aa1";
-    }
-
-    if (!plainPass || plainPass.length < 12) {
-      throw new Error(
-        `Missing required secure password for account '${acc.loginId}'. Set SALESPERSON_PASSWORD, BILLING_PASSWORD, CASHIER_PASSWORD, or POS_USER_PASSWORD (minimum 12 characters). Or set ALLOW_AUTO_GENERATE_PASSWORDS=true. Provisioning halted before database operations.`,
-      );
-    }
-
-    const passwordHash = await bcrypt.hash(plainPass, 12);
-    accountSecrets.push({
-      ...acc,
-      plainPassword: plainPass,
-      passwordHash,
-    });
+  if (!rawPassword || rawPassword.trim().length < 12) {
+    throw new Error(
+      "Missing required secure password. Set POS_USER_PASSWORD environment variable with a minimum length of 12 characters. Provisioning halted before any database operations.",
+    );
   }
 
-  console.log("✓ Pre-flight password validation passed for all target accounts (all >= 12 chars).");
+  const cleanPassword = rawPassword.trim();
+  // Pre-compute password hash before entering transaction
+  const newAccountPasswordHash = await bcrypt.hash(cleanPassword, 12);
 
   // C. Target Organization Parameter Check
   const targetOrgSlug = process.env.TARGET_ORG_SLUG || "valgrow-holdings";
   const targetOrgId = process.env.TARGET_ORG_ID;
-
-  // Track credentials to save locally for verification if requested
-  const credentialsToSave: Array<{ loginId: string; email: string; password: string; role: string }> = [];
 
   // =========================================================================
   // 2. ATOMIC DATABASE TRANSACTION (All writes are fully isolated & rollback-safe)
@@ -320,12 +262,39 @@ async function main() {
     }
 
     // D. Provision or Reconcile the 3 Specific POS Accounts
-    for (const sec of accountSecrets) {
+    const targetAccounts = [
+      {
+        loginId: "salesperson1",
+        email: "salesperson1@valgrow.dev",
+        firstName: "Salesperson",
+        lastName: "One",
+        jobTitle: "POS Floor Salesperson",
+        roleName: "Salesperson",
+      },
+      {
+        loginId: "billing1",
+        email: "billing1@valgrow.dev",
+        firstName: "Billing",
+        lastName: "Staff One",
+        jobTitle: "POS Billing Specialist",
+        roleName: "Billing Staff",
+      },
+      {
+        loginId: "cashier1",
+        email: "cashier1@valgrow.dev",
+        firstName: "Cashier",
+        lastName: "One",
+        jobTitle: "POS Head Cashier",
+        roleName: "Cashier",
+      },
+    ];
+
+    for (const acc of targetAccounts) {
       const existingUser = await tx.user.findFirst({
         where: {
           OR: [
-            { email: sec.email },
-            { email: sec.loginId },
+            { email: acc.email },
+            { email: acc.loginId },
           ],
         },
         select: {
@@ -349,34 +318,26 @@ async function main() {
             deletedAt: null,
           },
         });
-        console.log(`  ✓ Preserved existing user credentials: ${sec.loginId} (${sec.email})`);
+        console.log(`  ✓ Preserved existing user credentials: ${acc.loginId} (${acc.email})`);
       } else {
         // CREATE new user with pre-hashed password
         const newUser = await tx.user.create({
           data: {
-            email: sec.email,
-            firstName: sec.firstName,
-            lastName: sec.lastName,
-            jobTitle: sec.jobTitle,
-            passwordHash: sec.passwordHash!,
+            email: acc.email,
+            firstName: acc.firstName,
+            lastName: acc.lastName,
+            jobTitle: acc.jobTitle,
+            passwordHash: newAccountPasswordHash,
             status: "ACTIVE",
           },
           select: { id: true },
         });
         userId = newUser.id;
-        console.log(`  + Created user account: ${sec.loginId} (${sec.email})`);
-        if (sec.plainPassword) {
-          credentialsToSave.push({
-            loginId: sec.loginId,
-            email: sec.email,
-            password: sec.plainPassword,
-            role: sec.roleName,
-          });
-        }
+        console.log(`  + Created user account: ${acc.loginId} (${acc.email})`);
       }
 
       // Ensure Organization Membership is active with correct role
-      const roleId = rolesMap.get(sec.roleName)!;
+      const roleId = rolesMap.get(acc.roleName)!;
       await tx.organizationMember.upsert({
         where: {
           organizationId_userId: {
@@ -396,17 +357,11 @@ async function main() {
         },
       });
 
-      console.log(`  ✓ Membership linked: ${sec.loginId} -> Role '${sec.roleName}' in '${org.name}'`);
+      console.log(`  ✓ Membership linked: ${acc.loginId} -> Role '${acc.roleName}' in '${org.name}'`);
     }
   }, {
     timeout: 30000,
   });
-
-  // Save credentials securely to disk only if an explicit secret file path was configured
-  const credentialsOutFile = process.env.CREDENTIALS_OUT_FILE;
-  if (credentialsOutFile && credentialsToSave.length > 0) {
-    fs.writeFileSync(credentialsOutFile, JSON.stringify(credentialsToSave, null, 2), { mode: 0o600 });
-  }
 
   console.log("\n========================================================");
   console.log("✅ POS Account Provisioning Completed Atomically & Safely!");
