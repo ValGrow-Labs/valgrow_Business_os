@@ -105,7 +105,10 @@ export function CashierCounter({
 
   // Fallback to active open session if not passed as prop
   const { data: openSessions } = usePOSSessions("OPEN");
-  const activeSession = propSession || openSessions?.[0];
+  const activeSession =
+    propSession ||
+    openSessions?.find((s) => s.branchId === (activeBill?.branchId || effectiveBranchId)) ||
+    openSessions?.[0];
 
   // Open Shift State (if no session active)
   const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
@@ -292,6 +295,13 @@ export function CashierCounter({
       return;
     }
 
+    if (activeBill.branchId && activeSession.branchId && activeBill.branchId !== activeSession.branchId) {
+      toast.error("Register shift branch mismatch", {
+        description: `This bill belongs to ${activeBill.branch?.name || activeBill.branchId}, but the active register session is on ${activeSession.branch?.name || activeSession.branchId}. Please open a shift on the matching branch.`,
+      });
+      return;
+    }
+
     if (totalPaid < grandTotal) {
       toast.error("Insufficient payment", {
         description: `Remaining balance: ${formatMoney(remainingDue)}. Please collect the full bill amount.`,
@@ -300,6 +310,11 @@ export function CashierCounter({
     }
 
     try {
+      // Auto-claim bill if not yet claimed
+      if (activeBill.workflowStatus === "READY_FOR_PAYMENT") {
+        await claimMutation.mutateAsync(activeBill.id);
+      }
+
       const result = await checkoutMutation.mutateAsync({
         sessionId: activeSession.id,
         cartId: activeBill.id,
@@ -918,8 +933,8 @@ export function CashierCounter({
                             >
                               <option value="CASH">Cash (Cash Drawer)</option>
                               <option value="UPI">UPI / QR Code</option>
-                              <option value="CREDIT_CARD">Credit Card</option>
-                              <option value="DEBIT_CARD">Debit Card</option>
+                              <option value="CREDIT_CARD">Card (Debit / Credit)</option>
+                              <option value="OTHER">Other / Cheque</option>
                               <option value="BANK_TRANSFER">Bank Transfer</option>
                             </select>
                           </div>

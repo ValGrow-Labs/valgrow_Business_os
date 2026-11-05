@@ -6,6 +6,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { EmptyState } from "@/components/foundation/states";
 import { PageGuideButton } from "@/components/onboarding/page-guide";
 import { staggerContainer, staggerItem } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import { useBranches, type BranchItem } from "@/hooks/queries/useBranches";
 import { useWarehouses, type WarehouseItem } from "@/hooks/queries/useWarehouses";
@@ -389,6 +390,14 @@ function POSRegisterPage() {
       return;
     }
 
+    const availableStock = product.availableStock ?? 0;
+    if (availableStock <= 0) {
+      toast.error(`${product.name} is out of stock`, {
+        description: "Cannot add items with zero available stock to the POS cart.",
+      });
+      return;
+    }
+
     const price = Number(product.retailPrice || product.costPrice || 0);
     const taxRate = Number(product.tax?.rate || 0);
     const productInfo = {
@@ -502,6 +511,12 @@ function POSRegisterPage() {
       }
 
       if (match) {
+        const available = match.product.availableStock ?? 0;
+        if (available <= 0) {
+          setBarcodeError(`${match.product.name} is out of stock and cannot be added.`);
+          toast.error(`${match.product.name} is out of stock`);
+          return;
+        }
         setBarcodeInput("");
         // Delegate to handleAddProductToCart which handles instant optimistic display
         await handleAddProductToCart(match.product, match.variant?.id);
@@ -1467,14 +1482,29 @@ function POSRegisterPage() {
                 >
                   {products.map((prod) => {
                     const stock = prod.availableStock ?? 0;
+                    const isOutOfStock = stock <= 0;
                     return (
                       <motion.button
                         key={prod.id}
                         type="button"
                         variants={staggerItem}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => handleAddProductToCart(prod)}
-                        className="group panel relative flex min-h-[116px] flex-col justify-between p-3 text-left transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                        whileTap={{ scale: isOutOfStock ? 1 : 0.97 }}
+                        onClick={() => {
+                          if (isOutOfStock) {
+                            toast.error(`${prod.name} is out of stock`, {
+                              description: "Cannot add products with zero available stock.",
+                            });
+                            return;
+                          }
+                          handleAddProductToCart(prod);
+                        }}
+                        disabled={isOutOfStock}
+                        className={cn(
+                          "group panel relative flex min-h-[116px] flex-col justify-between p-3 text-left transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                          isOutOfStock
+                            ? "opacity-60 cursor-not-allowed bg-muted/30 border-dashed"
+                            : "hover:border-primary/40 hover:shadow-md"
+                        )}
                       >
                         <div className="min-w-0">
                           <div className="line-clamp-2 text-[13px] font-medium leading-snug text-foreground">

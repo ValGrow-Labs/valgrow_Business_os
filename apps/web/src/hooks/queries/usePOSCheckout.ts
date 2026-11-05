@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
 export type CustomerPaymentMethod =
-  "CASH" | "CREDIT_CARD" | "DEBIT_CARD" | "UPI" | "BANK_TRANSFER" | "OTHER";
+  "CASH" | "CREDIT_CARD" | "UPI" | "BANK_TRANSFER" | "CHEQUE" | "OTHER";
 
 export interface POSPaymentItemDto {
   paymentMethod: CustomerPaymentMethod;

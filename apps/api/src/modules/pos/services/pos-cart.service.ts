@@ -275,6 +275,34 @@ export class PosCartService {
     const qty = new Prisma.Decimal(dto.quantity);
     const discount = new Prisma.Decimal(dto.discountAmount || 0);
 
+    // Validate available stock in warehouse
+    const stockLevel = await this.prisma.stockLevel.findFirst({
+      where: {
+        organizationId,
+        warehouseId: cart.warehouseId,
+        productId: dto.productId,
+        variantId: dto.variantId || null,
+      },
+    });
+    const available = stockLevel
+      ? stockLevel.onHand.sub(stockLevel.reserved)
+      : new Prisma.Decimal(0);
+
+    const existingCartItem = await this.prisma.pOSCartItem.findFirst({
+      where: {
+        cartId,
+        productId: dto.productId,
+        variantId: dto.variantId || null,
+      },
+    });
+
+    const totalRequested = (existingCartItem ? existingCartItem.quantity : new Prisma.Decimal(0)).add(qty);
+    if (totalRequested.gt(available)) {
+      throw new BadRequestException(
+        `Insufficient available stock for ${product.name}. Requested: ${totalRequested}, Available: ${available}`,
+      );
+    }
+
     // Line calculations
     const lineSubtotal = qty.mul(unitPrice).sub(discount);
     if (lineSubtotal.isNegative()) {
@@ -369,6 +397,26 @@ export class PosCartService {
     if (!item) throw new NotFoundException("Item not found in cart");
 
     const qty = new Prisma.Decimal(dto.quantity);
+
+    // Validate available stock in warehouse
+    const stockLevel = await this.prisma.stockLevel.findFirst({
+      where: {
+        organizationId,
+        warehouseId: cart.warehouseId,
+        productId: item.productId,
+        variantId: item.variantId || null,
+      },
+    });
+    const available = stockLevel
+      ? stockLevel.onHand.sub(stockLevel.reserved)
+      : new Prisma.Decimal(0);
+
+    if (qty.gt(available)) {
+      throw new BadRequestException(
+        `Insufficient available stock for ${item.product.name}. Requested: ${qty}, Available: ${available}`,
+      );
+    }
+
     const unitPrice =
       dto.unitPrice !== undefined
         ? new Prisma.Decimal(dto.unitPrice)
