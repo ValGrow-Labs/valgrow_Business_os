@@ -22,9 +22,19 @@ async function buildConfig({ command, mode }: ConfigEnv): Promise<UserConfig> {
 
   if (command === "build") {
     const { nitro } = await import("nitro/vite");
+    const targetProxy = (process.env["API_PROXY_TARGET"] || "https://valgrow-api.onrender.com").replace(/\/+$/, "");
     // In production the browser calls the API through this app's own origin
     // (/api/** -> API_PROXY_TARGET), so auth cookies stay first-party.
-    plugins.push(nitro({ defaultPreset: "cloudflare-module" }));
+    plugins.push(
+      nitro({
+        defaultPreset: "cloudflare-module",
+        routeRules: {
+          "/api/**": {
+            proxy: `${targetProxy}/**`,
+          },
+        },
+      }),
+    );
   }
 
   plugins.push(viteReact());
@@ -62,6 +72,13 @@ async function buildConfig({ command, mode }: ConfigEnv): Promise<UserConfig> {
     server: {
       host: "::",
       port: 8080,
+      proxy: {
+        "/api": {
+          target: process.env["VITE_API_PROXY_TARGET"] || "http://localhost:3001",
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ""),
+        },
+      },
       watch: {
         awaitWriteFinish: { stabilityThreshold: 1000, pollInterval: 100 },
       },

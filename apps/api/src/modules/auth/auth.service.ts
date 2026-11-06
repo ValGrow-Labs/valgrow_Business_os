@@ -462,4 +462,213 @@ export class AuthService {
     this.setAuthCookies(res, accessToken, refreshToken);
     return { accessToken, refreshToken };
   }
+
+  private getGoogleCallbackUrl(req: Request): string {
+    const customCallback = this.configService.get<string>("GOOGLE_CALLBACK_URL");
+    if (customCallback) return customCallback;
+
+    const apiUrl = this.configService.get<string>("API_URL");
+    if (apiUrl) {
+      return `${apiUrl.replace(/\/$/, "")}/auth/google/callback`;
+    }
+
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
+    const host = req.headers["x-forwarded-host"] || req.get("host") || "localhost:3001";
+    return `${protocol}://${host}/auth/google/callback`;
+  }
+
+  private getFrontendUrl(req?: Request): string {
+    const webUrl = this.configService.get<string>("WEB_URL");
+    if (webUrl) return webUrl.replace(/\/$/, "");
+
+    if (req?.headers?.referer) {
+      try {
+        const ref = new URL(req.headers.referer as string);
+        return ref.origin;
+      } catch {}
+    }
+
+    return "http://localhost:8080";
+  }
+
+  async initiateGoogleAuth(req: Request, res: Response) {
+    const clientId = this.configService.get<string>("GOOGLE_CLIENT_ID");
+    const clientSecret = this.configService.get<string>("GOOGLE_CLIENT_SECRET");
+    const frontendUrl = this.getFrontendUrl(req);
+
+    if (!clientId || !clientSecret) {
+      return res.redirect(`${frontendUrl}/login?error=google_not_configured`);
+    }
+
+    const callbackUrl = this.getGoogleCallbackUrl(req);
+    const state = crypto.randomUUID();
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: callbackUrl,
+      response_type: "code",
+      scope: "openid email profile",
+      access_type: "offline",
+      prompt: "select_account",
+      state,
+    });
+
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+    return res.redirect(googleAuthUrl);
+  }
+
+  async handleGoogleCallback(req: Request, res: Response) {
+    const frontendUrl = this.getFrontendUrl(req);
+    const code = req.query?.code as string;
+    const error = req.query?.error as string;
+
+    if (error) {
+      return res.redirect(`${frontendUrl}/login?error=cancelled`);
+    }
+
+    if (!code) {
+      return res.redirect(`${frontendUrl}/login?error=invalid_callback`);
+    }
+
+    const clientId = this.configService.get<string>("GOOGLE_CLIENT_ID");
+    const clientSecret = this.configService.get<string>("GOOGLE_CLIENT_SECRET");
+
+    if (!clientId || !clientSecret) {
+      return res.redirect(`${frontendUrl}/login?error=google_not_configured`);
+    }
+
+    const callbackUrl = this.getGoogleCallbackUrl(req);
+
+    try {
+      const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: callbackUrl,
+          grant_type: "authorization_code",
+        }),
+      });
+
+      if (!tokenRes.ok) {
+        return res.redirect(`${frontendUrl}/login?error=google_token_exchange_failed`);
+      }
+
+      const tokenData = await tokenRes.json();
+      const accessToken = tokenData.access_token;
+
+      const profileRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!profileRes.ok) {
+        return res.redirect(`${frontendUrl}/login?error=google_token_exchange_failed`);
+      }
+
+      const profile = await profileRes.json();
+      const googleEmail = (profile.email || "").trim().toLowerCase();
+
+      if (!googleEmail) {
+        return res.redirect(`${frontendUrl}/login?error=google_email_missing`);
+      }
+
+      const user = await this.prisma.user.findFirst({
+        where: { email: googleEmail },
+        include: {
+          memberships: {
+            where: { status: "ACTIVE" },
+            include: {
+              organization: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      if (!user || user.deletedAt) {
+        return res.redirect(`${frontendUrl}/login?error=account_not_found`);
+      }
+
+      if (user.status !== "ACTIVE") {
+        return res.redirect(`${frontendUrl}/login?error=inactive_account`);
+      }
+
+      if (!user.memberships || user.memberships.length === 0) {
+        return res.redirect(`${frontendUrl}/login?error=no_organization`);
+      }
+
+      await this.createSessionAndTokens(user.id, res);
+      return res.redirect(`${frontendUrl}/dashboard`);
+    } catch {
+      return res.redirect(`${frontendUrl}/login?error=google_token_exchange_failed`);
+    }
+  }
+
+  async handleGoogleTokenAuth(
+    body: { credential?: string; idToken?: string },
+    res: Response,
+  ) {
+    const token = body.credential || body.idToken;
+    if (!token) {
+      throw new BadRequestException("Google credential token is required");
+    }
+
+    const clientId = this.configService.get<string>("GOOGLE_CLIENT_ID");
+    const verifyRes = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(token)}`,
+    );
+
+    if (!verifyRes.ok) {
+      throw new UnauthorizedException("Invalid Google token");
+    }
+
+    const payload = await verifyRes.json();
+    if (clientId && payload.aud !== clientId) {
+      throw new UnauthorizedException("Google token audience mismatch");
+    }
+
+    const email = (payload.email || "").trim().toLowerCase();
+    if (!email) {
+      throw new UnauthorizedException("Google account has no associated email");
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { email },
+      include: {
+        memberships: {
+          where: { status: "ACTIVE" },
+          include: {
+            organization: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!user || user.deletedAt) {
+      throw new UnauthorizedException("No account found matching this Google email");
+    }
+
+    if (user.status !== "ACTIVE") {
+      throw new UnauthorizedException("Account is not active");
+    }
+
+    if (!user.memberships || user.memberships.length === 0) {
+      throw new UnauthorizedException("User is not a member of any organization");
+    }
+
+    const tokens = await this.createSessionAndTokens(user.id, res);
+    const activeMember = user.memberships[0]!;
+
+    const { passwordHash: _, ...userWithoutPassword } = user;
+    return {
+      message: "Google sign-in successful",
+      user: userWithoutPassword,
+      activeOrganization: activeMember.organization,
+      role: activeMember.role.name,
+      tokens,
+    };
+  }
 }

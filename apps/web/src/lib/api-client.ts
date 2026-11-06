@@ -1,6 +1,44 @@
-const API_BASE_URL =
-  (typeof import.meta !== "undefined" && import.meta?.env ? import.meta.env["VITE_API_URL"] : undefined) ||
-  "http://localhost:3001";
+export function getApiBaseUrl(): string {
+  // 1. Explicit Vite environment variable override (if configured)
+  const envUrl =
+    typeof import.meta !== "undefined" && import.meta?.env
+      ? (import.meta.env["VITE_API_URL"] as string | undefined)
+      : undefined;
+  if (envUrl && typeof envUrl === "string" && envUrl.trim() !== "") {
+    return envUrl.trim().replace(/\/+$/, "");
+  }
+
+  // 2. In browser environments (both production on Vercel and local development)
+  // All API requests route through the same-origin `/api` prefix:
+  // - On Vercel: `/api/:path*` is rewritten to `https://valgrow-api.onrender.com/:path*` via `vercel.json`
+  // - On local Vite dev: `/api/:path*` is proxied to `http://localhost:3001/:path*` via `vite.config.ts`
+  // This completely eliminates cross-origin issues, mixed-content errors, and third-party cookie blocking.
+  if (typeof window !== "undefined") {
+    return "/api";
+  }
+
+  // 3. Server-side rendering (SSR) / Node environments
+  const internalUrl =
+    process.env["INTERNAL_API_URL"] ||
+    process.env["API_PROXY_TARGET"] ||
+    "http://localhost:3001";
+  return internalUrl.replace(/\/+$/, "");
+}
+
+export function resolveApiUrl(endpoint: string): string {
+  if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
+    return endpoint;
+  }
+  const base = getApiBaseUrl();
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+
+  // If base already ends with /api and cleanEndpoint starts with /api/, avoid duplicate /api/api
+  if (base.endsWith("/api") && cleanEndpoint.startsWith("/api/")) {
+    return cleanEndpoint;
+  }
+
+  return `${base}${cleanEndpoint}`;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -40,7 +78,7 @@ async function refreshAuthTokens(): Promise<boolean> {
 
   refreshTokenPromise = (async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      const response = await fetch(resolveApiUrl("/auth/refresh"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -64,7 +102,7 @@ export async function apiClient<T = any>(
   options: RequestInit = {},
   isRetry = false,
 ): Promise<T> {
-  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
+  const url = resolveApiUrl(endpoint);
   const orgId = getActiveOrgId();
 
   const headers: Record<string, string> = {
@@ -76,11 +114,30 @@ export async function apiClient<T = any>(
     headers["X-Organization-Id"] = orgId;
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-    credentials: "include", // Sends httpOnly cookies
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+      credentials: "include", // Sends httpOnly cookies
+    });
+  } catch (err: any) {
+    const isNetworkError =
+      err instanceof TypeError ||
+      err?.name === "TypeError" ||
+      err?.message?.includes("fetch") ||
+      err?.message?.includes("Failed to fetch") ||
+      err?.message?.includes("NetworkError");
+
+    if (isNetworkError) {
+      throw new ApiError(
+        0,
+        "Unable to connect to the ValGrow server. Please check your internet connection or verify the backend service is operational.",
+        err,
+      );
+    }
+    throw err;
+  }
 
   const isAuthEndpoint =
     endpoint.includes("/auth/login") ||
@@ -111,9 +168,14 @@ export async function apiClient<T = any>(
   }
 
   if (!response.ok) {
+    let fallbackMessage = `Request failed with status ${response.status}`;
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      fallbackMessage =
+        "The ValGrow API server is currently unreachable (Bad Gateway). Please verify the backend service is running.";
+    }
     throw new ApiError(
       response.status,
-      data?.message || `Request failed with status ${response.status}`,
+      data?.message || fallbackMessage,
       data,
     );
   }
@@ -125,7 +187,7 @@ export async function downloadFile(
   endpoint: string,
   fallbackFilename: string,
 ): Promise<void> {
-  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
+  const url = resolveApiUrl(endpoint);
   const orgId = getActiveOrgId();
 
   const headers: Record<string, string> = {};
@@ -133,11 +195,20 @@ export async function downloadFile(
     headers["X-Organization-Id"] = orgId;
   }
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers,
-    credentials: "include",
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      headers,
+      credentials: "include",
+    });
+  } catch (err: any) {
+    throw new ApiError(
+      0,
+      "Unable to connect to the ValGrow server to download this file.",
+      err,
+    );
+  }
 
   if (!response.ok) {
     let errorMsg = `Download failed with status ${response.status}`;

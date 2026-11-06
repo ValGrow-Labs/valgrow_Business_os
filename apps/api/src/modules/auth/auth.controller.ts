@@ -81,4 +81,26 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
   }
+
+  @Public()
+  @Get("google")
+  async googleAuth(@Req() req: Request, @Res() res: Response) {
+    return this.authService.initiateGoogleAuth(req, res);
+  }
+
+  @Public()
+  @Get("google/callback")
+  async googleCallback(@Req() req: Request, @Res() res: Response) {
+    return this.authService.handleGoogleCallback(req, res);
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post("google")
+  async googleTokenAuth(
+    @Body() body: { credential?: string; idToken?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.authService.handleGoogleTokenAuth(body, res);
+  }
 }
