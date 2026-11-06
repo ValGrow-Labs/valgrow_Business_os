@@ -22,6 +22,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint apps/web apps/api",
     "format": "prettier --write .",
+    "test:prod-bundle": "node scripts/verify-production-manifest.mjs",
+    "test:e2e-browser": "node scripts/e2e-browser-test.mjs",
     "provision:pos-accounts": "npm run provision:pos-accounts --workspace=apps/api"
   },
   "devDependencies": {

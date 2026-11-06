@@ -867,6 +867,21 @@ function POSRegisterPage() {
     };
   }, []);
 
+  const cartItems = activeCart?.items ?? [];
+  const cartCount = cartItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+
+  // Diagnostic logger for Current Order React render showing product
+  const renderedCountRef = useRef(0);
+  useEffect(() => {
+    if (cartItems.length > 0 && cartItems.length !== renderedCountRef.current) {
+      console.log(`[POS-PERF] 6. React render showing Current Order with ${cartItems.length} items at +${performance.now().toFixed(2)}ms`, {
+        cartId: activeCart?.id,
+        items: cartItems.map((i) => `${i.product?.name} (x${i.quantity})`),
+      });
+      renderedCountRef.current = cartItems.length;
+    }
+  }, [cartItems, activeCart?.id]);
+
   // Loading state
   if (isSessionLoading) {
     return (
@@ -1272,20 +1287,6 @@ function POSRegisterPage() {
     );
   }
 
-  const cartItems = activeCart?.items ?? [];
-  const cartCount = cartItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-
-  // Diagnostic logger for Current Order React render showing product
-  const renderedCountRef = useRef(0);
-  useEffect(() => {
-    if (cartItems.length > 0 && cartItems.length !== renderedCountRef.current) {
-      console.log(`[POS-PERF] 6. React render showing Current Order with ${cartItems.length} items at +${performance.now().toFixed(2)}ms`, {
-        cartId: activeCart?.id,
-        items: cartItems.map((i) => `${i.product?.name} (x${i.quantity})`),
-      });
-      renderedCountRef.current = cartItems.length;
-    }
-  }, [cartItems, activeCart?.id]);
   const money = (n: unknown) => formatMoney(n as number);
 
   // MAIN ACTIVE REGISTER / SALESPERSON TERMINAL UI

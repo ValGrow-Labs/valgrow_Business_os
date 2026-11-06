@@ -103,50 +103,15 @@ export function CashierCounter({
   const effectiveBranchId = propBranchId || selectedBranchId || branches[0]?.id;
   const effectiveWarehouseId = propWarehouseId || selectedWarehouseId || warehouses[0]?.id;
 
-  // Fallback to active open session if not passed as prop
-  const { data: openSessions } = usePOSSessions("OPEN");
-  const activeSession =
-    propSession ||
-    openSessions?.find((s) => s.branchId === (activeBill?.branchId || effectiveBranchId)) ||
-    openSessions?.[0];
-
-  // Open Shift State (if no session active)
-  const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
-  const [openTerminalId, setOpenTerminalId] = useState("CASH-REG-01");
-  const [openOpeningCash, setOpenOpeningCash] = useState("1000");
-  const openSessionMutation = useOpenPOSSession();
-
-  // Close Shift State
-  const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
-  const [closingCash, setClosingCash] = useState("");
-  const [closeNotes, setCloseNotes] = useState("");
-  const closeSessionMutation = useClosePOSSession();
+  // Selected Bill State
+  const [selectedCartId, setSelectedCartId] = useState<string | null>(null);
 
   // Search & Filter State
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "READY_FOR_PAYMENT" | "CLAIMED_BY_ME">("ALL");
 
-  // Selected Bill State
-  const [selectedCartId, setSelectedCartId] = useState<string | null>(null);
-
   // Mobile View state ("queue" | "checkout")
   const [mobileView, setMobileView] = useState<"queue" | "checkout">("queue");
-
-  // Payment Form State
-  const [paymentLines, setPaymentLines] = useState<POSPaymentItemDto[]>([
-    { paymentMethod: "CASH", amount: 0, receivedAmount: 0 },
-  ]);
-  const [cartDiscount, setCartDiscount] = useState<string>("0");
-  const [paymentNotes, setPaymentNotes] = useState("");
-
-  // Post-Checkout Receipt State
-  const [completedResult, setCompletedResult] = useState<POSSaleResult | null>(null);
-  const [completedSale, setCompletedSale] = useState<POSSaleResult["sale"] | null>(null);
-  const [showReceiptModal, setShowReceiptModal] = useState(false);
-
-  // Cancellation Dialog State
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
 
   // Payment Queue Query (polls every 5s)
   const {
@@ -185,10 +150,61 @@ export function CashierCounter({
     });
   }, [allItems, statusFilter, search, currentUserId]);
 
-  // Selected bill
+  // Selected bill (derived safely from queue items and selectedCartId)
   const activeBill = useMemo(() => {
     return allItems.find((item) => item.id === selectedCartId) || null;
   }, [allItems, selectedCartId]);
+
+  // Resolve active register session safely without circular references:
+  // 1. Use propSession if provided by parent (e.g. from POSRegisterPage)
+  // 2. Or find an open session matching the selected bill's branch
+  // 3. Or find an open session matching the effective branch
+  // 4. Or default to the first open register session
+  const { data: openSessions } = usePOSSessions("OPEN");
+  const activeSession = useMemo(() => {
+    if (propSession) return propSession;
+    if (!openSessions || openSessions.length === 0) return undefined;
+
+    if (activeBill?.branchId) {
+      const billBranchMatch = openSessions.find((s) => s.branchId === activeBill.branchId);
+      if (billBranchMatch) return billBranchMatch;
+    }
+
+    if (effectiveBranchId) {
+      const branchMatch = openSessions.find((s) => s.branchId === effectiveBranchId);
+      if (branchMatch) return branchMatch;
+    }
+
+    return openSessions[0];
+  }, [propSession, openSessions, activeBill?.branchId, effectiveBranchId]);
+
+  // Open Shift State (if no session active)
+  const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
+  const [openTerminalId, setOpenTerminalId] = useState("CASH-REG-01");
+  const [openOpeningCash, setOpenOpeningCash] = useState("1000");
+  const openSessionMutation = useOpenPOSSession();
+
+  // Close Shift State
+  const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
+  const [closingCash, setClosingCash] = useState("");
+  const [closeNotes, setCloseNotes] = useState("");
+  const closeSessionMutation = useClosePOSSession();
+
+  // Payment Form State
+  const [paymentLines, setPaymentLines] = useState<POSPaymentItemDto[]>([
+    { paymentMethod: "CASH", amount: 0, receivedAmount: 0 },
+  ]);
+  const [cartDiscount, setCartDiscount] = useState<string>("0");
+  const [paymentNotes, setPaymentNotes] = useState("");
+
+  // Post-Checkout Receipt State
+  const [completedResult, setCompletedResult] = useState<POSSaleResult | null>(null);
+  const [completedSale, setCompletedSale] = useState<POSSaleResult["sale"] | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+
+  // Cancellation Dialog State
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   const isClaimedByMe =
     activeBill?.workflowStatus === "PAYMENT_IN_PROGRESS" && activeBill?.cashierId === currentUserId;
