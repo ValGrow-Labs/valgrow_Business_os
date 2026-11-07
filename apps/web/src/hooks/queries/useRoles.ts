@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, getActiveOrgId } from "@/lib/api-client";
 
 export interface RoleItem {
   id: string;
@@ -12,9 +12,10 @@ export interface RoleItem {
   createdAt: string;
 }
 
-export function useRoles() {
+export function useRoles(orgId?: string) {
+  const effectiveOrgId = orgId || getActiveOrgId();
   return useQuery<RoleItem[]>({
-    queryKey: ["roles"],
+    queryKey: ["roles", effectiveOrgId],
     queryFn: () => apiClient<RoleItem[]>("/roles"),
   });
 }

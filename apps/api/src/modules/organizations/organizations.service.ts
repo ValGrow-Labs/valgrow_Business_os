@@ -134,15 +134,22 @@ export class OrganizationsService {
         },
       });
 
-      // 3. Create Owner Role
-      const ownerRole = await tx.role.create({
-        data: {
+      // 3. Create Owner Role (idempotent)
+      const ownerRole = await tx.role.upsert({
+        where: {
+          organizationId_name: {
+            organizationId: org.id,
+            name: "Owner",
+          },
+        },
+        create: {
           organizationId: org.id,
           name: "Owner",
           description: "Workspace owner with full access",
           isSystem: true,
           scope: "Organization",
         },
+        update: {},
       });
 
       // 4. Create Organization Member

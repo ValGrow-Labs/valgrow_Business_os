@@ -59,6 +59,21 @@ export function InviteUserDialog({
   const { data: branches = [], isLoading: isLoadingBranches } = useBranches();
   const createUserMutation = useCreateUser();
 
+  // Distinct roles scoped to this organization, deduplicated by stable database ID and role name
+  const distinctRoles = React.useMemo(() => {
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+    return roles.filter((role) => {
+      if (!role?.id) return false;
+      if (seenIds.has(role.id)) return false;
+      const normalizedName = role.name.trim().toLowerCase();
+      if (seenNames.has(normalizedName)) return false;
+      seenIds.add(role.id);
+      seenNames.add(normalizedName);
+      return true;
+    });
+  }, [roles]);
+
   const isSubmitting = createUserMutation.isPending;
 
   // Reset form when dialog opens/closes
@@ -246,16 +261,16 @@ export function InviteUserDialog({
                   }
                 />
               </SelectTrigger>
-              <SelectContent>
-                {roles.map((role) => (
+              <SelectContent className="max-h-60 overflow-y-auto">
+                {distinctRoles.map((role) => (
                   <SelectItem key={role.id} value={role.id}>
-                    <div className="flex items-center justify-between w-full gap-2">
-                      <span className="font-medium">{role.name}</span>
-                      {role.scope && (
-                        <span className="text-[11px] text-muted-foreground capitalize">
-                          ({role.scope.toLowerCase()})
+                    <div className="flex items-center justify-between w-full gap-4 py-0.5">
+                      <span className="font-medium text-foreground">{role.name}</span>
+                      {role.isSystem ? (
+                        <span className="text-xs text-muted-foreground shrink-0 font-normal">
+                          ({role.scope || "Organization"})
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   </SelectItem>
                 ))}

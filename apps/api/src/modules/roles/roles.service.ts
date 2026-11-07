@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  ConflictException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -15,21 +16,45 @@ export class RolesService {
 
   async getRoles(organizationId: string) {
     const roles = await this.prisma.role.findMany({
-      where: {
-        OR: [{ organizationId }, { isSystem: true }],
-      },
+      where: organizationId
+        ? {
+            OR: [
+              { organizationId },
+              { organizationId: null, isSystem: true },
+            ],
+          }
+        : {
+            organizationId: null,
+            isSystem: true,
+          },
       include: {
         permissions: {
           include: { permission: true },
         },
         _count: {
-          select: { members: { where: { organizationId } } },
+          select: { members: organizationId ? { where: { organizationId } } : true },
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: [
+        { isSystem: "desc" },
+        { createdAt: "asc" },
+      ],
     });
 
-    return roles.map((r) => ({
+    // Deduplicate by distinct role name and stable database ID,
+    // prioritizing organization-specific roles over global system roles
+    const seenNames = new Set<string>();
+    const seenIds = new Set<string>();
+    const deduplicated = roles.filter((r) => {
+      if (seenIds.has(r.id)) return false;
+      const normalizedName = r.name.trim().toLowerCase();
+      if (seenNames.has(normalizedName)) return false;
+      seenIds.add(r.id);
+      seenNames.add(normalizedName);
+      return true;
+    });
+
+    return deduplicated.map((r) => ({
       id: r.id,
       name: r.name,
       description: r.description,
@@ -42,10 +67,28 @@ export class RolesService {
   }
 
   async createRole(organizationId: string, data: any) {
+    const trimmedName = (data.name || "").trim();
+    if (!trimmedName) {
+      throw new ConflictException("Role name is required");
+    }
+
+    const existing = await this.prisma.role.findFirst({
+      where: {
+        organizationId,
+        name: { equals: trimmedName, mode: "insensitive" },
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        `A role named "${trimmedName}" already exists in this organization`,
+      );
+    }
+
     const role = await this.prisma.role.create({
       data: {
         organizationId,
-        name: data.name,
+        name: trimmedName,
         description: data.description,
         scope: data.scope || "Organization",
         isSystem: false,
@@ -68,7 +111,10 @@ export class RolesService {
     const role = await this.prisma.role.findFirst({
       where: {
         id,
-        OR: [{ organizationId }, { isSystem: true }],
+        OR: [
+          { organizationId },
+          { organizationId: null, isSystem: true },
+        ],
       },
       include: {
         permissions: {
