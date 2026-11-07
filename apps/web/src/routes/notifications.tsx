@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { BellOff, CheckCheck } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -7,7 +8,11 @@ import { NotificationItem } from "@/components/foundation/notification-item";
 import { EmptyState } from "@/components/foundation/states";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useNotifications, useMarkAllNotificationsRead } from "@/hooks/queries/useNotifications";
+import { useNotifications, useMarkAllNotificationsRead, useMarkNotificationRead } from "@/hooks/queries/useNotifications";
+import {
+  NotificationDetailsDialog,
+  type NotificationDetailItem,
+} from "@/components/foundation/notification-details-dialog";
 
 const description = "One inbox for workspace, security and module notifications.";
 
@@ -26,8 +31,10 @@ export const Route = createFileRoute("/notifications")({
 function NotificationCenterPage() {
   const { data: apiNotifications } = useNotifications();
   const markAllMutation = useMarkAllNotificationsRead();
+  const markReadMutation = useMarkNotificationRead();
+  const [selectedNotification, setSelectedNotification] = useState<NotificationDetailItem | null>(null);
 
-  const list =
+  const list: NotificationDetailItem[] =
     apiNotifications && apiNotifications.length > 0
       ? apiNotifications.map((n) => ({
           id: n.id,
@@ -40,8 +47,16 @@ function NotificationCenterPage() {
           unread: n.unread,
           kind: (n.kind.toLowerCase() === "error" ? "warning" : n.kind.toLowerCase()) as
             "info" | "success" | "warning",
+          metadata: n.metadata ?? undefined,
         }))
       : [];
+
+  const handleNotificationClick = (n: NotificationDetailItem) => {
+    if (n.unread) {
+      markReadMutation.mutate(n.id);
+    }
+    setSelectedNotification(n);
+  };
 
   return (
     <AppShell>
@@ -70,14 +85,26 @@ function NotificationCenterPage() {
           </TabsList>
           <TabsContent value="all" className="mt-4 space-y-1">
             {list.length > 0 ? (
-              list.map((n) => <NotificationItem key={n.id} {...n} />)
+              list.map((n) => (
+                <NotificationItem
+                  key={n.id}
+                  {...n}
+                  onClick={() => handleNotificationClick(n)}
+                />
+              ))
             ) : (
               <EmptyState title="No notifications yet" />
             )}
           </TabsContent>
           <TabsContent value="unread" className="mt-4 space-y-1">
             {list.filter((n) => n.unread).length > 0 ? (
-              list.filter((n) => n.unread).map((n) => <NotificationItem key={n.id} {...n} />)
+              list.filter((n) => n.unread).map((n) => (
+                <NotificationItem
+                  key={n.id}
+                  {...n}
+                  onClick={() => handleNotificationClick(n)}
+                />
+              ))
             ) : (
               <EmptyState title="No unread notifications" />
             )}
@@ -87,6 +114,14 @@ function NotificationCenterPage() {
           </TabsContent>
         </Tabs>
       </Section>
+
+      <NotificationDetailsDialog
+        notification={selectedNotification}
+        open={!!selectedNotification}
+        onOpenChange={(open) => {
+          if (!open) setSelectedNotification(null);
+        }}
+      />
     </AppShell>
   );
 }

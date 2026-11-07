@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body } from "@nestjs/common";
 import { RolesService } from "./roles.service";
 import { CurrentOrg } from "../../common/decorators/current-org.decorator";
+import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { RequirePermissions } from "../../common/decorators/require-permissions.decorator";
 
 @Controller("roles")
@@ -26,8 +27,9 @@ export class RolesController {
   async updateRole(
     @Param("id") id: string,
     @CurrentOrg("id") organizationId: string,
+    @CurrentUser("id") actorId: string,
     @Body() body: any,
   ) {
-    return this.rolesService.updateRole(id, organizationId, body);
+    return this.rolesService.updateRole(id, organizationId, body, actorId);
   }
 }

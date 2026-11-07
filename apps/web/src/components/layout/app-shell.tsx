@@ -46,7 +46,11 @@ import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import { useOrganizations } from "@/hooks/queries/useOrganizations";
 import { useBranches } from "@/hooks/queries/useBranches";
-import { useNotifications } from "@/hooks/queries/useNotifications";
+import { useNotifications, useMarkNotificationRead } from "@/hooks/queries/useNotifications";
+import {
+  NotificationDetailsDialog,
+  type NotificationDetailItem,
+} from "@/components/foundation/notification-details-dialog";
 import { useLogoutMutation } from "@/hooks/queries/useAuthMutations";
 import { setActiveOrgId } from "@/lib/api-client";
 
@@ -278,9 +282,14 @@ function BranchSwitcher() {
 }
 
 function NotificationBell() {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<NotificationDetailItem | null>(null);
+
   const { data: apiNotifications } = useNotifications();
-  const list =
-    apiNotifications && apiNotifications.length > 0
+  const markAsReadMutation = useMarkNotificationRead();
+
+  const list: NotificationDetailItem[] =
+    apiNotifications !== undefined
       ? apiNotifications.map((n) => ({
           id: n.id,
           title: n.title,
@@ -294,38 +303,73 @@ function NotificationBell() {
             | "info"
             | "success"
             | "warning",
+          metadata: n.metadata ?? undefined,
         }))
-      : notifications;
+      : [];
 
   const unread = list.filter((n) => n.unread).length;
 
+  const handleNotificationClick = (n: NotificationDetailItem) => {
+    if (n.unread && n.id) {
+      markAsReadMutation.mutate(n.id);
+    }
+    setPopoverOpen(false);
+    setSelectedNotification(n);
+  };
+
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
-          <Bell />
-          {unread > 0 ? (
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
-          ) : null}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <p className="text-sm font-semibold">Notifications</p>
-          {unread > 0 ? <Badge variant="brand">{unread} new</Badge> : null}
-        </div>
-        <div className="max-h-80 space-y-0.5 overflow-y-auto p-1.5">
-          {list.map((n) => (
-            <NotificationItem key={n.id} {...n} />
-          ))}
-        </div>
-        <div className="border-t p-1.5">
-          <Button asChild variant="ghost" size="sm" className="w-full text-foreground">
-            <Link to="/notifications">View all notifications</Link>
+    <>
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+            <Bell />
+            {unread > 0 ? (
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
+            ) : null}
           </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-80 p-0">
+          <div className="flex items-center justify-between border-b px-4 py-3">
+            <p className="text-sm font-semibold">Notifications</p>
+            {unread > 0 ? <Badge variant="brand">{unread} new</Badge> : null}
+          </div>
+          <div className="max-h-80 space-y-0.5 overflow-y-auto p-1.5">
+            {list.length > 0 ? (
+              list.map((n) => (
+                <NotificationItem
+                  key={n.id}
+                  {...n}
+                  onClick={() => handleNotificationClick(n)}
+                />
+              ))
+            ) : (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                No notifications
+              </div>
+            )}
+          </div>
+          <div className="border-t p-1.5">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="w-full text-foreground"
+              onClick={() => setPopoverOpen(false)}
+            >
+              <Link to="/notifications">View all notifications</Link>
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <NotificationDetailsDialog
+        notification={selectedNotification}
+        open={!!selectedNotification}
+        onOpenChange={(open) => {
+          if (!open) setSelectedNotification(null);
+        }}
+      />
+    </>
   );
 }
 

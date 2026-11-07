@@ -4,10 +4,14 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 @Injectable()
 export class RolesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async getRoles(organizationId: string) {
     const roles = await this.prisma.role.findMany({
@@ -60,11 +64,16 @@ export class RolesService {
     return role;
   }
 
-  async updateRole(id: string, organizationId: string, data: any) {
+  async updateRole(id: string, organizationId: string, data: any, actorId?: string) {
     const role = await this.prisma.role.findFirst({
       where: {
         id,
         OR: [{ organizationId }, { isSystem: true }],
+      },
+      include: {
+        permissions: {
+          include: { permission: true },
+        },
       },
     });
 
@@ -76,6 +85,8 @@ export class RolesService {
       throw new ForbiddenException("System roles cannot be modified");
     }
 
+    const oldPermissionKeys = role.permissions.map((rp) => rp.permission.key);
+
     const updated = await this.prisma.role.update({
       where: { id },
       data: {
@@ -84,6 +95,8 @@ export class RolesService {
         scope: data.scope,
       },
     });
+
+    let newPermissionKeys = oldPermissionKeys;
 
     if (data.permissionIds && Array.isArray(data.permissionIds)) {
       await this.prisma.rolePermission.deleteMany({
@@ -95,6 +108,26 @@ export class RolesService {
           roleId: id,
           permissionId,
         })),
+      });
+
+      const newPerms = await this.prisma.permission.findMany({
+        where: { id: { in: data.permissionIds } },
+      });
+      newPermissionKeys = newPerms.map((p) => p.key);
+    }
+
+    const added = newPermissionKeys.filter((k) => !oldPermissionKeys.includes(k));
+    const removed = oldPermissionKeys.filter((k) => !newPermissionKeys.includes(k));
+
+    // Only create notification after business operation succeeded
+    if (added.length > 0 || removed.length > 0 || (data.name && data.name !== role.name)) {
+      await this.notificationsService.notifyRoleUpdated({
+        organizationId: role.organizationId || organizationId,
+        roleId: updated.id,
+        roleName: updated.name,
+        permissionsAdded: added,
+        permissionsRemoved: removed,
+        actorId,
       });
     }
 

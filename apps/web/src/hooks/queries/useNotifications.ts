@@ -8,6 +8,7 @@ export interface NotificationItemData {
   kind: "INFO" | "SUCCESS" | "WARNING" | "ERROR";
   unread: boolean;
   createdAt: string;
+  metadata?: Record<string, any> | null | undefined;
 }
 
 export function useNotifications() {
@@ -21,7 +22,23 @@ export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiClient(`/notifications/${id}/read`, { method: "PATCH" }),
-    onSuccess: () => {
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      const previous = queryClient.getQueryData<NotificationItemData[]>(["notifications"]);
+      if (previous) {
+        queryClient.setQueryData<NotificationItemData[]>(
+          ["notifications"],
+          previous.map((n) => (n.id === id ? { ...n, unread: false } : n)),
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["notifications"], context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
@@ -31,7 +48,23 @@ export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => apiClient("/notifications/read-all", { method: "PATCH" }),
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      const previous = queryClient.getQueryData<NotificationItemData[]>(["notifications"]);
+      if (previous) {
+        queryClient.setQueryData<NotificationItemData[]>(
+          ["notifications"],
+          previous.map((n) => ({ ...n, unread: false })),
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["notifications"], context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });

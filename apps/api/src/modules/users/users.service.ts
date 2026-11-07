@@ -5,10 +5,14 @@ import {
 } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async getOrganizationUsers(organizationId: string) {
     const members = await this.prisma.organizationMember.findMany({
@@ -43,7 +47,7 @@ export class UsersService {
     }));
   }
 
-  async createUser(organizationId: string, data: any) {
+  async createUser(organizationId: string, data: any, actorId?: string) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: data.email.toLowerCase() },
     });
@@ -109,6 +113,17 @@ export class UsersService {
         },
         role: true,
       },
+    });
+
+    // Notify organization admins after member is successfully created
+    await this.notificationsService.notifyMemberInvited({
+      organizationId,
+      memberId: member.id,
+      userId: member.user.id,
+      email: member.user.email,
+      roleName: member.role.name,
+      status: member.status === "ACTIVE" ? "Active Member" : "Pending Acceptance",
+      actorId,
     });
 
     return {

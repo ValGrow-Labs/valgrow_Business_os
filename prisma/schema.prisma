@@ -512,6 +512,7 @@ model Notification {
   body           String
   kind           NotificationType @default(INFO)
   unread         Boolean          @default(true)
+  metadata       Json?
 
   createdAt DateTime @default(now())
 
