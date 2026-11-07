@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListPage, StatusBadge, type ListRow } from "@/components/foundation/list-page";
 import type { Column } from "@/components/foundation/data-table";
 import { useUsers } from "@/hooks/queries/useUsers";
+import { InviteUserDialog } from "@/components/foundation/invite-user-dialog";
 
 const columns: Column<ListRow>[] = [
   { key: "name", header: "Member" },
@@ -30,6 +32,7 @@ export const Route = createFileRoute("/users")({
 });
 
 function UserManagementPage() {
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
   const { data: usersData, isLoading } = useUsers();
 
   const rows: ListRow[] = usersData
@@ -58,14 +61,23 @@ function UserManagementPage() {
   ];
 
   return (
-    <ListPage
-      title={title}
-      description={description}
-      eyebrow="Access"
-      actionLabel="Invite user"
-      stats={stats}
-      columns={columns}
-      rows={rows}
-    />
+    <>
+      <ListPage
+        title={title}
+        description={description}
+        eyebrow="Access"
+        actionLabel="Invite user"
+        onAction={() => setIsInviteOpen(true)}
+        isLoading={isLoading}
+        stats={stats}
+        columns={columns}
+        rows={rows}
+      />
+      <InviteUserDialog
+        open={isInviteOpen}
+        onOpenChange={setIsInviteOpen}
+        existingEmails={usersData?.map((u) => u.email) ?? []}
+      />
+    </>
   );
 }

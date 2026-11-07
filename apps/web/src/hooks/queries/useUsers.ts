@@ -31,7 +31,8 @@ export function useCreateUser() {
       firstName: string;
       lastName: string;
       roleId: string;
-      jobTitle?: string;
+      jobTitle?: string | undefined;
+      phone?: string | undefined;
     }) =>
       apiClient<UserItem>("/users", {
         method: "POST",
@@ -39,6 +40,7 @@ export function useCreateUser() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
