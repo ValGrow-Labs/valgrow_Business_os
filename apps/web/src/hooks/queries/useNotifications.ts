@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, getActiveOrgId } from "@/lib/api-client";
 
 export interface NotificationItemData {
   id: string;
@@ -11,9 +11,10 @@ export interface NotificationItemData {
   metadata?: Record<string, any> | null | undefined;
 }
 
-export function useNotifications() {
+export function useNotifications(orgId?: string) {
+  const effectiveOrgId = orgId || getActiveOrgId();
   return useQuery<NotificationItemData[]>({
-    queryKey: ["notifications"],
+    queryKey: ["notifications", effectiveOrgId],
     queryFn: () => apiClient<NotificationItemData[]>("/notifications"),
   });
 }

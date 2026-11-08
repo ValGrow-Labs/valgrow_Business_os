@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, getActiveOrgId } from "@/lib/api-client";
 
 export interface UserItem {
   id: string;
@@ -16,9 +16,10 @@ export interface UserItem {
   createdAt: string;
 }
 
-export function useUsers() {
+export function useUsers(orgId?: string) {
+  const effectiveOrgId = orgId || getActiveOrgId();
   return useQuery<UserItem[]>({
-    queryKey: ["users"],
+    queryKey: ["users", effectiveOrgId],
     queryFn: () => apiClient<UserItem[]>("/users"),
   });
 }

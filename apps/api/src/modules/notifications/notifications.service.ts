@@ -7,16 +7,21 @@ export class NotificationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getUserNotifications(userId: string, organizationId?: string) {
-    const where: any = { recipientId: userId };
-    if (organizationId) {
-      where.OR = [{ organizationId }, { organizationId: null }];
-    }
+    try {
+      const where: any = { recipientId: userId };
+      if (organizationId) {
+        where.OR = [{ organizationId }, { organizationId: null }];
+      }
 
-    return this.prisma.notification.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
+      return await this.prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      });
+    } catch (err: any) {
+      console.warn("getUserNotifications handled exception:", err?.message);
+      return [];
+    }
   }
 
   async markAsRead(id: string, userId: string, organizationId?: string) {
