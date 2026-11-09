@@ -49,6 +49,17 @@ export class ReportsController {
     return this.reportsService.getCustomerReport(orgId, query);
   }
 
+  @Get("customers/export")
+  @RequirePermissions("sales.read")
+  exportCustomerReport(
+    @CurrentOrg("id") orgId: string,
+    @Query() query: CustomerReportQueryDto,
+    @Query("format") format: "csv" | "xlsx" = "csv",
+    @Res() res: Response,
+  ) {
+    return this.exportService.exportCustomerReport(orgId, query, format, res);
+  }
+
   @Get("inventory-movements")
   @RequirePermissions("inventory.read")
   getInventoryMovementReport(

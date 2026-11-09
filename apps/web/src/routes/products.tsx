@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   CodeCell,
@@ -22,6 +22,7 @@ import { useBrands } from "@/hooks/queries/useBrands";
 import { useUnits } from "@/hooks/queries/useUnits";
 import { useTaxes } from "@/hooks/queries/useTaxes";
 import { useActiveCurrency } from "@/hooks/useActiveCurrency";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,7 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pencil, Trash2, Loader2, Boxes, Package } from "lucide-react";
+import { Pencil, Trash2, Loader2, Boxes, Package, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { exportToCsv, getExportFilename } from "@/lib/exportCsv";
 
@@ -90,14 +91,44 @@ const initialFormState: ProductFormState = {
 
 function ProductsPage() {
   const { currencySymbol, formatMoney } = useActiveCurrency();
-  const [page] = useState(1);
-  const [search] = useState("");
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
+
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
+  const [selectedBrand, setSelectedBrand] = useState<string>("ALL");
+  const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
+  const [selectedType, setSelectedType] = useState<string>("ALL");
+
+  const hasActiveFilters = Boolean(
+    selectedCategory !== "ALL" ||
+    selectedBrand !== "ALL" ||
+    selectedStatus !== "ALL" ||
+    selectedType !== "ALL"
+  );
+
+  const handleClearFilters = () => {
+    setSelectedCategory("ALL");
+    setSelectedBrand("ALL");
+    setSelectedStatus("ALL");
+    setSelectedType("ALL");
+    setSearch("");
+    setPage(1);
+  };
+
   const {
     data: productsData,
     isLoading: isProductsLoading,
     isError: isProductsError,
     refetch: refetchProducts,
-  } = useProducts({ page, search });
+  } = useProducts({
+    page,
+    search: debouncedSearch.trim() || undefined,
+    categoryId: selectedCategory !== "ALL" ? selectedCategory : undefined,
+    brandId: selectedBrand !== "ALL" ? selectedBrand : undefined,
+    status: selectedStatus !== "ALL" ? selectedStatus : undefined,
+    type: selectedType !== "ALL" ? selectedType : undefined,
+  });
 
   const { data: categories = [] } = useCategories();
   const { data: brands = [] } = useBrands();
@@ -284,44 +315,193 @@ function ProductsPage() {
     },
   ];
 
-  const rows: ListRow[] = productsData?.data
-    ? productsData.data.map((p) => {
+  const rows: ListRow[] = useMemo(() => {
+    if (!productsData?.data) return [];
+    const query = search.trim();
+
+    const getRelevance = (pName: string, sku: string | null = "") => {
+      if (!query) return 1;
+      const qClean = query.toLowerCase().replace(/[-_\s]+/g, "");
+      const nameClean = pName.toLowerCase().replace(/[-_\s]+/g, "");
+      const skuClean = (sku || "").toLowerCase().replace(/[-_\s]+/g, "");
+      const qRaw = query.toLowerCase();
+      const nameRaw = pName.toLowerCase();
+      const skuRaw = (sku || "").toLowerCase();
+
+      if (nameClean === qClean || nameRaw === qRaw || (skuClean && skuClean === qClean)) return 100;
+      if (nameClean.startsWith(qClean) || nameRaw.startsWith(qRaw)) return 80;
+      if (nameRaw.split(/[-_\s]+/).some((w) => w.startsWith(qRaw) || w.startsWith(qClean))) return 70;
+      if (nameClean.includes(qClean) || (skuClean && skuClean.includes(qClean))) return 60;
+      if (nameRaw.includes(qRaw) || (skuRaw && skuRaw.includes(qRaw))) return 50;
+
+      const tokens = qRaw.split(/[-_\s]+/).filter(Boolean);
+      if (tokens.length > 0 && tokens.every((t) => nameClean.includes(t) || skuClean.includes(t))) return 40;
+
+      return 0;
+    };
+
+    const scoredItems = productsData.data
+      .map((p) => {
+        const relevance = getRelevance(p.name, p.sku);
         const defaultRetailPrice = p.priceLevels?.find(
           (pr: any) => pr.tier === "RETAIL" && !pr.variantId,
         )?.price;
 
-        const priceDisplay = defaultRetailPrice !== undefined && defaultRetailPrice !== null
-          ? formatMoney(defaultRetailPrice)
-          : p.costPrice !== undefined && p.costPrice !== null
-          ? `${formatMoney(p.costPrice)} (Cost)`
-          : formatMoney(0);
+        const priceDisplay =
+          defaultRetailPrice !== undefined && defaultRetailPrice !== null
+            ? formatMoney(defaultRetailPrice)
+            : p.costPrice !== undefined && p.costPrice !== null
+            ? `${formatMoney(p.costPrice)} (Cost)`
+            : formatMoney(0);
 
         return {
-          id: p.id,
-          name: p.name,
-          sku: p.sku || "N/A",
-          category: p.category?.name || "Unassigned",
-          brand: p.brand?.name || "Generic",
-          type: p.type,
-          price: priceDisplay,
-          status: p.status === "ACTIVE" ? "Active" : p.status === "DRAFT" ? "Draft" : "Archived",
+          row: {
+            id: p.id,
+            name: p.name,
+            sku: p.sku || "N/A",
+            category: p.category?.name || "Unassigned",
+            brand: p.brand?.name || "Generic",
+            type: p.type,
+            price: priceDisplay,
+            status: p.status === "ACTIVE" ? "Active" : p.status === "DRAFT" ? "Draft" : "Archived",
+          },
+          relevance,
         };
       })
-    : [];
+      .filter((item) => (query ? item.relevance > 0 : true));
+
+    if (query) {
+      scoredItems.sort((a, b) => b.relevance - a.relevance);
+    }
+
+    return scoredItems.map((item) => item.row);
+  }, [productsData, search, formatMoney]);
 
   const totalProducts = productsData?.meta?.total || 0;
   const activeProducts = productsData?.data?.filter((p) => p.status === "ACTIVE").length || 0;
+  const categoriesCount = useMemo(
+    () => new Set(productsData?.data?.map((p) => p.categoryId).filter(Boolean)).size,
+    [productsData?.data],
+  );
 
-  const stats = [
-    { label: "Total Products", value: String(totalProducts), hint: "Catalog items" },
-    { label: "Active Items", value: String(activeProducts) },
-    {
-      label: "Categories",
-      value: String(new Set(productsData?.data?.map((p) => p.categoryId).filter(Boolean)).size),
-    },
-  ];
+  const stats = useMemo(
+    () => [
+      { label: "Total Products", value: String(totalProducts), hint: "Catalog items" },
+      { label: "Active Items", value: String(activeProducts) },
+      {
+        label: "Categories",
+        value: String(categoriesCount),
+      },
+    ],
+    [totalProducts, activeProducts, categoriesCount],
+  );
 
   const isSaving = createProductMutation.isPending || updateProductMutation.isPending;
+
+  const filterContent = (
+    <div className="flex flex-wrap items-center gap-2.5 w-full">
+      {/* Category Filter */}
+      <div className="w-44">
+        <Select
+          value={selectedCategory}
+          onValueChange={(val) => {
+            setSelectedCategory(val);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Categories</SelectItem>
+            {categories.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Brand Filter */}
+      <div className="w-40">
+        <Select
+          value={selectedBrand}
+          onValueChange={(val) => {
+            setSelectedBrand(val);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="All Brands" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Brands</SelectItem>
+            {brands.map((b) => (
+              <SelectItem key={b.id} value={b.id}>
+                {b.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Status Filter */}
+      <div className="w-36">
+        <Select
+          value={selectedStatus}
+          onValueChange={(val) => {
+            setSelectedStatus(val);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Statuses</SelectItem>
+            <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="DRAFT">Draft</SelectItem>
+            <SelectItem value="ARCHIVED">Archived</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Type Filter */}
+      <div className="w-36">
+        <Select
+          value={selectedType}
+          onValueChange={(val) => {
+            setSelectedType(val);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Types</SelectItem>
+            <SelectItem value="PHYSICAL">Physical</SelectItem>
+            <SelectItem value="SERVICE">Service</SelectItem>
+            <SelectItem value="DIGITAL">Digital</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Reset Action */}
+      {hasActiveFilters && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleClearFilters}
+          className="h-8 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <RotateCcw className="mr-1 h-3 w-3" />
+          Reset filters
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <>
@@ -336,15 +516,23 @@ function ProductsPage() {
         stats={stats}
         columns={columns}
         rows={rows}
-        isLoading={isProductsLoading}
+        isLoading={isProductsLoading && !productsData}
         isError={isProductsError}
         onRetry={() => refetchProducts()}
+        searchValue={search}
+        onSearchChange={(val) => {
+          setSearch(val);
+          setPage(1);
+        }}
+        searchPlaceholder="Search products by name, SKU, or barcode…"
+        filterContent={filterContent}
+        hasActiveFilters={hasActiveFilters}
       >
         <ModuleTabs
           id="catalog"
           tabs={[
-            { to: "/inventory", label: "Live stock levels", icon: Boxes },
             { to: "/products", label: "Product catalog", icon: Package },
+            { to: "/inventory", label: "Live stock levels", icon: Boxes },
           ]}
         />
       </ListPage>

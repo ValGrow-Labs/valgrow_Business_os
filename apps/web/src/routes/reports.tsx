@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { toast } from "sonner";
 import {
   BarChart3,
   Download,
@@ -55,12 +56,15 @@ import {
   RefreshCw,
   ExternalLink,
   Layers,
+  Loader2,
+  Eye,
+  RotateCcw,
 } from "lucide-react";
+import { SaleDetailDialog } from "@/components/sales/sale-detail-dialog";
 import {
   useSalesReport,
   useCustomerReport,
   useInventoryMovementReport,
-  exportReportToCsv,
 } from "@/hooks/queries/useReports";
 import { useCustomers } from "@/hooks/queries/useCustomers";
 import { useBranches } from "@/hooks/queries/useBranches";
@@ -86,6 +90,8 @@ export const Route = createFileRoute("/reports")({
 function ReportsPage() {
   const { currencyCode, currencySymbol, formatMoney } = useActiveCurrency();
   const [activeTab, setActiveTab] = useState<"sales" | "customers" | "inventory">("sales");
+  const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [selectedSale, setSelectedSale] = useState<any | null>(null);
 
   // Masters
   const { data: customers = [] } = useCustomers();
@@ -114,6 +120,7 @@ function ReportsPage() {
   const { data: salesReport, isLoading: isSalesLoading } = useSalesReport(salesFilters);
 
   const handleExportSales = async (format: "csv" | "xlsx" = "csv") => {
+    setIsExporting(`sales-${format}`);
     try {
       const params = new URLSearchParams();
       params.append("format", format);
@@ -129,8 +136,11 @@ function ReportsPage() {
         `/reports/sales/export?${params.toString()}`,
         `sales-report-${todayStr}.${format}`,
       );
+      toast.success(`Sales report (${format.toUpperCase()}) exported successfully`);
     } catch (err: any) {
-      alert(err.message || "Failed to export sales report");
+      toast.error(err.message || "Failed to export sales report");
+    } finally {
+      setIsExporting(null);
     }
   };
 
@@ -151,35 +161,27 @@ function ReportsPage() {
 
   const { data: customerReport, isLoading: isCustLoading } = useCustomerReport(custFilters);
 
-  const handleExportCustomers = () => {
-    if (!customerReport?.customers) return;
-    const headers = [
-      "Customer Code",
-      "Customer Name",
-      "Email",
-      "Phone",
-      "City",
-      "Total Orders",
-      `Total Purchases (${currencySymbol})`,
-      `Total Paid (${currencySymbol})`,
-      `Outstanding Balance (${currencySymbol})`,
-      "Last Purchase Date",
-      "Status",
-    ];
-    const rows = customerReport.customers.map((c) => [
-      c.customerCode,
-      c.name,
-      c.email,
-      c.phone,
-      c.city,
-      c.totalOrders,
-      c.totalPurchases,
-      c.totalPaid,
-      c.outstandingAmount,
-      c.lastPurchaseDate ? new Date(c.lastPurchaseDate).toLocaleDateString(currencyCode === "INR" ? "en-IN" : "en-US") : "Never",
-      c.status,
-    ]);
-    exportReportToCsv("Customer_Report", headers, rows);
+  const handleExportCustomers = async (format: "csv" | "xlsx" = "csv") => {
+    setIsExporting(`customers-${format}`);
+    try {
+      const params = new URLSearchParams();
+      params.append("format", format);
+      if (custDateFrom) params.append("dateFrom", custDateFrom);
+      if (custDateTo) params.append("dateTo", custDateTo);
+      if (custCustomerId !== "ALL") params.append("customerId", custCustomerId);
+      if (custSearch) params.append("search", custSearch);
+
+      const todayStr = new Date().toISOString().split("T")[0];
+      await downloadFile(
+        `/reports/customers/export?${params.toString()}`,
+        `customer-report-${todayStr}.${format}`,
+      );
+      toast.success(`Customer report (${format.toUpperCase()}) exported successfully`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to export customer report");
+    } finally {
+      setIsExporting(null);
+    }
   };
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -209,6 +211,7 @@ function ReportsPage() {
   const { data: invReport, isLoading: isInvLoading } = useInventoryMovementReport(invFilters);
 
   const handleExportInventory = async (format: "csv" | "xlsx" = "csv") => {
+    setIsExporting(`inventory-${format}`);
     try {
       const params = new URLSearchParams();
       params.append("format", format);
@@ -224,80 +227,128 @@ function ReportsPage() {
         `/reports/inventory-movements/export?${params.toString()}`,
         `inventory-movements-${todayStr}.${format}`,
       );
+      toast.success(`Inventory movement report (${format.toUpperCase()}) exported successfully`);
     } catch (err: any) {
-      alert(err.message || "Failed to export inventory movement report");
+      toast.error(err.message || "Failed to export inventory movement report");
+    } finally {
+      setIsExporting(null);
+    }
+  };
+
+  const handleExportActive = (format: "csv" | "xlsx") => {
+    if (activeTab === "sales") {
+      handleExportSales(format);
+    } else if (activeTab === "customers") {
+      handleExportCustomers(format);
+    } else if (activeTab === "inventory") {
+      handleExportInventory(format);
     }
   };
 
   return (
     <AppShell>
-      <PageHeader guide="reports"
+      <PageHeader
         title={title}
         description={description}
         eyebrow="Intelligence & Auditing"
-        actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (activeTab === "sales") handleExportSales("csv");
-                else if (activeTab === "customers") handleExportCustomers();
-                else handleExportInventory("csv");
-              }}
-            >
-              <Download className="mr-1.5 h-4 w-4" />
-              Export CSV
-            </Button>
-            {activeTab !== "customers" && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => {
-                  if (activeTab === "sales") handleExportSales("xlsx");
-                  else handleExportInventory("xlsx");
-                }}
-              >
-                <Download className="mr-1.5 h-4 w-4" />
-                Export Excel
-              </Button>
-            )}
-          </div>
-        }
       />
 
       <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="space-y-4">
-        <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-transparent p-0">
-          <TabsTrigger value="sales" className="relative flex items-center gap-2 rounded-none bg-transparent px-3 pb-2.5 pt-1.5 text-[13px] text-muted-foreground shadow-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
-            {activeTab === "sales" && (
-              <motion.span layoutId="report-tab" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" transition={{ type: "spring", stiffness: 500, damping: 38 }} />
-            )}
-            <BarChart3 className="h-4 w-4" />
-            Sales Report
-          </TabsTrigger>
-          <TabsTrigger value="customers" className="relative flex items-center gap-2 rounded-none bg-transparent px-3 pb-2.5 pt-1.5 text-[13px] text-muted-foreground shadow-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
-            {activeTab === "customers" && (
-              <motion.span layoutId="report-tab" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" transition={{ type: "spring", stiffness: 500, damping: 38 }} />
-            )}
-            <Users className="h-4 w-4" />
-            Customer Report
-          </TabsTrigger>
-          <TabsTrigger value="inventory" className="relative flex items-center gap-2 rounded-none bg-transparent px-3 pb-2.5 pt-1.5 text-[13px] text-muted-foreground shadow-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
-            {activeTab === "inventory" && (
-              <motion.span layoutId="report-tab" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" transition={{ type: "spring", stiffness: 500, damping: 38 }} />
-            )}
-            <Boxes className="h-4 w-4" />
-            Stock Movements
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-2 sm:pb-0">
+          <TabsList className="h-auto justify-start gap-1 overflow-x-auto rounded-none border-0 bg-transparent p-0">
+            <TabsTrigger value="sales" className="relative flex items-center gap-2 rounded-none bg-transparent px-3 pb-2.5 pt-1.5 text-[13px] text-muted-foreground shadow-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              {activeTab === "sales" && (
+                <motion.span layoutId="report-tab" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" transition={{ type: "spring", stiffness: 500, damping: 38 }} />
+              )}
+              <BarChart3 className="h-4 w-4" />
+              Sales Report
+            </TabsTrigger>
+            <TabsTrigger value="customers" className="relative flex items-center gap-2 rounded-none bg-transparent px-3 pb-2.5 pt-1.5 text-[13px] text-muted-foreground shadow-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              {activeTab === "customers" && (
+                <motion.span layoutId="report-tab" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" transition={{ type: "spring", stiffness: 500, damping: 38 }} />
+              )}
+              <Users className="h-4 w-4" />
+              Customer Report
+            </TabsTrigger>
+            <TabsTrigger value="inventory" className="relative flex items-center gap-2 rounded-none bg-transparent px-3 pb-2.5 pt-1.5 text-[13px] text-muted-foreground shadow-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              {activeTab === "inventory" && (
+                <motion.span layoutId="report-tab" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" transition={{ type: "spring", stiffness: 500, damping: 38 }} />
+              )}
+              <Boxes className="h-4 w-4" />
+              Stock Movements
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Export Actions - Top Right Corner & Coloured */}
+          <div className="flex items-center gap-2 pb-1 sm:pb-2">
+            <Button
+              size="sm"
+              disabled={isExporting !== null}
+              onClick={() => handleExportActive("csv")}
+              className="h-8 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
+            >
+              {isExporting?.endsWith("-csv") ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Export CSV
+            </Button>
+            <Button
+              size="sm"
+              disabled={isExporting !== null}
+              onClick={() => handleExportActive("xlsx")}
+              className="h-8 text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs"
+            >
+              {isExporting?.endsWith("-xlsx") ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Export Excel
+            </Button>
+          </div>
+        </div>
 
         {/* ===================================================================
             TAB 1: SALES REPORT
            =================================================================== */}
         <TabsContent value="sales" className="space-y-4">
           {/* Filters Bar */}
-          <div className="panel flex flex-wrap items-center justify-between gap-3 p-3">
-            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <div className="panel w-full p-3 space-y-3">
+            {/* Row 1: Search Bar (Exact same spot across all 3 reports) & Reset Button */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="relative w-full sm:w-80">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search receipt / invoice..."
+                  value={salesSearch}
+                  onChange={(e) => setSalesSearch(e.target.value)}
+                  className="pl-8 h-8 text-xs bg-background"
+                />
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSalesDateFrom("");
+                  setSalesDateTo("");
+                  setSalesCustomerId("ALL");
+                  setSalesBranchId("ALL");
+                  setSalesPaymentMethod("ALL");
+                  setSalesSearch("");
+                }}
+                className="h-8 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                Reset filters
+              </Button>
+            </div>
+
+            {/* Row 2: Date Filters & Categorical Selects */}
+            <div className="flex flex-wrap items-center gap-3 pt-2.5 border-t border-border/50">
               <div className="flex items-center gap-2">
                 <Label className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
                 <Input
@@ -365,33 +416,6 @@ function ReportsPage() {
                 </Select>
               </div>
             </div>
-
-            <div className="flex items-center gap-2 w-full lg:w-auto">
-              <div className="relative flex-1 lg:w-64">
-                <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search receipt / invoice..."
-                  value={salesSearch}
-                  onChange={(e) => setSalesSearch(e.target.value)}
-                  className="pl-8 h-8 text-xs"
-                />
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSalesDateFrom("");
-                  setSalesDateTo("");
-                  setSalesCustomerId("ALL");
-                  setSalesBranchId("ALL");
-                  setSalesPaymentMethod("ALL");
-                  setSalesSearch("");
-                }}
-                className="h-8 text-xs"
-              >
-                Reset
-              </Button>
-            </div>
           </div>
 
           {/* Stat Cards */}
@@ -448,24 +472,29 @@ function ReportsPage() {
                     <TableHead className="text-right">Paid Amount</TableHead>
                     <TableHead>Payment Method</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="w-12 text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isSalesLoading ? (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                         Loading sales report records...
                       </TableCell>
                     </TableRow>
                   ) : !salesReport?.records || salesReport.records.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                         No sales transaction records match your filters.
                       </TableCell>
                     </TableRow>
                   ) : (
                     salesReport.records.map((r) => (
-                      <TableRow key={r.id}>
+                      <TableRow
+                        key={r.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setSelectedSale(r)}
+                      >
                         <TableCell className="font-mono text-xs font-medium text-primary">
                           {r.number}
                         </TableCell>
@@ -491,6 +520,21 @@ function ReportsPage() {
                         <TableCell className="text-xs">
                           <StatusBadge value={r.status} />
                         </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedSale(r);
+                            }}
+                            title="View Sale Details"
+                            aria-label="View Sale Details"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -505,8 +549,38 @@ function ReportsPage() {
            =================================================================== */}
         <TabsContent value="customers" className="space-y-4">
           {/* Filters Bar */}
-          <div className="panel flex flex-wrap items-center justify-between gap-3 p-3">
-            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <div className="panel w-full p-3 space-y-3">
+            {/* Row 1: Search Bar (Exact same spot across all 3 reports) & Reset Button */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="relative w-full sm:w-80">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search customer name or code..."
+                  value={custSearch}
+                  onChange={(e) => setCustSearch(e.target.value)}
+                  className="pl-8 h-8 text-xs bg-background"
+                />
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCustDateFrom("");
+                  setCustDateTo("");
+                  setCustCustomerId("ALL");
+                  setCustSearch("");
+                }}
+                className="h-8 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                Reset filters
+              </Button>
+            </div>
+
+            {/* Row 2: Date Filters & Customer Select */}
+            <div className="flex flex-wrap items-center gap-3 pt-2.5 border-t border-border/50">
               <div className="flex items-center gap-2">
                 <Label className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
                 <Input
@@ -542,31 +616,6 @@ function ReportsPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2 w-full lg:w-auto">
-              <div className="relative flex-1 lg:w-64">
-                <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search customer name or code..."
-                  value={custSearch}
-                  onChange={(e) => setCustSearch(e.target.value)}
-                  className="pl-8 h-8 text-xs"
-                />
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setCustDateFrom("");
-                  setCustDateTo("");
-                  setCustCustomerId("ALL");
-                  setCustSearch("");
-                }}
-                className="h-8 text-xs"
-              >
-                Reset
-              </Button>
             </div>
           </div>
 
@@ -677,8 +726,40 @@ function ReportsPage() {
            =================================================================== */}
         <TabsContent value="inventory" className="space-y-4">
           {/* Filters Bar */}
-          <div className="panel flex flex-wrap items-center justify-between gap-3 p-3">
-            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <div className="panel w-full p-3 space-y-3">
+            {/* Row 1: Search Bar (Exact same spot across all 3 reports) & Reset Button */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="relative w-full sm:w-80">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search product, SKU or ref..."
+                  value={invSearch}
+                  onChange={(e) => setInvSearch(e.target.value)}
+                  className="pl-8 h-8 text-xs bg-background"
+                />
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setInvDateFrom("");
+                  setInvDateTo("");
+                  setInvWarehouseId("ALL");
+                  setInvLocationId("ALL");
+                  setInvMovementType("ALL");
+                  setInvSearch("");
+                }}
+                className="h-8 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                Reset filters
+              </Button>
+            </div>
+
+            {/* Row 2: Date Filters & Inventory Selects */}
+            <div className="flex flex-wrap items-center gap-3 pt-2.5 border-t border-border/50">
               <div className="flex items-center gap-2">
                 <Label className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
                 <Input
@@ -756,33 +837,6 @@ function ReportsPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2 w-full lg:w-auto">
-              <div className="relative flex-1 lg:w-60">
-                <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search product, SKU or ref..."
-                  value={invSearch}
-                  onChange={(e) => setInvSearch(e.target.value)}
-                  className="pl-8 h-8 text-xs"
-                />
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setInvDateFrom("");
-                  setInvDateTo("");
-                  setInvWarehouseId("ALL");
-                  setInvLocationId("ALL");
-                  setInvMovementType("ALL");
-                  setInvSearch("");
-                }}
-                className="h-8 text-xs"
-              >
-                Reset
-              </Button>
             </div>
           </div>
 
@@ -896,6 +950,14 @@ function ReportsPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <SaleDetailDialog
+        open={Boolean(selectedSale)}
+        onOpenChange={(open) => !open && setSelectedSale(null)}
+        saleId={selectedSale?.id || null}
+        saleType={selectedSale?.type}
+        receiptNumber={selectedSale?.number}
+      />
     </AppShell>
   );
 }

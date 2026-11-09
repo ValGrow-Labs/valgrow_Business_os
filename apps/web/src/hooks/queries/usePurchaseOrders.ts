@@ -1,19 +1,39 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
+export interface SupplierDetail {
+  id: string;
+  name: string;
+  code: string;
+  contactPerson?: string | null | undefined;
+  email?: string | null | undefined;
+  phone?: string | null | undefined;
+  address?: string | null | undefined;
+  city?: string | null | undefined;
+  state?: string | null | undefined;
+  country?: string | null | undefined;
+  taxIdNumber?: string | null | undefined;
+}
+
 export interface PurchaseOrderItemData {
-  id?: string;
+  id?: string | undefined;
   productId: string;
-  variantId?: string | null;
+  variantId?: string | null | undefined;
   orderedQty: number;
-  receivedQty?: number;
+  receivedQty?: number | undefined;
   unitPrice: number;
-  taxRate?: number;
-  taxAmount?: number;
-  discountAmount?: number;
-  totalAmount?: number;
-  product?: { id: string; name: string; sku: string };
-  variant?: { id: string; name: string; sku: string } | null;
+  taxRate?: number | undefined;
+  taxAmount?: number | undefined;
+  discountAmount?: number | undefined;
+  totalAmount?: number | undefined;
+  product?: {
+    id: string;
+    name: string;
+    sku: string;
+    description?: string | null | undefined;
+    unit?: { name: string; code: string } | null | undefined;
+  } | undefined;
+  variant?: { id: string; name: string; sku: string } | null | undefined;
 }
 
 export interface PurchaseOrderItem {
@@ -35,21 +55,53 @@ export interface PurchaseOrderItem {
   discountAmount: number;
   totalAmount: number;
   status:
-    "DRAFT" | "SUBMITTED" | "APPROVED" | "SENT" | "PARTIALLY_RECEIVED" | "RECEIVED" | "CANCELLED";
+    | "DRAFT"
+    | "SUBMITTED"
+    | "APPROVED"
+    | "SENT"
+    | "PARTIALLY_RECEIVED"
+    | "RECEIVED"
+    | "CANCELLED";
   createdAt: string;
   updatedAt: string;
-  supplier?: { id: string; name: string; code: string };
-  purchaseRequest?: { id: string; requestNumber: string } | null;
-  warehouse?: { id: string; name: string; code: string };
+  supplier?: SupplierDetail | undefined;
+  purchaseRequest?: { id: string; requestNumber: string } | null | undefined;
+  warehouse?: {
+    id: string;
+    name: string;
+    code: string;
+    city?: string | null | undefined;
+    address?: string | null | undefined;
+    branch?: { id: string; name: string; code: string } | null | undefined;
+  } | undefined;
   items: PurchaseOrderItemData[];
-  goodsReceipts?: { id: string; receiptNumber: string; status: string }[];
+  goodsReceipts?: { id: string; receiptNumber: string; status: string }[] | undefined;
 }
 
-export function usePurchaseOrders(status?: string) {
+export interface PurchaseOrderParams {
+  status?: string | undefined;
+  search?: string | undefined;
+  supplierId?: string | undefined;
+}
+
+export function usePurchaseOrders(params?: PurchaseOrderParams | string) {
+  const normalizedParams = typeof params === "string" ? { status: params } : params;
+  const queryParams = new URLSearchParams();
+  if (normalizedParams?.status && normalizedParams.status !== "ALL") {
+    queryParams.set("status", normalizedParams.status);
+  }
+  if (normalizedParams?.search) {
+    queryParams.set("search", normalizedParams.search);
+  }
+  if (normalizedParams?.supplierId && normalizedParams.supplierId !== "ALL") {
+    queryParams.set("supplierId", normalizedParams.supplierId);
+  }
+  const queryStr = queryParams.toString() ? `?${queryParams.toString()}` : "";
+
   return useQuery<PurchaseOrderItem[]>({
-    queryKey: ["purchase-orders", status],
-    queryFn: () =>
-      apiClient<PurchaseOrderItem[]>(`/purchase-orders${status ? `?status=${status}` : ""}`),
+    queryKey: ["purchase-orders", normalizedParams],
+    queryFn: () => apiClient<PurchaseOrderItem[]>(`/purchase-orders${queryStr}`),
+    placeholderData: keepPreviousData,
   });
 }
 

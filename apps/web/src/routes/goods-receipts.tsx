@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListPage, StatusBadge, type ListRow } from "@/components/foundation/list-page";
 import type { Column } from "@/components/foundation/data-table";
+import { exportToCsv, getExportFilename } from "@/lib/exportCsv";
+import { toast } from "sonner";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   useGoodsReceipts,
   useCreateGoodsReceipt,
@@ -23,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { downloadFile } from "@/lib/api-client";
-import { Plus, CheckCircle2, Ban, AlertTriangle, Download } from "lucide-react";
+import { Plus, CheckCircle2, Ban, AlertTriangle, Download, RotateCcw } from "lucide-react";
 
 const title = "Goods Receipts";
 const description =
@@ -40,7 +43,26 @@ export const Route = createFileRoute("/goods-receipts")({
 });
 
 function GoodsReceiptsPage() {
-  const { data: receipts } = useGoodsReceipts();
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const hasActiveFilters = Boolean(search.trim() || statusFilter !== "ALL");
+
+  const resetFilters = () => {
+    setSearch("");
+    setStatusFilter("ALL");
+  };
+
+  const {
+    data: receipts,
+    isLoading: isReceiptsLoading,
+    isError: isReceiptsError,
+    refetch: refetchReceipts,
+  } = useGoodsReceipts({
+    search: debouncedSearch.trim() || undefined,
+    status: statusFilter !== "ALL" ? statusFilter : undefined,
+  });
   const { data: openOrders } = usePurchaseOrders();
 
   const createGRNMutation = useCreateGoodsReceipt();
@@ -55,8 +77,9 @@ function GoodsReceiptsPage() {
     setDownloadingId(id);
     try {
       await downloadFile(`/goods-receipts/${id}/pdf`, `${receiptNumber}.pdf`);
+      toast.success(`Goods Receipt ${receiptNumber} downloaded successfully`);
     } catch (err: any) {
-      alert(err.message || "Failed to download Goods Receipt PDF");
+      toast.error(err.message || "Failed to download Goods Receipt PDF");
     } finally {
       setDownloadingId(null);
     }
@@ -189,42 +212,189 @@ function GoodsReceiptsPage() {
     },
   ];
 
-  const rows: ListRow[] = receipts
-    ? receipts.map((grn) => ({
-        id: grn.id,
-        receiptNumber: grn.receiptNumber,
-        poNumber: grn.purchaseOrder ? grn.purchaseOrder.orderNumber : "N/A",
-        supplier: grn.supplier ? grn.supplier.name : "N/A",
-        warehouse: grn.warehouse ? grn.warehouse.name : "N/A",
-        receivedAt: new Date(grn.receivedAt).toLocaleDateString(),
-        itemCount: String(grn.items.length),
-        status: grn.status,
-      }))
-    : [];
+  const [isExporting, setIsExporting] = useState(false);
 
-  const stats = [
-    { label: "Total GRNs", value: String(receipts?.length || 0) },
-    {
-      label: "Draft GRNs",
-      value: String(receipts?.filter((g) => g.status === "DRAFT").length || 0),
-    },
-    {
-      label: "Posted (In Inventory)",
-      value: String(receipts?.filter((g) => g.status === "POSTED").length || 0),
-    },
-  ];
+  // Client-side smooth instantaneous filtering and relevance ranking on top of server query results
+  const displayReceipts = useMemo(() => {
+    if (!receipts) return [];
+    const query = search.trim();
+    if (!query) return receipts;
+
+    const qClean = query.toLowerCase().replace(/[-_\s]+/g, "");
+    const qRaw = query.toLowerCase();
+
+    const getRelevance = (grn: GoodsReceiptItem) => {
+      const receiptRaw = (grn.receiptNumber || "").toLowerCase();
+      const receiptClean = receiptRaw.replace(/[-_\s]+/g, "");
+      const poRaw = (grn.purchaseOrder?.orderNumber || "").toLowerCase();
+      const poClean = poRaw.replace(/[-_\s]+/g, "");
+      const suppNameRaw = (grn.supplier?.name || "").toLowerCase();
+      const suppNameClean = suppNameRaw.replace(/[-_\s]+/g, "");
+      const suppCodeRaw = (grn.supplier?.code || "").toLowerCase();
+      const suppCodeClean = suppCodeRaw.replace(/[-_\s]+/g, "");
+      const whRaw = (grn.warehouse?.name || "").toLowerCase();
+
+      // 1. Exact match (GRN #, PO #, supplier name/code)
+      if (
+        receiptClean === qClean ||
+        receiptRaw === qRaw ||
+        poClean === qClean ||
+        poRaw === qRaw ||
+        suppNameClean === qClean ||
+        suppCodeClean === qClean
+      ) {
+        return 100;
+      }
+      // 2. Starts with
+      if (
+        receiptClean.startsWith(qClean) ||
+        receiptRaw.startsWith(qRaw) ||
+        poClean.startsWith(qClean) ||
+        poRaw.startsWith(qRaw) ||
+        suppNameClean.startsWith(qClean) ||
+        suppNameRaw.startsWith(qRaw)
+      ) {
+        return 80;
+      }
+      // 3. Word boundary starts with
+      if (
+        receiptRaw.split(/[-_\s]+/).some((w) => w.startsWith(qRaw) || w.startsWith(qClean)) ||
+        poRaw.split(/[-_\s]+/).some((w) => w.startsWith(qRaw) || w.startsWith(qClean)) ||
+        suppNameRaw.split(/[-_\s]+/).some((w) => w.startsWith(qRaw) || w.startsWith(qClean))
+      ) {
+        return 70;
+      }
+      // 4. Contains
+      if (
+        receiptClean.includes(qClean) ||
+        receiptRaw.includes(qRaw) ||
+        poClean.includes(qClean) ||
+        poRaw.includes(qRaw) ||
+        suppNameClean.includes(qClean) ||
+        suppNameRaw.includes(qRaw) ||
+        suppCodeClean.includes(qClean) ||
+        whRaw.includes(qRaw)
+      ) {
+        return 60;
+      }
+      return 0;
+    };
+
+    const scored = receipts
+      .map((grn) => ({ item: grn, relevance: getRelevance(grn) }))
+      .filter((entry) => entry.relevance > 0);
+
+    scored.sort((a, b) => b.relevance - a.relevance);
+    return scored.map((entry) => entry.item);
+  }, [receipts, search]);
+
+  const handleExport = () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const items = displayReceipts || [];
+      exportToCsv({
+        filename: getExportFilename("valgrow-goods-receipts"),
+        columns: [
+          { header: "GRN Number", accessor: (grn) => grn.receiptNumber },
+          { header: "PO Number", accessor: (grn) => grn.purchaseOrder?.orderNumber || "N/A" },
+          { header: "Supplier Name", accessor: (grn) => grn.supplier?.name || "N/A" },
+          { header: "Supplier Code", accessor: (grn) => grn.supplier?.code || "" },
+          { header: "Warehouse", accessor: (grn) => grn.warehouse?.name || "N/A" },
+          { header: "Receipt Date", accessor: (grn) => grn.receivedAt ? new Date(grn.receivedAt).toLocaleDateString() : "" },
+          { header: "Line Items", accessor: (grn) => grn.items?.length || 0 },
+          { header: "Reference Number", accessor: (grn) => grn.referenceNumber || "" },
+          { header: "Status", accessor: (grn) => grn.status },
+        ],
+        data: items,
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const rows: ListRow[] = useMemo(() => {
+    return displayReceipts.map((grn) => ({
+      id: grn.id,
+      receiptNumber: grn.receiptNumber,
+      poNumber: grn.purchaseOrder ? grn.purchaseOrder.orderNumber : "N/A",
+      supplier: grn.supplier ? grn.supplier.name : "N/A",
+      warehouse: grn.warehouse ? grn.warehouse.name : "N/A",
+      receivedAt: new Date(grn.receivedAt).toLocaleDateString(),
+      itemCount: String(grn.items.length),
+      status: grn.status,
+    }));
+  }, [displayReceipts]);
+
+  const stats = useMemo(
+    () => [
+      { label: "Total GRNs", value: String(receipts?.length || 0) },
+      {
+        label: "Draft GRNs",
+        value: String(receipts?.filter((g) => g.status === "DRAFT").length || 0),
+      },
+      {
+        label: "Posted (In Inventory)",
+        value: String(receipts?.filter((g) => g.status === "POSTED").length || 0),
+      },
+    ],
+    [receipts],
+  );
+
+  const filterContent = (
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-1.5 min-w-[160px]">
+        <Label className="text-xs text-muted-foreground font-normal">Status</Label>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-9 px-3 rounded-md border border-input bg-background text-sm text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="DRAFT">Draft</option>
+          <option value="POSTED">Posted</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
+      </div>
+
+      {hasActiveFilters && (
+        <div className="flex items-end self-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={resetFilters}
+            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset filters
+          </Button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <>
-      <ListPage guide="goods-receipts"
+      <ListPage
         title={title}
         description={description}
         eyebrow="Purchasing & Inventory Receiving"
         actionLabel="New Goods Receipt"
         onAction={() => setIsAddOpen(true)}
+        onExport={handleExport}
+        isExporting={isExporting}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by GRN #, PO #, or supplier..."
+        filterContent={filterContent}
+        hasActiveFilters={hasActiveFilters}
         stats={stats}
         columns={columns}
         rows={rows}
+        isLoading={isReceiptsLoading && !receipts}
+        isError={isReceiptsError}
+        onRetry={() => refetchReceipts()}
       />
 
       {/* Create GRN Modal */}

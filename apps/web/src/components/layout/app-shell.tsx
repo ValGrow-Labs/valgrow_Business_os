@@ -485,9 +485,6 @@ function SearchTrigger({ onOpen }: { onOpen: () => void }) {
       >
         <Search className="h-3.5 w-3.5" />
         <span className="flex-1 text-left">Search…</span>
-        <kbd className="rounded border bg-surface-2 px-1.5 py-px font-sans text-[10px] font-medium">
-          Ctrl K
-        </kbd>
       </button>
       <Button variant="ghost" size="icon" onClick={onOpen} className="md:hidden" aria-label="Search">
         <Search />

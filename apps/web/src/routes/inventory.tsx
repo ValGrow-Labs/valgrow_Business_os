@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListPage, NameCell, NumberCell, type ListRow } from "@/components/foundation/list-page";
 import { ModuleTabs } from "@/components/foundation/module-tabs";
@@ -10,6 +10,7 @@ import { useLocations } from "@/hooks/queries/useLocations";
 import { useCreateAdjustment } from "@/hooks/queries/useInventoryAdjustments";
 import { useCreateWarehouse } from "@/hooks/queries/useWarehouses";
 import { useCreateLocation } from "@/hooks/queries/useLocations";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,9 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Package, Boxes, SlidersHorizontal, Loader2 } from "lucide-react";
+import { Package, Boxes, SlidersHorizontal, Loader2, RotateCcw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { exportToCsv, getExportFilename } from "@/lib/exportCsv";
+import { cn } from "@/lib/utils";
 
 const title = "Live Stock Levels";
 const description =
@@ -49,15 +51,49 @@ export const Route = createFileRoute("/inventory")({
 });
 
 function InventoryStockPage() {
-  const [page] = useState(1);
-  const [search] = useState("");
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
+
+  const [filterWarehouseId, setFilterWarehouseId] = useState<string>("ALL");
+  const [filterLocationId, setFilterLocationId] = useState<string>("ALL");
+  const [lowStockOnly, setLowStockOnly] = useState<boolean>(false);
+
+  // Fetch locations for filter warehouse if specific warehouse selected
+  const { data: filterLocations = [] } = useLocations(
+    filterWarehouseId !== "ALL" ? filterWarehouseId : undefined,
+  );
+
+  const hasActiveFilters = Boolean(
+    filterWarehouseId !== "ALL" ||
+    filterLocationId !== "ALL" ||
+    lowStockOnly
+  );
+
+  const handleClearFilters = () => {
+    setFilterWarehouseId("ALL");
+    setFilterLocationId("ALL");
+    setLowStockOnly(false);
+    setSearch("");
+    setPage(1);
+  };
+
   const {
     data: stockData,
     isLoading: isStockLoading,
     isError: isStockError,
     refetch: refetchStock,
-  } = useInventoryStock({ page, search });
-  const { data: productsData } = useProducts({ limit: 100 });
+  } = useInventoryStock({
+    page,
+    search: debouncedSearch.trim() || undefined,
+    warehouseId: filterWarehouseId !== "ALL" ? filterWarehouseId : undefined,
+    locationId: filterLocationId !== "ALL" ? filterLocationId : undefined,
+    lowStock: lowStockOnly || undefined,
+  });
+  const { data: productsData } = useProducts({
+    limit: 100,
+    search: debouncedSearch.trim() || undefined,
+  });
   const { data: warehouses = [] } = useWarehouses();
 
   const createAdjustmentMutation = useCreateAdjustment();
@@ -193,78 +229,154 @@ function InventoryStockPage() {
     }
   };
 
-  // Build Table Rows: Combine Catalog Products with Stock Levels
-  const stockByProductMap = new Map<string, StockItem[]>();
-  if (stockData?.data) {
-    for (const item of stockData.data) {
-      const existing = stockByProductMap.get(item.productId) || [];
-      existing.push(item);
-      stockByProductMap.set(item.productId, existing);
+  // Stock and Catalog mappings available across component
+  const catalogProducts = useMemo(() => productsData?.data || [], [productsData?.data]);
+  const stockByProductMap = useMemo(() => {
+    const map = new Map<string, StockItem[]>();
+    if (stockData?.data) {
+      for (const item of stockData.data) {
+        const existing = map.get(item.productId) || [];
+        existing.push(item);
+        map.set(item.productId, existing);
+      }
     }
-  }
+    return map;
+  }, [stockData?.data]);
 
-  const catalogProducts = productsData?.data || [];
-  const rows: ListRow[] = [];
+  // Build Table Rows: Combine Catalog Products with Stock Levels & Relevance Sorting
+  const rows: ListRow[] = useMemo(() => {
+    const query = search.trim();
 
-  if (catalogProducts.length > 0) {
-    for (const prod of catalogProducts) {
-      const stockLevels = stockByProductMap.get(prod.id) || [];
+    // Helper to compute relevance for ranking matches at the top
+    const getRelevance = (prodName: string, sku: string | null = "") => {
+      if (!query) return 1;
+      const qClean = query.toLowerCase().replace(/[-_\s]+/g, "");
+      const nameClean = prodName.toLowerCase().replace(/[-_\s]+/g, "");
+      const skuClean = (sku || "").toLowerCase().replace(/[-_\s]+/g, "");
+      const qRaw = query.toLowerCase();
+      const nameRaw = prodName.toLowerCase();
+      const skuRaw = (sku || "").toLowerCase();
 
-      if (stockLevels.length > 0) {
-        for (const s of stockLevels) {
-          rows.push({
+      // 1. Exact match (e.g. "tshirt" matches "t-shirt" or "T-Shirt")
+      if (nameClean === qClean || nameRaw === qRaw || (skuClean && skuClean === qClean)) return 100;
+
+      // 2. Starts with match
+      if (nameClean.startsWith(qClean) || nameRaw.startsWith(qRaw)) return 80;
+
+      // 3. Word boundary starts with
+      if (nameRaw.split(/[-_\s]+/).some((w) => w.startsWith(qRaw) || w.startsWith(qClean))) return 70;
+
+      // 4. Contains match
+      if (nameClean.includes(qClean) || (skuClean && skuClean.includes(qClean))) return 60;
+      if (nameRaw.includes(qRaw) || (skuRaw && skuRaw.includes(qRaw))) return 50;
+
+      // 5. Query tokens match
+      const tokens = qRaw.split(/[-_\s]+/).filter(Boolean);
+      if (tokens.length > 0 && tokens.every((t) => nameClean.includes(t) || skuClean.includes(t))) return 40;
+
+      return 0;
+    };
+
+    const scoredRows: { row: ListRow; relevance: number }[] = [];
+
+    if (catalogProducts.length > 0) {
+      for (const prod of catalogProducts) {
+        const stockLevels = stockByProductMap.get(prod.id) || [];
+        const relevance = getRelevance(prod.name, prod.sku);
+
+        // If searching and this product has no relevance match, skip it
+        if (query && relevance === 0) continue;
+
+        if (stockLevels.length > 0) {
+          for (const s of stockLevels) {
+            scoredRows.push({
+              row: {
+                id: s.id,
+                productId: prod.id,
+                product: s.product?.name || prod.name,
+                variant: s.variant?.name || "Base Product",
+                facility: `${s.warehouse?.name || "N/A"} → ${s.location?.name || "N/A"}`,
+                batch: s.batch?.batchNumber || "Non-Batched",
+                onHand: `${s.onHand} Units`,
+                reserved: `${s.reserved} Units`,
+                available: `${s.available} Units`,
+              },
+              relevance,
+            });
+          }
+        } else {
+          // Product has no stock levels yet
+          scoredRows.push({
+            row: {
+              id: `no-stock-${prod.id}`,
+              productId: prod.id,
+              product: prod.name,
+              variant: "Base Product",
+              facility: warehouses[0]?.name ? `${warehouses[0].name} (Unstocked)` : "No Location Assigned",
+              batch: "Non-Batched",
+              onHand: "0 Units",
+              reserved: "0 Units",
+              available: "0 Units",
+            },
+            relevance,
+          });
+        }
+      }
+    } else if (stockData?.data) {
+      for (const s of stockData.data) {
+        const pName = s.product?.name || "Unassigned Product";
+        const pSku = s.variant?.sku || s.product?.sku || "";
+        const relevance = getRelevance(pName, pSku);
+
+        if (query && relevance === 0) continue;
+
+        scoredRows.push({
+          row: {
             id: s.id,
-            productId: prod.id,
-            product: s.product?.name || prod.name,
+            productId: s.productId,
+            product: pName,
             variant: s.variant?.name || "Base Product",
             facility: `${s.warehouse?.name || "N/A"} → ${s.location?.name || "N/A"}`,
             batch: s.batch?.batchNumber || "Non-Batched",
             onHand: `${s.onHand} Units`,
             reserved: `${s.reserved} Units`,
             available: `${s.available} Units`,
-          });
-        }
-      } else {
-        // Product has no stock levels yet
-        rows.push({
-          id: `no-stock-${prod.id}`,
-          productId: prod.id,
-          product: prod.name,
-          variant: "Base Product",
-          facility: warehouses[0]?.name ? `${warehouses[0].name} (Unstocked)` : "No Location Assigned",
-          batch: "Non-Batched",
-          onHand: "0 Units",
-          reserved: "0 Units",
-          available: "0 Units",
+          },
+          relevance,
         });
       }
     }
-  } else if (stockData?.data) {
-    for (const s of stockData.data) {
-      rows.push({
-        id: s.id,
-        productId: s.productId,
-        product: s.product?.name || "Unassigned Product",
-        variant: s.variant?.name || "Base Product",
-        facility: `${s.warehouse?.name || "N/A"} → ${s.location?.name || "N/A"}`,
-        batch: s.batch?.batchNumber || "Non-Batched",
-        onHand: `${s.onHand} Units`,
-        reserved: `${s.reserved} Units`,
-        available: `${s.available} Units`,
-      });
+
+    // Sort matching rows by relevance score descending so exact matches appear at the VERY TOP!
+    if (query) {
+      scoredRows.sort((a, b) => b.relevance - a.relevance);
     }
-  }
 
-  // Calculate Header Stats
-  const totalOnHand = stockData?.data?.reduce((acc, curr) => acc + Number(curr.onHand), 0) || 0;
-  const totalReserved = stockData?.data?.reduce((acc, curr) => acc + Number(curr.reserved), 0) || 0;
-  const totalAvailable = stockData?.data?.reduce((acc, curr) => acc + Number(curr.available), 0) || 0;
+    return scoredRows.map((item) => item.row);
+  }, [stockData, catalogProducts, stockByProductMap, warehouses, search]);
 
-  const stats = [
-    { label: "Total On Hand", value: `${totalOnHand} Units`, hint: "Physical stock across warehouses" },
-    { label: "Total Reserved", value: `${totalReserved} Units`, hint: "Locked in active orders" },
-    { label: "Total Available", value: `${totalAvailable} Units`, hint: "Available for allocation" },
-  ];
+  // Calculate Header Stats (memoized so cards don't jitter during typing)
+  const totalOnHand = useMemo(
+    () => stockData?.data?.reduce((acc, curr) => acc + Number(curr.onHand), 0) || 0,
+    [stockData?.data],
+  );
+  const totalReserved = useMemo(
+    () => stockData?.data?.reduce((acc, curr) => acc + Number(curr.reserved), 0) || 0,
+    [stockData?.data],
+  );
+  const totalAvailable = useMemo(
+    () => stockData?.data?.reduce((acc, curr) => acc + Number(curr.available), 0) || 0,
+    [stockData?.data],
+  );
+
+  const stats = useMemo(
+    () => [
+      { label: "Total On Hand", value: `${totalOnHand} Units`, hint: "Physical stock across warehouses" },
+      { label: "Total Reserved", value: `${totalReserved} Units`, hint: "Locked in active orders" },
+      { label: "Total Available", value: `${totalAvailable} Units`, hint: "Available for allocation" },
+    ],
+    [totalOnHand, totalReserved, totalAvailable],
+  );
 
   const columns: Column<ListRow>[] = [
     {
@@ -448,6 +560,86 @@ function InventoryStockPage() {
 
   const isSubmitting = createAdjustmentMutation.isPending;
 
+  const filterContent = (
+    <div className="flex flex-wrap items-center gap-2.5 w-full">
+      {/* Warehouse Filter */}
+      <div className="w-44">
+        <Select
+          value={filterWarehouseId}
+          onValueChange={(val) => {
+            setFilterWarehouseId(val);
+            setFilterLocationId("ALL");
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="All Warehouses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Warehouses</SelectItem>
+            {warehouses.map((w) => (
+              <SelectItem key={w.id} value={w.id}>
+                {w.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Location Filter (Active only when warehouse is selected or if locations available) */}
+      <div className="w-40">
+        <Select
+          value={filterLocationId}
+          onValueChange={(val) => {
+            setFilterLocationId(val);
+            setPage(1);
+          }}
+          disabled={filterWarehouseId === "ALL" || filterLocations.length === 0}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder={filterWarehouseId === "ALL" ? "Select warehouse first" : "All Locations"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Locations</SelectItem>
+            {filterLocations.map((l) => (
+              <SelectItem key={l.id} value={l.id}>
+                {l.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Low Stock Toggle Button */}
+      <Button
+        type="button"
+        variant={lowStockOnly ? "secondary" : "outline"}
+        size="sm"
+        onClick={() => {
+          setLowStockOnly((prev) => !prev);
+          setPage(1);
+        }}
+        className="h-8 text-xs gap-1.5"
+      >
+        <AlertTriangle className={cn("h-3.5 w-3.5", lowStockOnly ? "text-amber-500" : "text-muted-foreground")} />
+        Low Stock Only
+      </Button>
+
+      {/* Reset Action */}
+      {hasActiveFilters && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleClearFilters}
+          className="h-8 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <RotateCcw className="mr-1 h-3 w-3" />
+          Reset filters
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <>
       <ListPage guide="inventory"
@@ -461,15 +653,23 @@ function InventoryStockPage() {
         stats={stats}
         columns={columns}
         rows={rows}
-        isLoading={isStockLoading}
+        isLoading={isStockLoading && !stockData}
         isError={isStockError}
         onRetry={() => refetchStock()}
+        searchValue={search}
+        onSearchChange={(val) => {
+          setSearch(val);
+          setPage(1);
+        }}
+        searchPlaceholder="Search inventory by product, SKU, warehouse, or location…"
+        filterContent={filterContent}
+        hasActiveFilters={hasActiveFilters}
       >
         <ModuleTabs
           id="catalog"
           tabs={[
-            { to: "/inventory", label: "Live stock levels", icon: Boxes },
             { to: "/products", label: "Product catalog", icon: Package },
+            { to: "/inventory", label: "Live stock levels", icon: Boxes },
           ]}
         />
       </ListPage>

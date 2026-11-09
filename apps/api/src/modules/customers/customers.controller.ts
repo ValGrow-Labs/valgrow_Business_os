@@ -23,8 +23,9 @@ export class CustomersController {
   getCustomers(
     @CurrentOrg("id") organizationId: string,
     @Query("status") status?: string,
+    @Query("search") search?: string,
   ) {
-    return this.customersService.getCustomers(organizationId, status);
+    return this.customersService.getCustomers(organizationId, { status, search });
   }
 
   @Get(":id")

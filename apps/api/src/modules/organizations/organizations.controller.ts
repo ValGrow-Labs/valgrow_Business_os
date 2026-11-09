@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body } from "@nestjs/common";
+import { Controller, Get, Post, Patch, Param, Body, Query } from "@nestjs/common";
 import { OrganizationsService } from "./organizations.service";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { CurrentOrg } from "../../common/decorators/current-org.decorator";
@@ -10,8 +10,12 @@ export class OrganizationsController {
   constructor(private readonly organizationsService: OrganizationsService) {}
 
   @Get()
-  async getMyOrganizations(@CurrentUser("id") userId: string) {
-    return this.organizationsService.getUserOrganizations(userId);
+  async getMyOrganizations(
+    @CurrentUser("id") userId: string,
+    @Query("search") search?: string,
+    @Query("status") status?: string,
+  ) {
+    return this.organizationsService.getUserOrganizations(userId, { search, status });
   }
 
   @Post()

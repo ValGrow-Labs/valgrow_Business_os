@@ -39,64 +39,67 @@ export function DataTable<T extends Record<string, unknown>>({
   onRetry?: () => void;
 }) {
   return (
-    <div className="panel overflow-hidden">
-      {toolbar ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-          {toolbar}
-        </div>
-      ) : null}
-      {isLoading && rows.length === 0 ? (
-        <div className="[&>div]:rounded-none [&>div]:border-0 [&>div]:shadow-none">
-          <LoadingSkeleton rows={5} />
-        </div>
-      ) : isError && rows.length === 0 ? (
-        <ErrorState
-          className="m-4"
-          {...(onRetry ? { onRetry } : {})}
-        />
-      ) : rows.length === 0 ? (
-        <EmptyState className="rounded-none border-0" />
-      ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                {columns.map((c) => (
-                  <TableHead key={c.key} className={c.className}>
-                    {c.header}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            {/* Stagger runs once per mount; refetches update rows without replaying it. */}
-            <motion.tbody
-              variants={staggerContainer(0.02)}
-              initial="hidden"
-              animate="show"
-              className="[&_tr:last-child]:border-0"
-            >
-              {rows.map((row, i) => {
-                const cells = columns.map((c) => (
-                  <TableCell key={c.key} className={c.className}>
-                    {c.render ? c.render(row) : String(row[c.key] ?? "—")}
-                  </TableCell>
-                ));
-                return i < ANIMATED_ROWS ? (
-                  <motion.tr
-                    key={i}
-                    variants={staggerItem}
-                    className="border-b transition-colors hover:bg-surface-2/70"
-                  >
-                    {cells}
-                  </motion.tr>
-                ) : (
-                  <TableRow key={i}>{cells}</TableRow>
-                );
-              })}
-            </motion.tbody>
-          </Table>
-        </div>
-      )}
+    <div className="panel overflow-hidden min-h-[340px] flex flex-col justify-between transition-all duration-200">
+      <div className="flex-1">
+        {toolbar ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+            {toolbar}
+          </div>
+        ) : null}
+        {isLoading && rows.length === 0 ? (
+          <div className="[&>div]:rounded-none [&>div]:border-0 [&>div]:shadow-none">
+            <LoadingSkeleton rows={5} />
+          </div>
+        ) : isError && rows.length === 0 ? (
+          <ErrorState
+            className="m-4"
+            {...(onRetry ? { onRetry } : {})}
+          />
+        ) : rows.length === 0 ? (
+          <EmptyState className="rounded-none border-0" />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  {columns.map((c) => (
+                    <TableHead key={c.key} className={c.className}>
+                      {c.header}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              {/* Stagger runs once per mount; refetches update rows without replaying it. */}
+              <motion.tbody
+                variants={staggerContainer(0.02)}
+                initial="hidden"
+                animate="show"
+                className="[&_tr:last-child]:border-0"
+              >
+                {rows.map((row, i) => {
+                  const cells = columns.map((c) => (
+                    <TableCell key={c.key} className={c.className}>
+                      {c.render ? c.render(row) : String(row[c.key] ?? "—")}
+                    </TableCell>
+                  ));
+                  const rowKey = (row as any).id ? String((row as any).id) : String(i);
+                  return i < ANIMATED_ROWS ? (
+                    <motion.tr
+                      key={rowKey}
+                      variants={staggerItem}
+                      className="border-b transition-colors hover:bg-surface-2/70"
+                    >
+                      {cells}
+                    </motion.tr>
+                  ) : (
+                    <TableRow key={rowKey}>{cells}</TableRow>
+                  );
+                })}
+              </motion.tbody>
+            </Table>
+          </div>
+        )}
+      </div>
       {paginate && rows.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-2.5">
           <p className="tabular text-xs text-muted-foreground">

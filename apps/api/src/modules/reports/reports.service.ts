@@ -93,6 +93,14 @@ export class ReportsService {
       }
     }
 
+    if (query.search) {
+      const term = query.search.trim();
+      invWhere.OR = [
+        { invoiceNumber: { contains: term, mode: "insensitive" } },
+        { customer: { name: { contains: term, mode: "insensitive" } } },
+      ];
+    }
+
     const b2bInvoices = await this.prisma.salesInvoice.findMany({
       where: invWhere,
       include: {
@@ -109,9 +117,13 @@ export class ReportsService {
 
     // Filter by payment method if specified
     let filteredPosSales = posSales;
+    let filteredInvoices = b2bInvoices;
     if (query.paymentMethod && query.paymentMethod !== ("ALL" as any)) {
       filteredPosSales = posSales.filter((s: any) =>
         s.payments.some((p: any) => p.paymentMethod === query.paymentMethod),
+      );
+      filteredInvoices = b2bInvoices.filter((inv: any) =>
+        inv.customerPayments.some((p: any) => p.paymentMethod === query.paymentMethod),
       );
     }
 
@@ -120,7 +132,7 @@ export class ReportsService {
     let totalTax = 0;
     let totalDiscount = 0;
     let totalPaid = 0;
-    let orderCount = filteredPosSales.length + b2bInvoices.length;
+    let orderCount = filteredPosSales.length + filteredInvoices.length;
 
     const customerMap = new Map<
       string,
@@ -195,7 +207,7 @@ export class ReportsService {
     }
 
     // Process B2B Invoices
-    for (const inv of b2bInvoices) {
+    for (const inv of filteredInvoices) {
       const invAmt = Number(inv.totalAmount);
       const taxAmt = Number(inv.taxAmount);
       const discAmt = Number(inv.discountAmount);
@@ -252,7 +264,7 @@ export class ReportsService {
         status: s.status,
         paymentMethods: s.payments.map((p: any) => p.paymentMethod).join(", "),
       })),
-      ...b2bInvoices.map((inv: any) => ({
+      ...filteredInvoices.map((inv: any) => ({
         id: inv.id,
         type: "INVOICE",
         number: inv.invoiceNumber,

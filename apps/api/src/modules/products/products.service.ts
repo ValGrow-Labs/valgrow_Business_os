@@ -161,12 +161,32 @@ export class ProductsService {
     };
 
     if (options.search) {
-      where.OR = [
-        { name: { contains: options.search, mode: "insensitive" } },
-        { sku: { contains: options.search, mode: "insensitive" } },
-        { barcode: { contains: options.search, mode: "insensitive" } },
-        { description: { contains: options.search, mode: "insensitive" } },
-      ];
+      const term = options.search.trim();
+      const termVariants = new Set<string>();
+      termVariants.add(term);
+      const cleanNoHyphen = term.replace(/[-_\s]+/g, "");
+      if (cleanNoHyphen) termVariants.add(cleanNoHyphen);
+      const cleanWithSpace = term.replace(/[-_]+/g, " ");
+      if (cleanWithSpace) termVariants.add(cleanWithSpace);
+      const cleanWithHyphen = term.replace(/\s+/g, "-");
+      if (cleanWithHyphen) termVariants.add(cleanWithHyphen);
+
+      if (/^[a-z][a-z0-9]+$/i.test(term)) {
+        termVariants.add(`${term.charAt(0)}-${term.slice(1)}`);
+        termVariants.add(`${term.charAt(0)} ${term.slice(1)}`);
+      }
+
+      const orConditions: any[] = [];
+      for (const t of termVariants) {
+        if (!t) continue;
+        orConditions.push(
+          { name: { contains: t, mode: "insensitive" } },
+          { sku: { contains: t, mode: "insensitive" } },
+          { barcode: { contains: t, mode: "insensitive" } },
+          { description: { contains: t, mode: "insensitive" } },
+        );
+      }
+      where.OR = orConditions;
     }
 
     if (options.categoryId) where.categoryId = options.categoryId;

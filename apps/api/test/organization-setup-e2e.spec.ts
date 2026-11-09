@@ -33,10 +33,26 @@ describe("Organization, Branch, and Warehouse Unified Setup Flow (E2E)", () => {
 
     // Pre-test cleanup
     await prisma.pOSSession.deleteMany({
-      where: { openedBy: { email: "setup.tester@valgrow-flow.test" } },
+      where: {
+        openedBy: {
+          email: {
+            in: [
+              "setup.tester@valgrow-flow.test",
+              "intruder@valgrow-flow.test",
+            ],
+          },
+        },
+      },
     });
     await prisma.user.deleteMany({
-      where: { email: "setup.tester@valgrow-flow.test" },
+      where: {
+        email: {
+          in: [
+            "setup.tester@valgrow-flow.test",
+            "intruder@valgrow-flow.test",
+          ],
+        },
+      },
     });
     await prisma.organization.deleteMany({
       where: {
@@ -72,10 +88,26 @@ describe("Organization, Branch, and Warehouse Unified Setup Flow (E2E)", () => {
   afterAll(async () => {
     if (prisma) {
       await prisma.pOSSession.deleteMany({
-        where: { openedBy: { email: "setup.tester@valgrow-flow.test" } },
+        where: {
+          openedBy: {
+            email: {
+              in: [
+                "setup.tester@valgrow-flow.test",
+                "intruder@valgrow-flow.test",
+              ],
+            },
+          },
+        },
       });
       await prisma.user.deleteMany({
-        where: { email: "setup.tester@valgrow-flow.test" },
+        where: {
+          email: {
+            in: [
+              "setup.tester@valgrow-flow.test",
+              "intruder@valgrow-flow.test",
+            ],
+          },
+        },
       });
       await prisma.organization.deleteMany({
         where: {
@@ -361,5 +393,116 @@ describe("Organization, Branch, and Warehouse Unified Setup Flow (E2E)", () => {
     const usdOrg = meRes.body.organizations.find((o: any) => o.id === createdOrgId);
     expect(usdOrg).toBeDefined();
     expect(usdOrg.currency).toBe("USD");
+  });
+
+  // =========================================================================
+  // Phase 6: Organization View Details & Organization Management UX
+  // =========================================================================
+  describe("Phase 6: Organization View Details & Multi-Tenant Security", () => {
+    it("9: should return enriched organization details via GET /organizations/:id", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/organizations/${createdOrgId}`)
+        .set("Authorization", `Bearer ${userToken}`)
+        .set("Cookie", userCookie)
+        .expect(200);
+
+      expect(res.body.id).toBe(createdOrgId);
+      expect(res.body.name).toBe("Apex Retail Enterprises");
+      expect(res.body.currency).toBe("USD");
+      expect(res.body.status).toBe("ACTIVE");
+      expect(res.body.role).toBe("Owner");
+      expect(res.body.country).toBe("United States");
+      expect(res.body.memberCount).toBeGreaterThanOrEqual(1);
+      expect(res.body.branchCount).toBeGreaterThanOrEqual(1);
+      expect(res.body.warehouseCount).toBeGreaterThanOrEqual(1);
+      expect(Array.isArray(res.body.branches)).toBe(true);
+      expect(res.body.branches.length).toBeGreaterThanOrEqual(1);
+      expect(res.body.branches[0].name).toBe("Downtown Flagship");
+    });
+
+    it("10: should allow authorized members to view inactive organization details in read-only mode", async () => {
+      // Mark createdOrgId as SUSPENDED (inactive)
+      await prisma.organization.update({
+        where: { id: createdOrgId },
+        data: { status: "SUSPENDED" },
+      });
+
+      const res = await request(app.getHttpServer())
+        .get(`/organizations/${createdOrgId}`)
+        .set("Authorization", `Bearer ${userToken}`)
+        .set("Cookie", userCookie)
+        .expect(200);
+
+      expect(res.body.id).toBe(createdOrgId);
+      expect(res.body.status).toBe("SUSPENDED");
+      expect(res.body.name).toBe("Apex Retail Enterprises");
+      expect(res.body.role).toBe("Owner");
+
+      // Restore to ACTIVE
+      await prisma.organization.update({
+        where: { id: createdOrgId },
+        data: { status: "ACTIVE" },
+      });
+    });
+
+    it("11: should ensure viewing organization details does not alter active organization context", async () => {
+      // Active context is initial org
+      const initialOrg = await prisma.organization.findUnique({
+        where: { slug: "setup-initial-org" },
+      });
+      expect(initialOrg).toBeDefined();
+
+      // Inspect createdOrgId details
+      await request(app.getHttpServer())
+        .get(`/organizations/${createdOrgId}`)
+        .set("Authorization", `Bearer ${userToken}`)
+        .set("Cookie", userCookie)
+        .expect(200);
+
+      // Verify active context is still initialOrg when passing initialOrg header
+      const meRes = await request(app.getHttpServer())
+        .get("/auth/me")
+        .set("Authorization", `Bearer ${userToken}`)
+        .set("Cookie", userCookie)
+        .set("x-organization-id", initialOrg!.id)
+        .expect(200);
+
+      expect(meRes.body.activeOrganization.id).toBe(initialOrg!.id);
+      expect(meRes.body.activeOrganization.name).toBe("Setup Initial Org");
+    });
+
+    it("12: should block unauthorized/cross-tenant users from viewing organization details with 403", async () => {
+      // Register an intruder user who has no membership in createdOrgId
+      const intruderRes = await request(app.getHttpServer())
+        .post("/auth/register")
+        .send({
+          email: "intruder@valgrow-flow.test",
+          password: "Password123!",
+          firstName: "Intruder",
+          lastName: "User",
+          organizationName: "Intruder Org",
+          organizationSlug: "intruder-org",
+        })
+        .expect(201);
+
+      const intruderToken = intruderRes.body.tokens.accessToken;
+      const intruderCookie = intruderRes.headers["set-cookie"];
+
+      // Intruder attempts to inspect createdOrgId
+      const forbiddenRes = await request(app.getHttpServer())
+        .get(`/organizations/${createdOrgId}`)
+        .set("Authorization", `Bearer ${intruderToken}`)
+        .set("Cookie", intruderCookie)
+        .expect(403);
+
+      expect(forbiddenRes.body.message).toContain("Access denied");
+
+      // Non-existent organization returns 403 Forbidden
+      await request(app.getHttpServer())
+        .get("/organizations/00000000-0000-0000-0000-000000000000")
+        .set("Authorization", `Bearer ${intruderToken}`)
+        .set("Cookie", intruderCookie)
+        .expect(403);
+    });
   });
 });

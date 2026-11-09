@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListPage, StatusBadge, type ListRow } from "@/components/foundation/list-page";
 import type { Column } from "@/components/foundation/data-table";
+import { exportToCsv, getExportFilename } from "@/lib/exportCsv";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   useOrganizations,
   useCreateOrganization,
@@ -39,7 +41,10 @@ import {
   Info,
   AlertCircle,
   ArrowRight,
+  ArrowRightLeft,
   Pencil,
+  RotateCcw,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { CreatedOrganizationResult } from "@/hooks/queries/useOrganizations";
@@ -47,6 +52,7 @@ import { CurrencySelect } from "@/components/ui/currency-select";
 import { formatCurrencyLabel } from "@/lib/currencies";
 import { CountrySelect } from "@/components/ui/country-select";
 import { formatCountryName } from "@/lib/countries";
+import { OrganizationDetailDialog } from "@/components/organizations/organization-detail-dialog";
 
 const columns: Column<ListRow>[] = [
   { key: "name", header: "Setting" },
@@ -77,7 +83,75 @@ export const Route = createFileRoute("/organization")({
 
 function OrganizationSettingsPage() {
   const { data: userMe } = useCurrentUser();
-  const { data: orgsData, refetch: refetchOrgs } = useOrganizations();
+
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const hasActiveFilters = Boolean(search.trim() || statusFilter !== "ALL");
+
+  const resetFilters = () => {
+    setSearch("");
+    setStatusFilter("ALL");
+  };
+
+  const {
+    data: orgsData,
+    refetch: refetchOrgs,
+    isFetching: isOrgsFetching,
+    isLoading: isOrgsLoading,
+  } = useOrganizations({
+    search: debouncedSearch.trim() || undefined,
+    status: statusFilter !== "ALL" ? statusFilter : undefined,
+  });
+
+  // Client-side smooth instantaneous filtering on top of server query results
+  const displayOrgs = useMemo(() => {
+    if (!orgsData) return [];
+    const term = search.trim().toLowerCase();
+    if (!term) return orgsData;
+    return orgsData.filter(
+      (o) =>
+        o.name.toLowerCase().includes(term) ||
+        (o.legalName && o.legalName.toLowerCase().includes(term)) ||
+        o.slug.toLowerCase().includes(term),
+    );
+  }, [orgsData, search]);
+
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const items = displayOrgs || [];
+      exportToCsv({
+        filename: getExportFilename("valgrow-organizations"),
+        columns: [
+          { header: "Organization Name", accessor: (org) => org.name },
+          { header: "Legal Name", accessor: (org) => org.legalName || "" },
+          { header: "Workspace Slug", accessor: (org) => org.slug },
+          { header: "Role", accessor: (org) => org.role },
+          { header: "Plan Tier", accessor: (org) => org.plan },
+          {
+            header: "Country",
+            accessor: (org) => (org.country ? formatCountryName(org.country) : "India"),
+          },
+          { header: "Currency", accessor: (org) => org.currency || "INR" },
+          { header: "Timezone", accessor: (org) => org.timezone || "Asia/Kolkata" },
+          {
+            header: "Fiscal Year Start",
+            accessor: (org) => (org as any).fiscalYearStart || "April",
+          },
+          { header: "Status", accessor: (org) => org.status },
+        ],
+        data: items,
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const createOrgMutation = useCreateOrganization();
 
   const [showModal, setShowModal] = useState(false);
@@ -111,6 +185,7 @@ function OrganizationSettingsPage() {
 
   const updateOrgMutation = useUpdateOrganization();
   const [showEditModal, setShowEditModal] = useState(false);
+  const [viewingOrgId, setViewingOrgId] = useState<string | null>(null);
   const [editingOrg, setEditingOrg] = useState<OrganizationItem | null>(null);
   const [editName, setEditName] = useState("");
   const [editLegalName, setEditLegalName] = useState("");
@@ -202,28 +277,34 @@ function OrganizationSettingsPage() {
     },
   ];
 
-  const stats = [
-    {
-      label: "Organizations",
-      value: String(orgsData?.length || 1),
-      hint: "Accessible workspaces",
-    },
-    {
-      label: "Branches",
-      value: "4",
-      hint: "Across operational cities",
-    },
-    {
-      label: "Members",
-      value: "128",
-      hint: "Seats in use",
-    },
-    {
-      label: "Plan",
-      value: currentOrgItem?.plan || activeOrg?.plan || "Starter",
-      hint: "Workspace tier",
-    },
-  ];
+  const totalWorkspaces = userMe?.organizations?.length ?? orgsData?.length ?? 1;
+  const currentPlan = currentOrgItem?.plan || activeOrg?.plan || "Starter";
+
+  const stats = useMemo(
+    () => [
+      {
+        label: "Organizations",
+        value: String(totalWorkspaces),
+        hint: "Accessible workspaces",
+      },
+      {
+        label: "Branches",
+        value: "4",
+        hint: "Across operational cities",
+      },
+      {
+        label: "Members",
+        value: "128",
+        hint: "Seats in use",
+      },
+      {
+        label: "Plan",
+        value: currentPlan,
+        hint: "Workspace tier",
+      },
+    ],
+    [totalWorkspaces, currentPlan],
+  );
 
   const resetForm = () => {
     setName("");
@@ -340,6 +421,39 @@ function OrganizationSettingsPage() {
     window.location.reload();
   };
 
+  const filterContent = (
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-1.5 min-w-[160px]">
+        <Label className="text-xs text-muted-foreground font-normal">Status</Label>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-9 px-3 rounded-md border border-input bg-background text-sm text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="PENDING">Pending</option>
+          <option value="SUSPENDED">Suspended</option>
+        </select>
+      </div>
+
+      {hasActiveFilters && (
+        <div className="flex items-end self-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={resetFilters}
+            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset filters
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       <ListPage
@@ -348,73 +462,138 @@ function OrganizationSettingsPage() {
         eyebrow="Organization"
         actionLabel="New organization"
         onAction={handleOpenModal}
+        onExport={handleExport}
+        isExporting={isExporting}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search organizations by name..."
+        filterContent={filterContent}
+        hasActiveFilters={hasActiveFilters}
         stats={stats}
         columns={columns}
         rows={rows}
+        isLoading={isOrgsLoading && !orgsData}
       >
-        {orgsData && orgsData.length > 0 && (
-          <div className="rounded-xl border border-border/80 bg-card p-4 shadow-sm mb-4">
+        {displayOrgs && displayOrgs.length > 0 ? (
+          <div className="rounded-xl border border-border/80 bg-card p-4 shadow-sm mb-4 transition-all duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-border/60">
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold text-foreground">Your Organizations</h3>
+                {isOrgsFetching && (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/70 ml-1" />
+                )}
               </div>
               <Badge variant="outline" className="text-xs">
-                {orgsData.length} Workspace{orgsData.length === 1 ? "" : "s"}
+                {displayOrgs.length} Workspace{displayOrgs.length === 1 ? "" : "s"}
               </Badge>
             </div>
-            <div className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              {orgsData.map((org) => {
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {displayOrgs.map((org) => {
                 const isActive = org.id === activeOrg?.id;
                 return (
                   <div
                     key={org.id}
-                    className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
+                    className={`flex flex-col justify-between rounded-xl border p-3.5 transition-all duration-150 ${
                       isActive
-                        ? "border-primary/50 bg-primary/5"
-                        : "border-border/60 bg-background hover:bg-muted/30"
+                        ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20 shadow-xs"
+                        : "border-border/70 bg-card hover:border-border hover:bg-muted/10 shadow-2xs"
                     }`}
                   >
-                    <div className="min-w-0 pr-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-xs font-semibold text-foreground">
-                          {org.name}
-                        </span>
-                        {isActive && (
-                          <Badge variant="success" className="text-[10px] py-0 px-1.5">
-                            Active
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span>Role: {org.role}</span>
-                        <span>•</span>
-                        <span>{formatCurrencyLabel(org.currency)}</span>
-                        <span>•</span>
-                        <span>{org.country ? formatCountryName(org.country) : "India"}</span>
-                        <span>•</span>
-                        <span>{org.plan}</span>
+                    {/* Top Row: Name, Slug, Badges */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className="truncate text-sm font-semibold text-foreground"
+                            title={org.name}
+                          >
+                            {org.name}
+                          </span>
+                          {isActive && (
+                            <Badge
+                              variant="success"
+                              className="text-[10px] py-0 px-1.5 font-medium shrink-0"
+                            >
+                              Active
+                            </Badge>
+                          )}
+                          {org.status !== "ACTIVE" && (
+                            <Badge
+                              variant="destructive"
+                              className="text-[10px] py-0 px-1.5 font-medium shrink-0"
+                            >
+                              {org.status}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground/80 font-mono truncate mt-0.5">
+                          {org.slug}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+
+                    {/* Middle Row: Structured 2x2 Metadata Grid */}
+                    <div className="my-2.5 py-2 border-y border-border/40 grid grid-cols-2 gap-x-2 gap-y-1.5 text-[11px]">
+                      <div className="flex items-center gap-1 truncate text-muted-foreground">
+                        <span className="text-muted-foreground/70 shrink-0">Role:</span>
+                        <span className="font-medium text-foreground truncate">{org.role}</span>
+                      </div>
+                      <div className="flex items-center gap-1 truncate text-muted-foreground">
+                        <span className="text-muted-foreground/70 shrink-0">Plan:</span>
+                        <span className="font-medium text-foreground truncate">{org.plan}</span>
+                      </div>
+                      <div className="flex items-center gap-1 truncate text-muted-foreground">
+                        <span className="text-muted-foreground/70 shrink-0">Country:</span>
+                        <span className="font-medium text-foreground truncate">
+                          {org.country ? formatCountryName(org.country) : "India"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 truncate text-muted-foreground">
+                        <span className="text-muted-foreground/70 shrink-0">Currency:</span>
+                        <span
+                          className="font-medium text-foreground truncate"
+                          title={formatCurrencyLabel(org.currency)}
+                        >
+                          {org.currency}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Bottom Row: Coloured Action Buttons */}
+                    <div className="flex items-center justify-end gap-1.5 pt-0.5">
                       <Button
                         type="button"
-                        variant="ghost"
+                        size="sm"
+                        onClick={() => setViewingOrgId(org.id)}
+                        className="h-7 px-2.5 text-xs font-medium bg-sky-500/10 text-sky-700 hover:bg-sky-500/20 border border-sky-500/30 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/40 transition-colors shadow-2xs"
+                        title="View organization details"
+                        aria-label="View organization details"
+                      >
+                        <Eye className="h-3.5 w-3.5 mr-1" />
+                        Details
+                      </Button>
+                      <Button
+                        type="button"
                         size="sm"
                         onClick={() => handleOpenEditModal(org)}
-                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground shrink-0"
+                        className="h-7 px-2.5 text-xs font-medium bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 border border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 transition-colors shadow-2xs"
+                        title="Edit organization"
+                        aria-label="Edit organization"
                       >
-                        <Pencil className="h-3 w-3 mr-1" />
+                        <Pencil className="h-3.5 w-3.5 mr-1" />
                         Edit
                       </Button>
                       {!isActive && (
                         <Button
                           type="button"
-                          variant="ghost"
                           size="sm"
                           onClick={() => handleSwitchOrg(org.id)}
-                          className="h-7 text-xs text-muted-foreground hover:text-foreground shrink-0"
+                          className="h-7 px-2.5 text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors shadow-2xs"
+                          title="Switch to this organization"
+                          aria-label="Switch to this organization"
                         >
+                          <ArrowRightLeft className="h-3.5 w-3.5 mr-1" />
                           Switch
                         </Button>
                       )}
@@ -424,7 +603,11 @@ function OrganizationSettingsPage() {
               })}
             </div>
           </div>
-        )}
+        ) : hasActiveFilters ? (
+          <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground mb-4 transition-all duration-200">
+            No organizations match "{search}".
+          </div>
+        ) : null}
       </ListPage>
 
       <Dialog
@@ -992,6 +1175,18 @@ function OrganizationSettingsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <OrganizationDetailDialog
+        orgId={viewingOrgId}
+        open={Boolean(viewingOrgId)}
+        onOpenChange={(open) => !open && setViewingOrgId(null)}
+        onEdit={(org) => {
+          setViewingOrgId(null);
+          handleOpenEditModal(org);
+        }}
+        onSwitch={(orgId) => handleSwitchOrg(orgId)}
+        isCurrentActive={viewingOrgId === activeOrg?.id}
+      />
     </>
   );
 }

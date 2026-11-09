@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListPage, StatusBadge, type ListRow } from "@/components/foundation/list-page";
 import type { Column } from "@/components/foundation/data-table";
+import { exportToCsv, getExportFilename } from "@/lib/exportCsv";
 import {
   useSuppliers,
   useCreateSupplier,
@@ -33,11 +34,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Eye, Loader2 } from "lucide-react";
+import { Plus, Trash2, Eye, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useActiveCurrency } from "@/hooks/useActiveCurrency";
 import { CurrencySelect } from "@/components/ui/currency-select";
 import { CountrySelect } from "@/components/ui/country-select";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const title = "Suppliers";
 const description = "Supplier profiles, payment terms, contact details, and vendor relationships.";
@@ -53,7 +55,26 @@ export const Route = createFileRoute("/suppliers")({
 });
 
 function SuppliersPage() {
-  const { data: suppliersData } = useSuppliers();
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
+  const hasActiveFilters = Boolean(statusFilter !== "ALL");
+
+  const handleClearFilters = () => {
+    setStatusFilter("ALL");
+    setSearch("");
+  };
+
+  const {
+    data: suppliersData,
+    isLoading: isSuppliersLoading,
+    isError: isSuppliersError,
+    refetch: refetchSuppliers,
+  } = useSuppliers({
+    search: debouncedSearch.trim() || undefined,
+    status: statusFilter !== "ALL" ? statusFilter : undefined,
+  });
   const createSupplierMutation = useCreateSupplier();
   const deleteSupplierMutation = useDeleteSupplier();
 
@@ -139,73 +160,192 @@ function SuppliersPage() {
     }
   };
 
-  const columns: Column<ListRow>[] = [
-    { key: "code", header: "Supplier Code" },
-    { key: "name", header: "Supplier Name" },
-    { key: "contactPerson", header: "Contact Person" },
-    { key: "email", header: "Email" },
-    { key: "phone", header: "Phone" },
-    { key: "country", header: "Country" },
-    { key: "paymentTerms", header: "Payment Terms" },
-    {
-      key: "status",
-      header: "Status",
-      render: (r) => <StatusBadge value={String(r["status"] ?? "")} />,
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      render: (r) => {
-        const item = suppliersData?.find((s) => s.id === r["id"]);
-        return (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => item && setSelectedSupplier(item)}
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive"
-              onClick={() => item && deleteSupplierMutation.mutate(item.id)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        );
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Client-side smooth instantaneous filtering and relevance ranking on top of server query results
+  const displaySuppliers = useMemo(() => {
+    if (!suppliersData) return [];
+    const query = search.trim();
+    if (!query) return suppliersData;
+
+    const qClean = query.toLowerCase().replace(/[-_\s]+/g, "");
+    const qRaw = query.toLowerCase();
+
+    const getRelevance = (s: SupplierItem) => {
+      const nameRaw = (s.name || "").toLowerCase();
+      const codeRaw = (s.code || "").toLowerCase();
+      const nameClean = nameRaw.replace(/[-_\s]+/g, "");
+      const codeClean = codeRaw.replace(/[-_\s]+/g, "");
+      const contactRaw = (s.contactPerson || "").toLowerCase();
+      const emailRaw = (s.email || "").toLowerCase();
+      const phoneRaw = (s.phone || "").toLowerCase();
+
+      // 1. Exact match (code or name)
+      if (nameClean === qClean || nameRaw === qRaw || codeClean === qClean || codeRaw === qRaw) {
+        return 100;
+      }
+      // 2. Starts with name or code
+      if (nameClean.startsWith(qClean) || nameRaw.startsWith(qRaw) || codeClean.startsWith(qClean) || codeRaw.startsWith(qRaw)) {
+        return 80;
+      }
+      // 3. Word boundary starts with
+      if (
+        nameRaw.split(/[-_\s]+/).some((w) => w.startsWith(qRaw) || w.startsWith(qClean)) ||
+        codeRaw.split(/[-_\s]+/).some((w) => w.startsWith(qRaw) || w.startsWith(qClean))
+      ) {
+        return 70;
+      }
+      // 4. Contains name or code
+      if (nameClean.includes(qClean) || nameRaw.includes(qRaw) || codeClean.includes(qClean) || codeRaw.includes(qRaw)) {
+        return 60;
+      }
+      // 5. Contact person, email, phone match
+      if (contactRaw.includes(qRaw) || emailRaw.includes(qRaw) || phoneRaw.includes(qRaw)) {
+        return 50;
+      }
+      return 0;
+    };
+
+    const scored = suppliersData
+      .map((s) => ({ item: s, relevance: getRelevance(s) }))
+      .filter((entry) => entry.relevance > 0);
+
+    scored.sort((a, b) => b.relevance - a.relevance);
+    return scored.map((entry) => entry.item);
+  }, [suppliersData, search]);
+
+  const handleExport = () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const items = displaySuppliers || [];
+      exportToCsv({
+        filename: getExportFilename("valgrow-suppliers"),
+        columns: [
+          { header: "Supplier Code", accessor: (s) => s.code },
+          { header: "Supplier Name", accessor: (s) => s.name },
+          { header: "Contact Person", accessor: (s) => s.contactPerson || "" },
+          { header: "Email", accessor: (s) => s.email || "" },
+          { header: "Phone", accessor: (s) => s.phone || "" },
+          { header: "Address", accessor: (s) => s.address || "" },
+          { header: "City", accessor: (s) => s.city || "" },
+          { header: "Country", accessor: (s) => s.country || "India" },
+          { header: "Tax ID / GSTIN", accessor: (s) => s.taxIdNumber || "" },
+          { header: "Currency", accessor: (s) => s.currency || "INR" },
+          { header: "Payment Terms", accessor: (s) => s.paymentTerms || "" },
+          { header: "Status", accessor: (s) => s.status },
+        ],
+        data: items,
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const columns: Column<ListRow>[] = useMemo(
+    () => [
+      { key: "code", header: "Supplier Code" },
+      { key: "name", header: "Supplier Name" },
+      { key: "contactPerson", header: "Contact Person" },
+      { key: "email", header: "Email" },
+      { key: "phone", header: "Phone" },
+      { key: "country", header: "Country" },
+      { key: "paymentTerms", header: "Payment Terms" },
+      {
+        key: "status",
+        header: "Status",
+        render: (r) => <StatusBadge value={String(r["status"] ?? "")} />,
       },
-    },
-  ];
+      {
+        key: "actions",
+        header: "Actions",
+        render: (r) => {
+          const item = suppliersData?.find((s) => s.id === r["id"]);
+          return (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => item && setSelectedSupplier(item)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive"
+                onClick={() => item && deleteSupplierMutation.mutate(item.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        },
+      },
+    ],
+    [suppliersData, deleteSupplierMutation],
+  );
 
-  const rows: ListRow[] = suppliersData
-    ? suppliersData.map((s) => ({
-        id: s.id,
-        code: s.code,
-        name: s.name,
-        contactPerson: s.contactPerson || "N/A",
-        email: s.email || "N/A",
-        phone: s.phone || "N/A",
-        country: s.country || "India",
-        paymentTerms: s.paymentTerms || "NET30",
-        status: s.status === "ACTIVE" ? "Active" : "Inactive",
-      }))
-    : [];
+  const rows: ListRow[] = useMemo(() => {
+    return displaySuppliers.map((s) => ({
+      id: s.id,
+      code: s.code,
+      name: s.name,
+      contactPerson: s.contactPerson || "N/A",
+      email: s.email || "N/A",
+      phone: s.phone || "N/A",
+      country: s.country || "India",
+      paymentTerms: s.paymentTerms || "NET30",
+      status: s.status === "ACTIVE" ? "Active" : "Inactive",
+    }));
+  }, [displaySuppliers]);
 
-  const stats = [
-    { label: "Total Suppliers", value: String(suppliersData?.length || 0) },
-    {
-      label: "Active Vendors",
-      value: String(suppliersData?.filter((s) => s.status === "ACTIVE").length || 0),
-    },
-    {
-      label: "Domestic (India)",
-      value: String(suppliersData?.filter((s) => !s.country || s.country === "India").length || 0),
-    },
-  ];
+  const stats = useMemo(
+    () => [
+      { label: "Total Suppliers", value: String(suppliersData?.length || 0) },
+      {
+        label: "Active Vendors",
+        value: String(suppliersData?.filter((s) => s.status === "ACTIVE").length || 0),
+      },
+      {
+        label: "Domestic (India)",
+        value: String(suppliersData?.filter((s) => !s.country || s.country === "India").length || 0),
+      },
+    ],
+    [suppliersData],
+  );
+
+  const filterContent = (
+    <div className="flex flex-wrap items-center gap-2.5 w-full">
+      {/* Status Filter */}
+      <div className="w-40">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Statuses</SelectItem>
+            <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="INACTIVE">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Reset Action */}
+      {hasActiveFilters && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleClearFilters}
+          className="h-8 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <RotateCcw className="mr-1 h-3 w-3" />
+          Reset filters
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <>
@@ -215,9 +355,19 @@ function SuppliersPage() {
         eyebrow="Purchasing & Vendors"
         actionLabel="New supplier"
         onAction={handleOpenAdd}
+        onExport={handleExport}
+        isExporting={isExporting}
         stats={stats}
         columns={columns}
         rows={rows}
+        isLoading={isSuppliersLoading && !suppliersData}
+        isError={isSuppliersError}
+        onRetry={() => refetchSuppliers()}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search suppliers by name, code, contact person, email, or phone…"
+        filterContent={filterContent}
+        hasActiveFilters={hasActiveFilters}
       />
 
       {/* Create Supplier Dialog */}

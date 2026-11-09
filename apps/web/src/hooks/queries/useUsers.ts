@@ -16,11 +16,19 @@ export interface UserItem {
   createdAt: string;
 }
 
-export function useUsers(orgId?: string) {
+export function useUsers(
+  orgId?: string,
+  params?: { search?: string; status?: string; role?: string },
+) {
   const effectiveOrgId = orgId || getActiveOrgId();
+  const queryParams = new URLSearchParams();
+  if (params?.search?.trim()) queryParams.set("search", params.search.trim());
+  if (params?.status && params.status !== "ALL") queryParams.set("status", params.status);
+  if (params?.role && params.role !== "ALL") queryParams.set("role", params.role);
+  const qs = queryParams.toString() ? `?${queryParams.toString()}` : "";
   return useQuery<UserItem[]>({
-    queryKey: ["users", effectiveOrgId],
-    queryFn: () => apiClient<UserItem[]>("/users"),
+    queryKey: ["users", effectiveOrgId, params?.search, params?.status, params?.role],
+    queryFn: () => apiClient<UserItem[]>(`/users${qs}`),
   });
 }
 

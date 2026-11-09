@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { seedDefaultChartOfAccounts } from "../accounts/default-accounts.seed";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
@@ -232,9 +233,34 @@ export class OrganizationsService {
     });
   }
 
-  async getUserOrganizations(userId: string) {
+  async getUserOrganizations(
+    userId: string,
+    query?: { search?: string; status?: string },
+  ) {
+    const orgWhere: Prisma.OrganizationWhereInput = {
+      deletedAt: null,
+    };
+
+    if (query?.status) {
+      orgWhere.status = query.status as any;
+    }
+
+    if (query?.search) {
+      const term = query.search.trim();
+      if (term) {
+        orgWhere.OR = [
+          { name: { contains: term, mode: "insensitive" } },
+          { legalName: { contains: term, mode: "insensitive" } },
+        ];
+      }
+    }
+
     const memberships = await this.prisma.organizationMember.findMany({
-      where: { userId, status: "ACTIVE" },
+      where: {
+        userId,
+        status: "ACTIVE",
+        organization: orgWhere,
+      },
       include: {
         organization: {
           include: {
@@ -269,24 +295,82 @@ export class OrganizationsService {
         organization: {
           include: {
             settings: true,
+            branches: {
+              where: { deletedAt: null },
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                city: true,
+                address: true,
+                phone: true,
+                email: true,
+                status: true,
+              },
+              orderBy: { createdAt: "asc" },
+            },
+            _count: {
+              select: {
+                members: true,
+                branches: true,
+                warehouses: true,
+              },
+            },
           },
         },
         role: true,
       },
     });
 
-    if (!membership || membership.status !== "ACTIVE") {
+    if (
+      !membership ||
+      membership.status !== "ACTIVE" ||
+      membership.organization.deletedAt !== null
+    ) {
       throw new ForbiddenException("Access denied to this organization");
     }
 
-    const countrySetting = membership.organization.settings?.find(
-      (s) => s.key === "country",
-    );
+    const org = membership.organization;
+    const settings = org.settings || [];
+    const getSetting = (k: string) => settings.find((s) => s.key === k)?.value;
+
+    const primaryBranch = org.branches?.[0];
+
+    const country = getSetting("country") || "India";
+    const taxId =
+      getSetting("taxId") ||
+      getSetting("tax_id") ||
+      getSetting("gstin") ||
+      null;
+    const registrationNumber =
+      getSetting("registrationNumber") ||
+      getSetting("reg_number") ||
+      getSetting("cin") ||
+      null;
+    const email = getSetting("email") || primaryBranch?.email || null;
+    const phone = getSetting("phone") || primaryBranch?.phone || null;
+    const website = getSetting("website") || null;
+    const primaryAddress = primaryBranch?.address || null;
+    const primaryCity = primaryBranch?.city || null;
+    const primaryBranchName = primaryBranch?.name || null;
 
     return {
-      ...membership.organization,
-      country: countrySetting?.value || "India",
+      ...org,
+      country,
+      taxId,
+      registrationNumber,
+      email,
+      phone,
+      website,
+      primaryAddress,
+      primaryCity,
+      primaryBranchName,
       role: membership.role.name,
+      membershipStatus: membership.status,
+      joinedAt: membership.createdAt,
+      memberCount: org._count?.members ?? 1,
+      branchCount: org._count?.branches ?? 0,
+      warehouseCount: org._count?.warehouses ?? 0,
     };
   }
 
@@ -297,46 +381,59 @@ export class OrganizationsService {
       );
     }
 
-    if (data.country !== undefined) {
-      const countryVal =
-        typeof data.country === "string" ? data.country.trim() : "";
-      if (countryVal) {
-        await this.prisma.organizationSettings.upsert({
-          where: {
-            organizationId_key: {
-              organizationId: id,
-              key: "country",
+    const settingKeys = [
+      "country",
+      "taxId",
+      "registrationNumber",
+      "email",
+      "phone",
+      "website",
+    ];
+    for (const key of settingKeys) {
+      if (data[key] !== undefined) {
+        const val = typeof data[key] === "string" ? data[key].trim() : "";
+        if (val) {
+          await this.prisma.organizationSettings.upsert({
+            where: {
+              organizationId_key: {
+                organizationId: id,
+                key,
+              },
             },
-          },
-          update: {
-            value: countryVal,
-          },
-          create: {
-            organizationId: id,
-            key: "country",
-            value: countryVal,
-            scope: "Global",
-          },
-        });
-      } else {
-        await this.prisma.organizationSettings.deleteMany({
-          where: {
-            organizationId: id,
-            key: "country",
-          },
-        });
+            update: { value: val },
+            create: {
+              organizationId: id,
+              key,
+              value: val,
+              scope: "Global",
+            },
+          });
+        } else {
+          await this.prisma.organizationSettings.deleteMany({
+            where: {
+              organizationId: id,
+              key,
+            },
+          });
+        }
       }
     }
 
     const updated = await this.prisma.organization.update({
       where: { id },
       data: {
-        name: data.name,
-        legalName: data.legalName,
-        currency: data.currency,
-        timezone: data.timezone,
-        fiscalYearStart: data.fiscalYearStart,
-        plan: data.plan,
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.legalName !== undefined ? { legalName: data.legalName } : {}),
+        ...(data.currency !== undefined ? { currency: data.currency } : {}),
+        ...(data.timezone !== undefined ? { timezone: data.timezone } : {}),
+        ...(data.fiscalYearStart !== undefined
+          ? { fiscalYearStart: data.fiscalYearStart }
+          : {}),
+        ...(data.valuationMethod !== undefined
+          ? { valuationMethod: data.valuationMethod }
+          : {}),
+        ...(data.plan !== undefined ? { plan: data.plan } : {}),
+        ...(data.status !== undefined ? { status: data.status } : {}),
       },
     });
 

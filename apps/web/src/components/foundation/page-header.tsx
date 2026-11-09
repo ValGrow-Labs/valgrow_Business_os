@@ -17,8 +17,8 @@ export function PageHeader({
   guide?: PageGuideId;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4">
-      <div className="min-w-0 space-y-1">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0 space-y-1 flex-1">
         {eyebrow ? <p className="text-xs font-medium text-primary">{eyebrow}</p> : null}
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
         {description ? (
@@ -26,7 +26,7 @@ export function PageHeader({
         ) : null}
       </div>
       {actions || guide ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 sm:self-start">
           {guide ? <PageGuideButton id={guide} /> : null}
           {actions}
         </div>

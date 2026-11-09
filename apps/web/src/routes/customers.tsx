@@ -9,6 +9,7 @@ import {
   type ListRow,
 } from "@/components/foundation/list-page";
 import type { Column } from "@/components/foundation/data-table";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   useCustomers,
   useCreateCustomer,
@@ -30,7 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Eye, Edit2 } from "lucide-react";
+import { Plus, Trash2, Eye, Edit2, RotateCcw } from "lucide-react";
 import { exportToCsv, getExportFilename } from "@/lib/exportCsv";
 
 const title = "Customers";
@@ -55,12 +56,26 @@ function CustomersPage() {
   const canUpdate = permissions.includes("sales.update");
   const canDelete = permissions.includes("sales.delete");
 
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const hasActiveFilters = Boolean(search.trim() || statusFilter !== "ALL");
+
+  const resetFilters = () => {
+    setSearch("");
+    setStatusFilter("ALL");
+  };
+
   const {
     data: customersData,
     isLoading,
     isError: isCustomersError,
     refetch: refetchCustomers,
-  } = useCustomers();
+  } = useCustomers({
+    search: debouncedSearch.trim() || undefined,
+    status: statusFilter !== "ALL" ? statusFilter : undefined,
+  });
   const createCustomerMutation = useCreateCustomer();
   const updateCustomerMutation = useUpdateCustomer();
   const deleteCustomerMutation = useDeleteCustomer();
@@ -294,6 +309,39 @@ function CustomersPage() {
     }
   };
 
+  const filterContent = (
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-1.5 min-w-[160px]">
+        <Label className="text-xs text-muted-foreground font-normal">Status</Label>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-9 px-3 rounded-md border border-input bg-background text-sm text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+          <option value="BLOCKED">Blocked</option>
+        </select>
+      </div>
+
+      {hasActiveFilters && (
+        <div className="flex items-end self-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={resetFilters}
+            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset filters
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       <ListPage guide="customers"
@@ -306,6 +354,11 @@ function CustomersPage() {
           resetForm();
           setIsAddOpen(true);
         }}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search customers by name, code, email, phone..."
+        filterContent={filterContent}
+        hasActiveFilters={hasActiveFilters}
         onExport={handleExport}
         isExporting={isExporting}
         stats={stats}

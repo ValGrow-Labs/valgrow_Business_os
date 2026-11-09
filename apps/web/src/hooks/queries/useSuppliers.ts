@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
 export interface SupplierContactItem {
@@ -36,10 +36,21 @@ export interface SupplierItem {
   _count?: { purchaseOrders: number };
 }
 
-export function useSuppliers() {
+export interface SupplierParams {
+  search?: string | undefined;
+  status?: string | undefined;
+}
+
+export function useSuppliers(params?: SupplierParams) {
+  const queryParams = new URLSearchParams();
+  if (params?.search) queryParams.set("search", params.search);
+  if (params?.status && params.status !== "ALL") queryParams.set("status", params.status);
+  const queryStr = queryParams.toString() ? `?${queryParams.toString()}` : "";
+
   return useQuery<SupplierItem[]>({
-    queryKey: ["suppliers"],
-    queryFn: () => apiClient<SupplierItem[]>("/suppliers"),
+    queryKey: ["suppliers", params],
+    queryFn: () => apiClient<SupplierItem[]>(`/suppliers${queryStr}`),
+    placeholderData: keepPreviousData,
   });
 }
 

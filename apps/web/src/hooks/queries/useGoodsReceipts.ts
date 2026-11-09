@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
 export interface GoodsReceiptItemData {
@@ -40,11 +40,23 @@ export interface GoodsReceiptItem {
   landedCostAllocations?: any[];
 }
 
-export function useGoodsReceipts(status?: string | undefined) {
+export interface GoodsReceiptParams {
+  status?: string | undefined;
+  search?: string | undefined;
+}
+
+export function useGoodsReceipts(params?: GoodsReceiptParams | string | undefined) {
+  const queryParams = typeof params === "string" ? { status: params } : (params ?? {});
+  const queryParts: string[] = [];
+  if (queryParams.status) queryParts.push(`status=${encodeURIComponent(queryParams.status)}`);
+  if (queryParams.search) queryParts.push(`search=${encodeURIComponent(queryParams.search)}`);
+  const queryString = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+
   return useQuery<GoodsReceiptItem[]>({
-    queryKey: ["goods-receipts", status],
+    queryKey: ["goods-receipts", queryParams.status, queryParams.search],
     queryFn: () =>
-      apiClient<GoodsReceiptItem[]>(`/goods-receipts${status ? `?status=${status}` : ""}`),
+      apiClient<GoodsReceiptItem[]>(`/goods-receipts${queryString}`),
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -24,10 +24,21 @@ export interface CustomerItem {
   updatedAt: string;
 }
 
-export function useCustomers() {
+export interface CustomerParams {
+  status?: string | undefined;
+  search?: string | undefined;
+}
+
+export function useCustomers(params?: CustomerParams | string | undefined) {
+  const queryParams = typeof params === "string" ? { status: params } : (params ?? {});
+  const queryParts: string[] = [];
+  if (queryParams.status) queryParts.push(`status=${encodeURIComponent(queryParams.status)}`);
+  if (queryParams.search) queryParts.push(`search=${encodeURIComponent(queryParams.search)}`);
+  const queryString = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+
   return useQuery<CustomerItem[]>({
-    queryKey: ["customers"],
-    queryFn: () => apiClient<CustomerItem[]>("/customers"),
+    queryKey: ["customers", queryParams.status, queryParams.search],
+    queryFn: () => apiClient<CustomerItem[]>(`/customers${queryString}`),
   });
 }
 

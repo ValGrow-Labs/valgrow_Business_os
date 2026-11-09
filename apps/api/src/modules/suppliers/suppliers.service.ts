@@ -8,14 +8,37 @@ import { CreateSupplierDto } from "./dto/create-supplier.dto";
 import { UpdateSupplierDto } from "./dto/update-supplier.dto";
 import { CreateSupplierContactDto } from "./dto/create-supplier-contact.dto";
 import { UpdateSupplierContactDto } from "./dto/update-supplier-contact.dto";
+import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class SuppliersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSuppliers(organizationId: string) {
+  async getSuppliers(
+    organizationId: string,
+    query?: { search?: string; status?: string },
+  ) {
+    const where: Prisma.SupplierWhereInput = { organizationId, deletedAt: null };
+
+    if (query?.status && query.status !== "ALL") {
+      where.status = query.status as any;
+    }
+
+    if (query?.search && query.search.trim()) {
+      const rawTerm = query.search.trim();
+      const cleanTerm = rawTerm.replace(/[-_\s]+/g, "");
+      const searchTerms = Array.from(new Set([rawTerm, cleanTerm].filter(Boolean)));
+      where.OR = searchTerms.flatMap((term) => [
+        { name: { contains: term, mode: "insensitive" } },
+        { code: { contains: term, mode: "insensitive" } },
+        { email: { contains: term, mode: "insensitive" } },
+        { phone: { contains: term, mode: "insensitive" } },
+        { contactPerson: { contains: term, mode: "insensitive" } },
+      ]);
+    }
+
     return this.prisma.supplier.findMany({
-      where: { organizationId, deletedAt: null },
+      where,
       include: {
         contacts: true,
         _count: { select: { purchaseOrders: true } },
