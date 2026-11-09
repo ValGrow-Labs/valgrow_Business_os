@@ -63,7 +63,6 @@ export const navGroups: NavGroup[] = [
     label: "",
     items: [
       { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
-      { title: "Global Search", url: "/search", icon: Search },
       { title: "How it works", url: "/how-it-works", icon: Workflow },
     ],
   },
@@ -73,7 +72,6 @@ export const navGroups: NavGroup[] = [
       { title: "POS", url: "/pos", icon: ShoppingBag, permission: "pos.create" },
       { title: "Billing Desk", url: "/pos-billing", icon: Receipt, permission: "pos.billing" },
       { title: "Cashier Counter", url: "/pos-cashier", icon: CreditCard, permission: ["pos.cashier", "pos.checkout"] },
-      { title: "Sales Transactions", url: "/sales-transactions", icon: ScrollText, permission: "pos.read" },
       { title: "Products", url: "/products", icon: Package },
       { title: "Inventory", url: "/inventory", icon: Boxes },
       { title: "Purchasing", url: "/purchasing", icon: ShoppingCart },
@@ -140,6 +138,10 @@ export const primaryNav: { title: string; url: string; soon?: boolean }[] = [
   { title: "Reports", url: "/", soon: true },
 ];
 
-export const searchTargets = navGroups
-  .filter((g) => g.label !== "Business modules")
-  .flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })));
+export const searchTargets = [
+  ...navGroups
+    .filter((g) => g.label !== "Business modules")
+    .flatMap((g) => g.items.map((i) => ({ ...i, group: g.label }))),
+  { title: "Global Search", url: "/search", icon: Search, group: "Foundation" },
+  { title: "Sales Transactions", url: "/sales-transactions", icon: ScrollText, group: "OPERATIONS", permission: "pos.read" },
+];
