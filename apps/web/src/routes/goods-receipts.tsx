@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { downloadFile } from "@/lib/api-client";
-import { Plus, CheckCircle2, Ban, AlertTriangle, Download, RotateCcw } from "lucide-react";
+import { Plus, CheckCircle2, Ban, AlertTriangle, FileText, Loader2, RotateCcw } from "lucide-react";
 
 const title = "Goods Receipts";
 const description =
@@ -203,8 +203,13 @@ function GoodsReceiptsPage() {
               disabled={downloadingId === item.id}
               onClick={() => handleDownloadPdf(item.id, item.receiptNumber)}
               title="Download PDF"
+              aria-label="Download PDF"
             >
-              <Download className="h-4 w-4" />
+              {downloadingId === item.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
             </Button>
           </div>
         );
