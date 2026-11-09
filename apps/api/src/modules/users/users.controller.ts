@@ -11,6 +11,7 @@ import { ResetUserPasswordDto } from "./dto/reset-user-password.dto";
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @RequirePermissions("users.read")
   @Get()
   async getUsers(@CurrentOrg("id") organizationId: string) {
     return this.usersService.getOrganizationUsers(organizationId);

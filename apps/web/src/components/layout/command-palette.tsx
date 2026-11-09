@@ -10,6 +10,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { navGroups } from "@/lib/nav";
+import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 
 export function CommandPalette({
   open,
@@ -22,6 +23,24 @@ export function CommandPalette({
   disabled?: boolean;
 }) {
   const navigate = useNavigate();
+  const { data: currentUser } = useCurrentUser();
+  const isOwner = currentUser?.role?.name?.toLowerCase() === "owner";
+  const userPermissions = currentUser?.permissions || [];
+
+  const hasPermission = (permission?: string | string[]) => {
+    if (!permission || isOwner) return true;
+    if (Array.isArray(permission)) {
+      return permission.some((p) => userPermissions.includes(p));
+    }
+    return userPermissions.includes(permission);
+  };
+
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => hasPermission(item.permission)),
+    }))
+    .filter((group) => group.items.length > 0);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -40,7 +59,7 @@ export function CommandPalette({
       <CommandInput placeholder="Search pages, settings and actions…" />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
-        {navGroups.map((group, gi) => (
+        {visibleGroups.map((group, gi) => (
           <div key={group.label}>
             <CommandGroup heading={group.label}>
               {group.items.map((item) => (
@@ -61,7 +80,7 @@ export function CommandPalette({
                 </CommandItem>
               ))}
             </CommandGroup>
-            {gi < navGroups.length - 1 ? <CommandSeparator /> : null}
+            {gi < visibleGroups.length - 1 ? <CommandSeparator /> : null}
           </div>
         ))}
       </CommandList>

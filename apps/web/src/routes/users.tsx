@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ListPage, StatusBadge, type ListRow } from "@/components/foundation/list-page";
 import type { Column } from "@/components/foundation/data-table";
 import { useUsers } from "@/hooks/queries/useUsers";
+import { useCurrentUser } from "@/hooks/queries/useCurrentUser";
 import { InviteUserDialog } from "@/components/foundation/invite-user-dialog";
+import { AppShell } from "@/components/layout/app-shell";
 import {
   ResetPasswordDialog,
   type TargetMemberInfo,
@@ -15,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, KeyRound } from "lucide-react";
+import { MoreHorizontal, KeyRound, ShieldAlert, ArrowLeft } from "lucide-react";
 
 const title = "User Management";
 const description = "Invite members, assign roles and manage workspace access.";
@@ -33,10 +35,19 @@ export const Route = createFileRoute("/users")({
 });
 
 function UserManagementPage() {
+  const { data: currentUser, isLoading: isLoadingMe } = useCurrentUser();
+  const isOwner = currentUser?.role?.name?.toLowerCase() === "owner";
+  const permissions = currentUser?.permissions || [];
+  const canReadUsers = isOwner || permissions.includes("users.read");
+  const canCreateUsers = isOwner || permissions.includes("users.create");
+  const canManageUsers = isOwner || permissions.includes("users.write");
+
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [resetMember, setResetMember] = useState<TargetMemberInfo | null>(null);
   const [isResetOpen, setIsResetOpen] = useState(false);
-  const { data: usersData, isLoading } = useUsers();
+  const { data: usersData, isLoading: isLoadingUsers } = useUsers();
+
+  const isLoading = isLoadingMe || isLoadingUsers;
 
   const handleOpenReset = (member: TargetMemberInfo) => {
     setResetMember(member);
@@ -52,41 +63,51 @@ function UserManagementPage() {
       header: "Status",
       render: (r) => <StatusBadge value={String(r["status"] ?? "")} />,
     },
-    {
-      key: "actions",
-      header: "",
-      className: "w-10 text-right",
-      render: (r) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-              aria-label={`Actions for ${r["name"]}`}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem
-              onClick={() =>
-                handleOpenReset({
-                  id: String(r["id"]),
-                  name: String(r["name"]),
-                  email: String(r["email"]),
-                  role: String(r["role"]),
-                })
+    ...(canManageUsers
+      ? [
+          {
+            key: "actions",
+            header: "",
+            className: "w-10 text-right",
+            render: (r: ListRow) => {
+              const targetIsOwner = String(r["role"]).toLowerCase() === "owner";
+              if (targetIsOwner && !isOwner) {
+                return null;
               }
-              className="gap-2 cursor-pointer text-xs"
-            >
-              <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
-              Reset password
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    },
+              return (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                      aria-label={`Actions for ${r["name"]}`}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem
+                      onClick={() =>
+                        handleOpenReset({
+                          id: String(r["id"]),
+                          name: String(r["name"]),
+                          email: String(r["email"]),
+                          role: String(r["role"]),
+                        })
+                      }
+                      className="gap-2 cursor-pointer text-xs"
+                    >
+                      <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
+                      Reset password
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            },
+          },
+        ]
+      : []),
   ];
 
   const rows: ListRow[] = usersData
@@ -114,14 +135,37 @@ function UserManagementPage() {
     },
   ];
 
+  if (!isLoadingMe && !canReadUsers) {
+    return (
+      <AppShell>
+        <div className="mx-auto flex max-w-md flex-col items-center justify-center py-20 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive-soft text-destructive">
+            <ShieldAlert className="h-7 w-7" />
+          </div>
+          <h2 className="mt-4 text-xl font-semibold tracking-tight">Access Restricted</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You do not have permission to view or manage organization members. Contact your workspace Owner for access.
+          </p>
+          <Button asChild variant="outline" className="mt-6 gap-2">
+            <Link to="/dashboard">
+              <ArrowLeft className="h-4 w-4" />
+              Return to Dashboard
+            </Link>
+          </Button>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <>
       <ListPage
         title={title}
         description={description}
         eyebrow="Access"
-        actionLabel="Invite user"
-        onAction={() => setIsInviteOpen(true)}
+        {...(canCreateUsers
+          ? { actionLabel: "Invite user", onAction: () => setIsInviteOpen(true) }
+          : {})}
         isLoading={isLoading}
         stats={stats}
         columns={columns}

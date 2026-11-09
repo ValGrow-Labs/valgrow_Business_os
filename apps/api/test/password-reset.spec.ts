@@ -26,6 +26,8 @@ describe("Password Reset & Credential Management E2E", () => {
     "member.pwdtest@valgrow.test",
     "otherowner.pwdtest@valgrow.test",
     "admin.pwdtest@valgrow.test",
+    "noperm.pwdtest@valgrow.test",
+    "newlyinvited.pwdtest@valgrow.test",
   ];
 
   beforeAll(async () => {
@@ -349,6 +351,104 @@ describe("Password Reset & Credential Management E2E", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toContain("Invalid or expired reset token");
+  });
+
+  it("8. Owner can list organization members, while unauthorized user receives 403", async () => {
+    // Owner can fetch users
+    const ownerRes = await request(app.getHttpServer())
+      .get("/users")
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .set("x-organization-id", orgId);
+
+    expect(ownerRes.status).toBe(200);
+    expect(Array.isArray(ownerRes.body)).toBe(true);
+    expect(ownerRes.body.length).toBeGreaterThanOrEqual(2);
+
+    // Create user with zero users permissions (e.g. Cashier with no users.read)
+    const noPermRole = await prisma.role.create({
+      data: {
+        organizationId: orgId,
+        name: "NoPermRole",
+        description: "No user permissions",
+        scope: "Organization",
+      },
+    });
+
+    const noPermUser = await prisma.user.create({
+      data: {
+        email: "noperm.pwdtest@valgrow.test",
+        firstName: "No",
+        lastName: "Perm",
+        passwordHash: "$2b$12$e8xL27z0l7iUqfUom3rMvOHu9n8yVn0iGk8pYtLq2Mv6pQq1s6v4m",
+        status: "ACTIVE",
+      },
+    });
+
+    await prisma.organizationMember.create({
+      data: {
+        organizationId: orgId,
+        userId: noPermUser.id,
+        roleId: noPermRole.id,
+        status: "ACTIVE",
+      },
+    });
+
+    const noPermToken = app.get(JwtService).sign(
+      { sub: noPermUser.id, email: noPermUser.email, type: "access" },
+      { expiresIn: "15m" },
+    );
+
+    const forbiddenRes = await request(app.getHttpServer())
+      .get("/users")
+      .set("Authorization", `Bearer ${noPermToken}`)
+      .set("x-organization-id", orgId);
+
+    expect(forbiddenRes.status).toBe(403);
+
+    // Cleanup
+    await prisma.organizationMember.deleteMany({ where: { userId: noPermUser.id } });
+    await prisma.user.delete({ where: { id: noPermUser.id } });
+    await prisma.role.delete({ where: { id: noPermRole.id } });
+  });
+
+  it("9. Owner can invite a member, and duplicate invitation is rejected with 409", async () => {
+    const viewerRole = await prisma.role.findFirst({
+      where: { organizationId: orgId, name: "Viewer" },
+    });
+
+    const inviteRes = await request(app.getHttpServer())
+      .post("/users")
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .set("x-organization-id", orgId)
+      .send({
+        email: "newlyinvited.pwdtest@valgrow.test",
+        firstName: "New",
+        lastName: "Member",
+        roleId: viewerRole!.id,
+        jobTitle: "Operations Specialist",
+      });
+
+    expect(inviteRes.status).toBe(201);
+    expect(inviteRes.body.email).toBe("newlyinvited.pwdtest@valgrow.test");
+
+    // Duplicate invitation to the same organization must return 409
+    const dupRes = await request(app.getHttpServer())
+      .post("/users")
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .set("x-organization-id", orgId)
+      .send({
+        email: "newlyinvited.pwdtest@valgrow.test",
+        firstName: "New",
+        lastName: "Member",
+        roleId: viewerRole!.id,
+      });
+
+    expect(dupRes.status).toBe(409);
+    expect(dupRes.body.message).toContain("already a member");
+
+    // Cleanup
+    await prisma.organizationMember.deleteMany({ where: { user: { email: "newlyinvited.pwdtest@valgrow.test" } } });
+    await prisma.user.deleteMany({ where: { email: "newlyinvited.pwdtest@valgrow.test" } });
   });
 });
 

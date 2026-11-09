@@ -84,6 +84,7 @@ export const navGroups: NavGroup[] = [
     label: "MANAGEMENT",
     items: [
       { title: "Organization", url: "/organization", icon: Building2 },
+      { title: "User Management", url: "/users", icon: Users, permission: "users.read" },
     ],
   },
 ];

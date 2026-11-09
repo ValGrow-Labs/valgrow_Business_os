@@ -18,6 +18,7 @@ import {
   Settings,
   Sun,
   UserRound,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +93,10 @@ function OrgSwitcher({ compact }: { compact: boolean }) {
     ? orgList.find((o) => o.id === userMe.activeOrganization?.id) || userMe.activeOrganization
     : orgList[0]!;
 
+  const canManageUsers =
+    userMe?.role?.name?.toLowerCase() === "owner" ||
+    (userMe?.permissions || []).includes("users.read");
+
   const handleSelect = (orgId: string) => {
     setActiveOrgId(orgId);
     window.location.reload();
@@ -140,6 +145,11 @@ function OrgSwitcher({ compact }: { compact: boolean }) {
         <DropdownMenuItem asChild>
           <Link to="/organization">Organization settings</Link>
         </DropdownMenuItem>
+        {canManageUsers && (
+          <DropdownMenuItem asChild>
+            <Link to="/users">User Management</Link>
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -156,7 +166,7 @@ function SidebarNav({
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: currentUser } = useCurrentUser();
-  const isOwner = currentUser?.role?.name === "Owner";
+  const isOwner = currentUser?.role?.name?.toLowerCase() === "owner";
   const userPermissions = currentUser?.permissions || [];
 
   const hasPermission = (permission?: string | string[]) => {
@@ -444,6 +454,14 @@ function UserMenu() {
             <Settings /> Preferences
           </Link>
         </DropdownMenuItem>
+        {(userMe?.role?.name?.toLowerCase() === "owner" ||
+          (userMe?.permissions || []).includes("users.read")) && (
+          <DropdownMenuItem asChild>
+            <Link to="/users">
+              <Users /> User Management
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={startTour} className="cursor-pointer">
           <Compass /> Product tour
         </DropdownMenuItem>
