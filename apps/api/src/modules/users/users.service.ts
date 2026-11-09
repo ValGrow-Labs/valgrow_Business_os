@@ -25,11 +25,36 @@ export class UsersService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getOrganizationUsers(organizationId: string) {
+  async getOrganizationUsers(
+    organizationId: string,
+    query?: { search?: string; status?: string; role?: string },
+  ) {
+    const memberWhere: any = {
+      organizationId,
+    };
+
+    if (query?.status && query.status !== "ALL") {
+      memberWhere.status = query.status;
+    }
+
+    if (query?.role && query.role !== "ALL") {
+      memberWhere.role = {
+        name: { equals: query.role, mode: "insensitive" },
+      };
+    }
+
+    if (query?.search?.trim()) {
+      const term = query.search.trim();
+      memberWhere.OR = [
+        { user: { firstName: { contains: term, mode: "insensitive" } } },
+        { user: { lastName: { contains: term, mode: "insensitive" } } },
+        { user: { email: { contains: term, mode: "insensitive" } } },
+        { role: { name: { contains: term, mode: "insensitive" } } },
+      ];
+    }
+
     const members = await this.prisma.organizationMember.findMany({
-      where: {
-        organizationId,
-      },
+      where: memberWhere,
       include: {
         user: {
           select: {

@@ -339,6 +339,74 @@ describe("ValGrow Business OS — Purchasing Domain & Security E2E Tests", () =>
 
       expect(res.body.status).toBe("SENT");
     });
+
+    it("should fetch purchase order details with enriched supplier, warehouse and product info", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/purchase-orders/${poAId}`)
+        .set("Cookie", userACookie)
+        .expect(200);
+
+      expect(res.body.id).toBe(poAId);
+      expect(res.body.supplier).toBeDefined();
+      expect(res.body.supplier.name).toBe("Acme Supplies Ltd");
+      expect(res.body.warehouse).toBeDefined();
+      expect(res.body.warehouse.branch).toBeDefined();
+      expect(res.body.items[0].product).toBeDefined();
+    });
+
+    it("should download purchase order PDF with proper binary headers and content", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/purchase-orders/${poAId}/pdf`)
+        .set("Cookie", userACookie)
+        .expect(200);
+
+      expect(res.headers["content-type"]).toBe("application/pdf");
+      expect(res.headers["content-disposition"]).toContain(".pdf");
+      const buffer = Buffer.isBuffer(res.body) ? res.body : Buffer.from(res.text || "");
+      expect(buffer.subarray(0, 4).toString()).toBe("%PDF");
+    });
+
+    it("should enforce tenant isolation on purchase order PDF", async () => {
+      await request(app.getHttpServer())
+        .get(`/purchase-orders/${poAId}/pdf`)
+        .set("Cookie", userBCookie)
+        .expect(404);
+    });
+
+    it("should generate PO PDF with custom currency (USD)", async () => {
+      const createRes = await request(app.getHttpServer())
+        .post("/purchase-orders")
+        .set("Cookie", userACookie)
+        .send({
+          supplierId: supplierAId,
+          warehouseId: whAId,
+          currency: "USD",
+          paymentTerms: "NET15",
+          notes: "US dollar procurement order",
+          items: [
+            {
+              productId: prodAId,
+              variantId: variantAId,
+              orderedQty: 5,
+              unitPrice: 120,
+              taxRate: 10,
+            },
+          ],
+        })
+        .expect(201);
+
+      const usdPoId = createRes.body.id;
+      expect(createRes.body.currency).toBe("USD");
+
+      const pdfRes = await request(app.getHttpServer())
+        .get(`/purchase-orders/${usdPoId}/pdf`)
+        .set("Cookie", userACookie)
+        .expect(200);
+
+      expect(pdfRes.headers["content-type"]).toBe("application/pdf");
+      const buffer = Buffer.isBuffer(pdfRes.body) ? pdfRes.body : Buffer.from(pdfRes.text || "");
+      expect(buffer.subarray(0, 4).toString()).toBe("%PDF");
+    });
   });
 
   // ==========================================

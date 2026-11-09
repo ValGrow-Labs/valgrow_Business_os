@@ -7,9 +7,32 @@ import { PrismaService } from "../../prisma/prisma.service";
 export class PdfGeneratorService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private formatCurrency(amount: number | string | null | undefined): string {
+  private formatCurrency(
+    amount: number | string | null | undefined,
+    currencyCode?: string | null | undefined,
+  ): string {
     const num = Number(amount || 0);
-    return `INR ${num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const code = (currencyCode || "INR").trim().toUpperCase();
+
+    const localeMap: Record<string, string> = {
+      INR: "en-IN",
+      USD: "en-US",
+      EUR: "de-DE",
+      GBP: "en-GB",
+      AED: "en-AE",
+      JPY: "ja-JP",
+      CAD: "en-CA",
+      AUD: "en-AU",
+      SGD: "en-SG",
+    };
+
+    const locale = localeMap[code] || "en-US";
+    const formatted = num.toLocaleString(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+    return `${code} ${formatted}`;
   }
 
   private formatDate(date: Date | string | null | undefined): string {
@@ -168,10 +191,27 @@ export class PdfGeneratorService {
       include: {
         organization: true,
         supplier: true,
-        warehouse: true,
+        warehouse: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            city: true,
+            address: true,
+            branch: { select: { id: true, name: true, code: true } },
+          },
+        },
         items: {
           include: {
-            product: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                description: true,
+                unit: { select: { name: true, code: true } },
+              },
+            },
             variant: true,
           },
         },
@@ -181,6 +221,8 @@ export class PdfGeneratorService {
     if (!po) {
       throw new NotFoundException("Purchase Order not found");
     }
+
+    const currency = (po.currency || po.organization?.currency || "INR").trim().toUpperCase();
 
     const doc = new PDFDocument({ size: "A4", margin: 40 });
     const chunks: Buffer[] = [];
@@ -205,68 +247,121 @@ export class PdfGeneratorService {
       doc.font("Helvetica").text(`Order Date:`, 40, 130).text(this.formatDate(po.orderDate), 130, 130);
       doc.text(`Expected Date:`, 40, 145).text(this.formatDate(po.expectedDeliveryDate), 130, 145);
       doc.text(`Status:`, 40, 160).font("Helvetica-Bold").text(po.status, 130, 160);
+      doc.font("Helvetica").text(`Currency:`, 40, 175).font("Helvetica-Bold").text(currency, 130, 175);
+      if (po.paymentTerms) {
+        doc.font("Helvetica").text(`Payment Terms:`, 40, 190).text(po.paymentTerms, 130, 190);
+      }
 
       // Supplier Box
-      doc.rect(310, 110, 245, 70).fillAndStroke("#f0f9ff", "#bae6fd");
+      doc.rect(310, 110, 245, 95).fillAndStroke("#f0f9ff", "#bae6fd");
       doc.fillColor("#0369a1").fontSize(9).font("Helvetica-Bold").text("VENDOR / SUPPLIER:", 320, 118);
       doc.fillColor("#0f172a").fontSize(10).font("Helvetica-Bold").text(po.supplier.name, 320, 130);
       doc.font("Helvetica").fontSize(8).fillColor("#334155");
-      if (po.supplier.code) doc.text(`Code: ${po.supplier.code}`, 320, 143);
-      if (po.supplier.phone) doc.text(`Phone: ${po.supplier.phone}`, 320, 153);
-      if (po.supplier.email) doc.text(`Email: ${po.supplier.email}`, 320, 163);
+      let supY = 143;
+      if (po.supplier.code) { doc.text(`Code: ${po.supplier.code}`, 320, supY); supY += 10; }
+      if (po.supplier.contactPerson) { doc.text(`Contact: ${po.supplier.contactPerson}`, 320, supY); supY += 10; }
+      if (po.supplier.phone) { doc.text(`Phone: ${po.supplier.phone}`, 320, supY); supY += 10; }
+      if (po.supplier.email) { doc.text(`Email: ${po.supplier.email}`, 320, supY); supY += 10; }
+      if (po.supplier.city) { doc.text(`Location: ${po.supplier.city}${po.supplier.country ? `, ${po.supplier.country}` : ""}`, 320, supY); }
 
-      // Items Table Header
-      let y = 200;
-      doc.rect(40, y, 515, 20).fill("#e0f2fe");
-      doc.fillColor("#0369a1").fontSize(9).font("Helvetica-Bold");
-      doc.text("#", 45, y + 5, { width: 20 });
-      doc.text("Product / SKU", 70, y + 5, { width: 200 });
-      doc.text("Ordered Qty", 270, y + 5, { width: 70, align: "right" });
-      doc.text("Unit Price", 345, y + 5, { width: 80, align: "right" });
-      doc.text("Total", 430, y + 5, { width: 115, align: "right" });
+      // Warehouse / Delivery Details (if available)
+      let y = 215;
+      if (po.warehouse) {
+        doc.rect(40, y, 515, 22).fillAndStroke("#f8fafc", "#e2e8f0");
+        doc.fillColor("#475569").fontSize(8).font("Helvetica-Bold").text("DELIVERY DESTINATION:", 48, y + 6);
+        doc.font("Helvetica").text(
+          `${po.warehouse.name} (${po.warehouse.code})${po.warehouse.city ? ` — ${po.warehouse.city}` : ""}${po.warehouse.branch?.name ? ` | Branch: ${po.warehouse.branch.name}` : ""}`,
+          175,
+          y + 6,
+          { width: 370 },
+        );
+        y += 30;
+      }
 
-      // Items Rows
+      const drawTableHeader = (atY: number) => {
+        doc.rect(40, atY, 515, 20).fill("#e0f2fe");
+        doc.fillColor("#0369a1").fontSize(9).font("Helvetica-Bold");
+        doc.text("#", 45, atY + 5, { width: 20 });
+        doc.text("Product / Description", 70, atY + 5, { width: 190 });
+        doc.text("Qty / Unit", 265, atY + 5, { width: 75, align: "right" });
+        doc.text("Unit Price", 345, atY + 5, { width: 85, align: "right" });
+        doc.text("Total", 435, atY + 5, { width: 110, align: "right" });
+      };
+
+      drawTableHeader(y);
       y += 25;
+
+      // Items Rows with auto pagination
       doc.font("Helvetica").fontSize(9).fillColor("#334155");
       po.items.forEach((item, idx) => {
         const itemTotal = Number(item.totalAmount);
         const itemPrice = Number(item.unitPrice);
         const itemQty = Number(item.orderedQty);
+        const unitLabel = item.product?.unit?.code || "";
 
-        doc.text(String(idx + 1), 45, y, { width: 20 });
-        doc.font("Helvetica-Bold").text(item.product.name, 70, y, { width: 200 });
-        if (item.product.sku) {
-          doc.font("Helvetica").fontSize(8).fillColor("#64748b").text(`SKU: ${item.product.sku}`, 70, y + 10);
+        // Check page boundary
+        if (y > 700) {
+          doc.addPage({ size: "A4", margin: 40 });
+          y = 40;
+          drawTableHeader(y);
+          y += 25;
         }
-        doc.font("Helvetica").fontSize(9).fillColor("#334155");
-        doc.text(String(itemQty), 270, y, { width: 70, align: "right" });
-        doc.text(this.formatCurrency(itemPrice), 345, y, { width: 80, align: "right" });
-        doc.font("Helvetica-Bold").text(this.formatCurrency(itemTotal), 430, y, { width: 115, align: "right" });
 
-        y += item.product.sku ? 24 : 18;
-        doc.moveTo(40, y - 4).lineTo(555, y - 4).strokeColor("#f1f5f9").stroke();
+        doc.font("Helvetica").fontSize(9).fillColor("#334155");
+        doc.text(String(idx + 1), 45, y, { width: 20 });
+        doc.font("Helvetica-Bold").text(item.product.name, 70, y, { width: 190 });
+
+        const sublines: string[] = [];
+        if (item.product.sku) sublines.push(`SKU: ${item.product.sku}`);
+        if (item.product.description) sublines.push(item.product.description);
+        if (sublines.length > 0) {
+          doc.font("Helvetica").fontSize(8).fillColor("#64748b").text(sublines.join(" • "), 70, y + 11, { width: 190 });
+        }
+
+        doc.font("Helvetica").fontSize(9).fillColor("#334155");
+        doc.text(`${itemQty} ${unitLabel}`.trim(), 265, y, { width: 75, align: "right" });
+        doc.text(this.formatCurrency(itemPrice, currency), 345, y, { width: 85, align: "right" });
+        doc.font("Helvetica-Bold").text(this.formatCurrency(itemTotal, currency), 435, y, { width: 110, align: "right" });
+
+        const rowHeight = sublines.length > 0 ? 25 : 18;
+        y += rowHeight;
+        doc.moveTo(40, y - 3).lineTo(555, y - 3).strokeColor("#f1f5f9").stroke();
       });
 
-      // Totals Box
-      y += 15;
+      // Totals Box pagination check
+      if (y + 110 > 740) {
+        doc.addPage({ size: "A4", margin: 40 });
+        y = 40;
+      } else {
+        y += 15;
+      }
+
+      // Notes (if available) on the left of totals
+      if (po.notes) {
+        doc.font("Helvetica-Bold").fontSize(8).fillColor("#0369a1").text("PURCHASE ORDER NOTES:", 40, y);
+        doc.font("Helvetica").fontSize(8).fillColor("#475569").text(po.notes, 40, y + 12, { width: 270 });
+      }
+
       const subtotal = Number(po.subtotalAmount);
       const taxTotal = Number(po.taxAmount);
       const discountTotal = Number(po.discountAmount);
       const grandTotal = Number(po.totalAmount);
 
-      doc.rect(340, y, 215, 80).fillAndStroke("#f0f9ff", "#bae6fd");
-      let sumY = y + 10;
+      doc.rect(330, y, 225, 84).fillAndStroke("#f0f9ff", "#bae6fd");
+      let sumY = y + 8;
       doc.font("Helvetica").fontSize(9).fillColor("#475569");
-      doc.text("Subtotal:", 350, sumY).text(this.formatCurrency(subtotal), 440, sumY, { align: "right", width: 105 });
+      doc.text("Subtotal:", 340, sumY).text(this.formatCurrency(subtotal, currency), 430, sumY, { align: "right", width: 115 });
       sumY += 16;
-      doc.text("Tax Total:", 350, sumY).text(this.formatCurrency(taxTotal), 440, sumY, { align: "right", width: 105 });
+      doc.text("Tax Total:", 340, sumY).text(this.formatCurrency(taxTotal, currency), 430, sumY, { align: "right", width: 115 });
       sumY += 16;
-      doc.text("Discount:", 350, sumY).text(this.formatCurrency(discountTotal), 440, sumY, { align: "right", width: 105 });
-      sumY += 16;
-      doc.font("Helvetica-Bold").fillColor("#0369a1").text("Grand Total:", 350, sumY).text(this.formatCurrency(grandTotal), 440, sumY, { align: "right", width: 105 });
+      if (discountTotal > 0) {
+        doc.text("Discount:", 340, sumY).text(`- ${this.formatCurrency(discountTotal, currency)}`, 430, sumY, { align: "right", width: 115 });
+        sumY += 16;
+      }
+      doc.font("Helvetica-Bold").fillColor("#0369a1").text("Grand Total:", 340, sumY).text(this.formatCurrency(grandTotal, currency), 430, sumY, { align: "right", width: 115 });
 
       // Footer
-      doc.fillColor("#94a3b8").fontSize(8).font("Helvetica").text("ValGrow Business OS Purchase Order System", 40, 780, { align: "center", width: 515 });
+      doc.fillColor("#94a3b8").fontSize(8).font("Helvetica").text("ValGrow Business OS Purchase Order System", 40, 785, { align: "center", width: 515 });
 
       doc.end();
     });
@@ -387,6 +482,13 @@ export class PdfGeneratorService {
         customer: true,
         cashier: true,
         payments: true,
+        cart: {
+          include: {
+            items: {
+              include: { product: true, variant: true },
+            },
+          },
+        },
         salesOrder: {
           include: {
             items: {
@@ -401,7 +503,23 @@ export class PdfGeneratorService {
       throw new NotFoundException("POS Sale not found");
     }
 
-    const itemsCount = sale.salesOrder?.items?.length || 0;
+    const currency = (sale.organization?.currency || "INR").trim().toUpperCase();
+
+    const soItems = (sale.salesOrder?.items || []).map((item) => ({
+      name: item.product?.name || "Product",
+      price: Number(item.unitPrice),
+      qty: Number(item.deliveredQty || item.orderedQty),
+      total: Number(item.totalAmount),
+    }));
+    const cartItems = ((sale as any).cart?.items || []).map((item: any) => ({
+      name: item.product?.name || "Product",
+      price: Number(item.unitPrice),
+      qty: Number(item.quantity),
+      total: Number(item.totalAmount),
+    }));
+    const items = soItems.length > 0 ? soItems : cartItems;
+
+    const itemsCount = items.length;
     const paymentsCount = sale.payments?.length || 1;
     const estimatedHeight = Math.max(450, 240 + itemsCount * 30 + paymentsCount * 18);
     const doc = new PDFDocument({ size: [226, estimatedHeight], margin: 10 });
@@ -447,16 +565,11 @@ export class PdfGeneratorService {
       y += 11;
 
       // Items
-      const items = sale.salesOrder?.items || [];
-      items.forEach((item) => {
-        const itemTotal = Number(item.totalAmount);
-        const itemPrice = Number(item.unitPrice);
-        const itemQty = Number(item.deliveredQty || item.orderedQty);
-
-        doc.font("Helvetica-Bold").fontSize(8).text(item.product.name, 10, y, { width: 130 });
-        doc.text(this.formatCurrency(itemTotal), 140, y, { align: "right", width: 76 });
+      items.forEach((item: { name: string; price: number; qty: number; total: number }) => {
+        doc.font("Helvetica-Bold").fontSize(8).text(item.name, 10, y, { width: 130 });
+        doc.text(this.formatCurrency(item.total, currency), 140, y, { align: "right", width: 76 });
         y += 11;
-        doc.font("Helvetica").fontSize(7).fillColor("#475569").text(`  ${itemQty} x ${this.formatCurrency(itemPrice)}`, 10, y);
+        doc.font("Helvetica").fontSize(7).fillColor("#475569").text(`  ${item.qty} x ${this.formatCurrency(item.price, currency)}`, 10, y);
         doc.fillColor("#0f172a");
         y += 12;
       });
@@ -470,28 +583,28 @@ export class PdfGeneratorService {
       const changeAmt = Number(sale.changeAmount);
 
       doc.font("Helvetica").fontSize(8);
-      doc.text("Subtotal:", 10, y).text(this.formatCurrency(Number(sale.subtotalAmount)), 110, y, { align: "right", width: 106 });
+      doc.text("Subtotal:", 10, y).text(this.formatCurrency(Number(sale.subtotalAmount), currency), 110, y, { align: "right", width: 106 });
       y += 11;
       if (Number(sale.taxAmount) > 0) {
-        doc.text("Tax:", 10, y).text(this.formatCurrency(Number(sale.taxAmount)), 110, y, { align: "right", width: 106 });
+        doc.text("Tax:", 10, y).text(this.formatCurrency(Number(sale.taxAmount), currency), 110, y, { align: "right", width: 106 });
         y += 11;
       }
       if (Number(sale.discountAmount) > 0) {
-        doc.text("Discount:", 10, y).text(this.formatCurrency(Number(sale.discountAmount)), 110, y, { align: "right", width: 106 });
+        doc.text("Discount:", 10, y).text(this.formatCurrency(Number(sale.discountAmount), currency), 110, y, { align: "right", width: 106 });
         y += 11;
       }
       doc.font("Helvetica-Bold").fontSize(9);
-      doc.text("TOTAL:", 10, y).text(this.formatCurrency(grandTotal), 110, y, { align: "right", width: 106 });
+      doc.text("TOTAL:", 10, y).text(this.formatCurrency(grandTotal, currency), 110, y, { align: "right", width: 106 });
       y += 14;
 
       // Payments
       doc.font("Helvetica").fontSize(8);
       sale.payments.forEach((p) => {
-        doc.text(`Paid (${p.paymentMethod}):`, 10, y).text(this.formatCurrency(Number(p.amount)), 110, y, { align: "right", width: 106 });
+        doc.text(`Paid (${p.paymentMethod}):`, 10, y).text(this.formatCurrency(Number(p.amount), currency), 110, y, { align: "right", width: 106 });
         y += 11;
       });
       if (changeAmt > 0) {
-        doc.text("Change:", 10, y).text(this.formatCurrency(changeAmt), 110, y, { align: "right", width: 106 });
+        doc.text("Change:", 10, y).text(this.formatCurrency(changeAmt, currency), 110, y, { align: "right", width: 106 });
         y += 11;
       }
 

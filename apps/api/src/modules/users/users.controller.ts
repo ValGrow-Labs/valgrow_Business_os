@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Req } from "@nestjs/common";
+import { Controller, Get, Post, Patch, Param, Body, Req, Query } from "@nestjs/common";
 import { Request } from "express";
 import { UsersService } from "./users.service";
 import { CurrentOrg } from "../../common/decorators/current-org.decorator";
@@ -13,8 +13,17 @@ export class UsersController {
 
   @RequirePermissions("users.read")
   @Get()
-  async getUsers(@CurrentOrg("id") organizationId: string) {
-    return this.usersService.getOrganizationUsers(organizationId);
+  async getUsers(
+    @CurrentOrg("id") organizationId: string,
+    @Query("search") search?: string,
+    @Query("status") status?: string,
+    @Query("role") role?: string,
+  ) {
+    return this.usersService.getOrganizationUsers(organizationId, {
+      search,
+      status,
+      role,
+    });
   }
 
   @RequirePermissions("users.create")

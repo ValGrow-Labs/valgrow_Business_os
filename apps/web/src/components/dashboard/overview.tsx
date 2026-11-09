@@ -24,7 +24,9 @@ import {
   ShoppingBag,
   ShoppingCart,
   Users,
+  Eye,
 } from "lucide-react";
+import { SaleDetailDialog } from "@/components/sales/sale-detail-dialog";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/foundation/stat-card";
 import { CardSkeleton, EmptyState, ErrorState } from "@/components/foundation/states";
@@ -386,6 +388,7 @@ export function AttentionCard({ className }: { className?: string }) {
 export function RecentSalesCard() {
   const { data, isLoading, isError, refetch } = useLast30DaysSales();
   const { currencyCode, formatMoney } = useActiveCurrency();
+  const [selectedSale, setSelectedSale] = useState<any | null>(null);
 
   const recent = useMemo(
     () =>
@@ -396,80 +399,128 @@ export function RecentSalesCard() {
   );
 
   return (
-    <section className="panel overflow-hidden">
-      <div className="flex items-center justify-between gap-4 border-b px-5 py-4">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">Recent sales</h2>
-          <p className="text-[13px] text-muted-foreground">Latest transactions across branches</p>
+    <>
+      <section className="panel overflow-hidden">
+        <div className="flex items-center justify-between gap-4 border-b px-5 py-4">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Recent sales</h2>
+            <p className="text-[13px] text-muted-foreground">
+              Last 30 days · Latest transactions across branches
+            </p>
+          </div>
+          <Button asChild variant="ghost" size="sm" className="text-foreground">
+            <Link to="/sales-transactions">
+              View all
+              <ArrowRight className="ml-1 h-3.5 w-3.5" />
+            </Link>
+          </Button>
         </div>
-        <Button asChild variant="ghost" size="sm" className="text-foreground">
-          <Link to="/sales-transactions">
-            View all
-            <ArrowRight />
-          </Link>
-        </Button>
-      </div>
 
-      {isLoading ? (
-        <div className="space-y-2 p-5">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
-      ) : isError ? (
-        <ErrorState className="m-5" onRetry={() => refetch()} />
-      ) : recent.length === 0 ? (
-        <EmptyState
-          className="rounded-none border-0"
-          icon={<ShoppingBag className="h-5 w-5" />}
-          title="No sales yet"
-          description="Completed sales from POS and invoices will appear here."
-          action={
-            <Button asChild size="sm">
-              <Link to="/pos">Open POS</Link>
-            </Button>
-          }
-        />
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-2/60 text-xs text-muted-foreground">
-              <tr className="border-b">
-                <th className="px-5 py-2.5 text-left font-medium">Number</th>
-                <th className="px-3 py-2.5 text-left font-medium">Customer</th>
-                <th className="hidden px-3 py-2.5 text-left font-medium md:table-cell">Branch</th>
-                <th className="px-3 py-2.5 text-left font-medium">Date</th>
-                <th className="px-3 py-2.5 text-left font-medium">Status</th>
-                <th className="px-5 py-2.5 text-right font-medium">Total</th>
-              </tr>
-            </thead>
-            <motion.tbody variants={staggerContainer(0.03)} initial="hidden" animate="show">
-              {recent.map((r) => (
-                <motion.tr
-                  key={r.id}
-                  variants={staggerItem}
-                  className="border-b transition-colors last:border-0 hover:bg-surface-2/70"
-                >
-                  <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{r.number}</td>
-                  <td className="max-w-[200px] truncate px-3 py-3 font-medium text-foreground">
-                    {r.customerName || "Walk-in customer"}
-                  </td>
-                  <td className="hidden px-3 py-3 text-muted-foreground md:table-cell">{r.branchName}</td>
-                  <td className="tabular px-3 py-3 text-muted-foreground">
-                    {new Date(r.date).toLocaleDateString(currencyCode === "INR" ? "en-IN" : "en-US", { day: "numeric", month: "short" })}
-                  </td>
-                  <td className="px-3 py-3">
-                    <StatusBadge value={r.status} />
-                  </td>
-                  <td className="tabular px-5 py-3 text-right font-medium text-foreground">
-                    {formatMoney(r.total)}
-                  </td>
-                </motion.tr>
-              ))}
-            </motion.tbody>
-          </table>
-        </div>
-      )}
-    </section>
+        {isLoading ? (
+          <div className="space-y-2 p-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : isError ? (
+          <ErrorState className="m-5" onRetry={() => refetch()} />
+        ) : recent.length === 0 ? (
+          <EmptyState
+            className="rounded-none border-0"
+            icon={<ShoppingBag className="h-5 w-5" />}
+            title="No sales yet"
+            description="Completed sales from POS and invoices will appear here."
+            action={
+              <Button asChild size="sm">
+                <Link to="/pos">Open POS</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-surface-2/60 text-xs text-muted-foreground">
+                <tr className="border-b">
+                  <th className="px-5 py-2.5 text-left font-medium">Number</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Customer</th>
+                  <th className="hidden px-3 py-2.5 text-left font-medium md:table-cell">Branch</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Date & Time</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Status</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Total</th>
+                  <th className="px-4 py-2.5 text-right font-medium w-12">Action</th>
+                </tr>
+              </thead>
+              <motion.tbody variants={staggerContainer(0.03)} initial="hidden" animate="show">
+                {recent.map((r) => (
+                  <motion.tr
+                    key={r.id}
+                    variants={staggerItem}
+                    onClick={() => setSelectedSale(r)}
+                    className="border-b transition-colors last:border-0 hover:bg-surface-2/70 cursor-pointer"
+                  >
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs font-medium text-foreground">
+                          {r.number}
+                        </span>
+                        <span className="text-[10px] uppercase font-mono px-1 py-0.2 rounded bg-muted/70 text-muted-foreground">
+                          {r.type === "INVOICE" ? "INV" : "POS"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="max-w-[200px] truncate px-3 py-3 font-medium text-foreground">
+                      {r.customerName || "Walk-in customer"}
+                    </td>
+                    <td className="hidden px-3 py-3 text-muted-foreground md:table-cell">
+                      {r.branchName}
+                    </td>
+                    <td className="tabular px-3 py-3 text-muted-foreground text-xs">
+                      {new Date(r.date).toLocaleDateString(
+                        currencyCode === "INR" ? "en-IN" : "en-US",
+                        {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      )}
+                    </td>
+                    <td className="px-3 py-3">
+                      <StatusBadge value={r.status} />
+                    </td>
+                    <td className="tabular px-3 py-3 text-right font-medium text-foreground">
+                      {formatMoney(r.total)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedSale(r);
+                        }}
+                        title="View Sale Details"
+                        aria-label="View Sale Details"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </motion.tr>
+                ))}
+              </motion.tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <SaleDetailDialog
+        open={Boolean(selectedSale)}
+        onOpenChange={(open) => !open && setSelectedSale(null)}
+        saleId={selectedSale?.id || null}
+        saleType={selectedSale?.type}
+        receiptNumber={selectedSale?.number}
+      />
+    </>
   );
 }

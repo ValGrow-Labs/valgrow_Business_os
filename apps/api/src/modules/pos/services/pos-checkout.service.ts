@@ -769,6 +769,16 @@ export class PosCheckoutService {
         branch: true,
         warehouse: true,
         payments: true,
+        cart: {
+          include: {
+            items: {
+              include: {
+                product: true,
+                variant: true,
+              },
+            },
+          },
+        },
         salesOrder: {
           include: {
             items: {

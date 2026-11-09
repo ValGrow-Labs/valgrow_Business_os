@@ -34,9 +34,31 @@ export class GoodsReceiptsService {
     return `GRN-${year}-${String(seq.lastSequence).padStart(5, "0")}`;
   }
 
-  async getGoodsReceipts(organizationId: string, status?: string) {
-    const where: any = { organizationId };
-    if (status) where.status = status;
+  async getGoodsReceipts(
+    organizationId: string,
+    queryOrStatus?: string | { status?: string; search?: string },
+  ) {
+    const where: Prisma.GoodsReceiptWhereInput = { organizationId };
+
+    if (typeof queryOrStatus === "string") {
+      if (queryOrStatus) where.status = queryOrStatus as any;
+    } else if (queryOrStatus) {
+      if (queryOrStatus.status) where.status = queryOrStatus.status as any;
+      if (queryOrStatus.search) {
+        const rawTerm = queryOrStatus.search.trim();
+        if (rawTerm) {
+          const cleanTerm = rawTerm.replace(/[-_\s]+/g, "");
+          const searchTerms = Array.from(new Set([rawTerm, cleanTerm].filter(Boolean)));
+          where.OR = searchTerms.flatMap((term) => [
+            { receiptNumber: { contains: term, mode: "insensitive" } },
+            { purchaseOrder: { orderNumber: { contains: term, mode: "insensitive" } } },
+            { supplier: { name: { contains: term, mode: "insensitive" } } },
+            { supplier: { code: { contains: term, mode: "insensitive" } } },
+          ]);
+        }
+      }
+    }
+
     return this.prisma.goodsReceipt.findMany({
       where,
       include: {

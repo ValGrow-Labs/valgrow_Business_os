@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
 export interface StockItem {
@@ -35,15 +35,15 @@ export interface StockResponse {
 }
 
 export interface StockQueryParams {
-  warehouseId?: string;
-  locationId?: string;
-  productId?: string;
-  variantId?: string;
-  batchId?: string;
-  lowStock?: boolean;
-  search?: string;
-  page?: number;
-  limit?: number;
+  warehouseId?: string | undefined;
+  locationId?: string | undefined;
+  productId?: string | undefined;
+  variantId?: string | undefined;
+  batchId?: string | undefined;
+  lowStock?: boolean | undefined;
+  search?: string | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
 }
 
 export function useInventoryStock(params?: StockQueryParams) {
@@ -63,6 +63,7 @@ export function useInventoryStock(params?: StockQueryParams) {
   return useQuery<StockResponse>({
     queryKey: ["inventoryStock", params],
     queryFn: () => apiClient<StockResponse>(`/inventory/stock${queryStr}`),
+    placeholderData: keepPreviousData,
   });
 }
 

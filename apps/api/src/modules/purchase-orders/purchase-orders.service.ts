@@ -113,18 +113,57 @@ export class PurchaseOrdersService {
     }
   }
 
-  async getPurchaseOrders(organizationId: string, status?: string) {
-    const where: any = { organizationId };
-    if (status) where.status = status;
+  async getPurchaseOrders(
+    organizationId: string,
+    query?: { status?: string; search?: string; supplierId?: string },
+  ) {
+    const where: Prisma.PurchaseOrderWhereInput = { organizationId };
+
+    if (query?.status && query.status !== "ALL") {
+      where.status = query.status as any;
+    }
+
+    if (query?.supplierId && query.supplierId !== "ALL") {
+      where.supplierId = query.supplierId;
+    }
+
+    if (query?.search && query.search.trim()) {
+      const rawTerm = query.search.trim();
+      const cleanTerm = rawTerm.replace(/[-_\s]+/g, "");
+      const searchTerms = Array.from(new Set([rawTerm, cleanTerm].filter(Boolean)));
+      where.OR = searchTerms.flatMap((term) => [
+        { orderNumber: { contains: term, mode: "insensitive" } },
+        { supplier: { name: { contains: term, mode: "insensitive" } } },
+        { supplier: { code: { contains: term, mode: "insensitive" } } },
+      ]);
+    }
+
     return this.prisma.purchaseOrder.findMany({
       where,
       include: {
-        supplier: { select: { id: true, name: true, code: true } },
+        supplier: true,
         purchaseRequest: { select: { id: true, requestNumber: true } },
-        warehouse: { select: { id: true, name: true, code: true } },
+        warehouse: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            city: true,
+            address: true,
+            branch: { select: { id: true, name: true, code: true } },
+          },
+        },
         items: {
           include: {
-            product: { select: { id: true, name: true, sku: true } },
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                description: true,
+                unit: { select: { name: true, code: true } },
+              },
+            },
             variant: { select: { id: true, name: true, sku: true } },
           },
         },
@@ -139,10 +178,27 @@ export class PurchaseOrdersService {
       include: {
         supplier: true,
         purchaseRequest: { select: { id: true, requestNumber: true } },
-        warehouse: { select: { id: true, name: true, code: true } },
+        warehouse: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            city: true,
+            address: true,
+            branch: { select: { id: true, name: true, code: true } },
+          },
+        },
         items: {
           include: {
-            product: { select: { id: true, name: true, sku: true } },
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                description: true,
+                unit: { select: { name: true, code: true } },
+              },
+            },
             variant: { select: { id: true, name: true, sku: true } },
           },
         },

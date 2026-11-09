@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
 } from "@nestjs/common";
 import { SuppliersService } from "./suppliers.service";
 import { CurrentOrg } from "../../common/decorators/current-org.decorator";
@@ -21,8 +22,12 @@ export class SuppliersController {
 
   @RequirePermissions("purchasing.read")
   @Get()
-  getSuppliers(@CurrentOrg("id") orgId: string) {
-    return this.suppliersService.getSuppliers(orgId);
+  getSuppliers(
+    @CurrentOrg("id") orgId: string,
+    @Query("search") search?: string,
+    @Query("status") status?: string,
+  ) {
+    return this.suppliersService.getSuppliers(orgId, { search, status });
   }
 
   @RequirePermissions("purchasing.read")

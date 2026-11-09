@@ -12,9 +12,29 @@ import { Prisma } from "@prisma/client";
 export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getCustomers(organizationId: string, status?: string) {
-    const where: any = { organizationId, deletedAt: null };
-    if (status) where.status = status;
+  async getCustomers(
+    organizationId: string,
+    queryOrStatus?: string | { status?: string; search?: string },
+  ) {
+    const where: Prisma.CustomerWhereInput = { organizationId, deletedAt: null };
+
+    if (typeof queryOrStatus === "string") {
+      if (queryOrStatus) where.status = queryOrStatus as any;
+    } else if (queryOrStatus) {
+      if (queryOrStatus.status) where.status = queryOrStatus.status as any;
+      if (queryOrStatus.search) {
+        const term = queryOrStatus.search.trim();
+        if (term) {
+          where.OR = [
+            { name: { contains: term, mode: "insensitive" } },
+            { customerCode: { contains: term, mode: "insensitive" } },
+            { phone: { contains: term, mode: "insensitive" } },
+            { email: { contains: term, mode: "insensitive" } },
+          ];
+        }
+      }
+    }
+
     return this.prisma.customer.findMany({
       where,
       orderBy: { createdAt: "desc" },

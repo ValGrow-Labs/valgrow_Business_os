@@ -29,8 +29,13 @@ export class PurchaseOrdersController {
 
   @RequirePermissions("purchasing.read")
   @Get()
-  getAll(@CurrentOrg("id") orgId: string, @Query("status") status?: string) {
-    return this.service.getPurchaseOrders(orgId, status);
+  getAll(
+    @CurrentOrg("id") orgId: string,
+    @Query("status") status?: string,
+    @Query("search") search?: string,
+    @Query("supplierId") supplierId?: string,
+  ) {
+    return this.service.getPurchaseOrders(orgId, { status, search, supplierId });
   }
 
   @RequirePermissions("purchasing.read")

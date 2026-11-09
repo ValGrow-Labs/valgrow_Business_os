@@ -796,4 +796,133 @@ describe("ValGrow Business OS — Sales Domain & Security E2E Tests", () => {
         .expect(400);
     });
   });
+
+  // ==========================================
+  // 8. DASHBOARD RECENT SALES & VIEW ALL (PHASE 5)
+  // ==========================================
+  describe("8. Dashboard Recent Sales & View All Integration", () => {
+    let posSaleAId: string;
+
+    beforeAll(async () => {
+      const branchA = await prisma.branch.findFirst({ where: { organizationId: orgAId } });
+      const userA = await prisma.user.findFirst({ where: { email: "sales.user.a@sales-e2e.test" } });
+
+      const sessionA = await prisma.pOSSession.create({
+        data: {
+          organizationId: orgAId,
+          branchId: branchA?.id || whAId,
+          warehouseId: whAId,
+          terminalId: "TERM-E2E",
+          openedById: userA!.id,
+          openingCash: 1000,
+          status: "OPEN",
+        },
+      });
+
+      const posSale = await prisma.pOSSale.create({
+        data: {
+          organizationId: orgAId,
+          branchId: branchA?.id || whAId,
+          warehouseId: whAId,
+          sessionId: sessionA.id,
+          receiptNumber: "POS-2026-999901",
+          customerId: customerAId,
+          cashierId: userA!.id,
+          subtotalAmount: 1000,
+          taxAmount: 180,
+          discountAmount: 50,
+          totalAmount: 1130,
+          paidAmount: 1130,
+          status: "COMPLETED",
+          payments: {
+            create: [
+              {
+                organizationId: orgAId,
+                paymentMethod: "CASH",
+                amount: 1130,
+              },
+            ],
+          },
+        },
+      });
+      posSaleAId = posSale.id;
+    });
+
+    it("should fetch recent sales report with records ordered newest first", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/reports/sales")
+        .set("Cookie", userACookie)
+        .expect(200);
+
+      expect(res.body.records).toBeDefined();
+      expect(res.body.records.length).toBeGreaterThanOrEqual(1);
+
+      // Verify records are ordered newest first
+      for (let i = 0; i < res.body.records.length - 1; i++) {
+        const d1 = new Date(res.body.records[i].date).getTime();
+        const d2 = new Date(res.body.records[i + 1].date).getTime();
+        expect(d1).toBeGreaterThanOrEqual(d2);
+      }
+    });
+
+    it("should filter sales by search term (receipt / invoice number)", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/reports/sales?search=POS-2026-999901")
+        .set("Cookie", userACookie)
+        .expect(200);
+
+      expect(res.body.records.length).toBe(1);
+      expect(res.body.records[0].number).toBe("POS-2026-999901");
+    });
+
+    it("should filter sales by payment method", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/reports/sales?paymentMethod=CASH")
+        .set("Cookie", userACookie)
+        .expect(200);
+
+      expect(res.body.records.every((r: any) => r.paymentMethods.includes("CASH"))).toBe(true);
+    });
+
+    it("should inspect POS sale details via /pos/sales/:id", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/pos/sales/${posSaleAId}`)
+        .set("Cookie", userACookie)
+        .expect(200);
+
+      expect(res.body.id).toBe(posSaleAId);
+      expect(res.body.receiptNumber).toBe("POS-2026-999901");
+      expect(res.body.payments).toBeDefined();
+    });
+
+    it("should download POS receipt PDF via /pos/sales/:id/receipt", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/pos/sales/${posSaleAId}/receipt`)
+        .set("Cookie", userACookie)
+        .expect(200);
+
+      expect(res.headers["content-type"]).toBe("application/pdf");
+      const buffer = Buffer.isBuffer(res.body) ? res.body : Buffer.from(res.text || "");
+      expect(buffer.subarray(0, 4).toString()).toBe("%PDF");
+    });
+
+    it("should enforce tenant isolation: Org B cannot access Org A sales report or sale details", async () => {
+      const reportRes = await request(app.getHttpServer())
+        .get("/reports/sales")
+        .set("Cookie", userBCookie)
+        .expect(200);
+
+      expect(reportRes.body.records.some((r: any) => r.id === posSaleAId)).toBe(false);
+
+      await request(app.getHttpServer())
+        .get(`/pos/sales/${posSaleAId}`)
+        .set("Cookie", userBCookie)
+        .expect(404);
+
+      await request(app.getHttpServer())
+        .get(`/pos/sales/${posSaleAId}/receipt`)
+        .set("Cookie", userBCookie)
+        .expect(404);
+    });
+  });
 });

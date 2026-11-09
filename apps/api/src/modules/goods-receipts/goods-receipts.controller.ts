@@ -16,8 +16,12 @@ export class GoodsReceiptsController {
 
   @RequirePermissions("purchasing.read")
   @Get()
-  getAll(@CurrentOrg("id") orgId: string, @Query("status") status?: string) {
-    return this.service.getGoodsReceipts(orgId, status);
+  getAll(
+    @CurrentOrg("id") orgId: string,
+    @Query("status") status?: string,
+    @Query("search") search?: string,
+  ) {
+    return this.service.getGoodsReceipts(orgId, { status, search });
   }
 
   @RequirePermissions("purchasing.read")

@@ -31,24 +31,35 @@ export class InventoryService {
     if (options.batchId) where.batchId = options.batchId;
 
     if (options.search) {
-      where.OR = [
-        {
-          product: { name: { contains: options.search, mode: "insensitive" } },
-        },
-        { product: { sku: { contains: options.search, mode: "insensitive" } } },
-        {
-          variant: { name: { contains: options.search, mode: "insensitive" } },
-        },
-        { variant: { sku: { contains: options.search, mode: "insensitive" } } },
-        {
-          warehouse: {
-            name: { contains: options.search, mode: "insensitive" },
-          },
-        },
-        {
-          location: { name: { contains: options.search, mode: "insensitive" } },
-        },
-      ];
+      const term = options.search.trim();
+      const termVariants = new Set<string>();
+      termVariants.add(term);
+      const cleanNoHyphen = term.replace(/[-_\s]+/g, "");
+      if (cleanNoHyphen) termVariants.add(cleanNoHyphen);
+      const cleanWithSpace = term.replace(/[-_]+/g, " ");
+      if (cleanWithSpace) termVariants.add(cleanWithSpace);
+      const cleanWithHyphen = term.replace(/\s+/g, "-");
+      if (cleanWithHyphen) termVariants.add(cleanWithHyphen);
+
+      // Handle common single-letter prefix words like tshirt -> t-shirt, t shirt
+      if (/^[a-z][a-z0-9]+$/i.test(term)) {
+        termVariants.add(`${term.charAt(0)}-${term.slice(1)}`);
+        termVariants.add(`${term.charAt(0)} ${term.slice(1)}`);
+      }
+
+      const orConditions: any[] = [];
+      for (const t of termVariants) {
+        if (!t) continue;
+        orConditions.push(
+          { product: { name: { contains: t, mode: "insensitive" } } },
+          { product: { sku: { contains: t, mode: "insensitive" } } },
+          { variant: { name: { contains: t, mode: "insensitive" } } },
+          { variant: { sku: { contains: t, mode: "insensitive" } } },
+          { warehouse: { name: { contains: t, mode: "insensitive" } } },
+          { location: { name: { contains: t, mode: "insensitive" } } },
+        );
+      }
+      where.OR = orConditions;
     }
 
     const [rawLevels, total] = await Promise.all([

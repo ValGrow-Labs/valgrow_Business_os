@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
 export interface OrganizationItem {
@@ -14,6 +14,37 @@ export interface OrganizationItem {
   timezone: string;
   fiscalYearStart?: string | null | undefined;
   role: string;
+}
+
+export interface BranchDetailSummary {
+  id: string;
+  name: string;
+  code: string | null;
+  city: string;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  status: string;
+}
+
+export interface OrganizationDetail extends OrganizationItem {
+  taxId?: string | null | undefined;
+  registrationNumber?: string | null | undefined;
+  email?: string | null | undefined;
+  phone?: string | null | undefined;
+  website?: string | null | undefined;
+  primaryAddress?: string | null | undefined;
+  primaryCity?: string | null | undefined;
+  primaryBranchName?: string | null | undefined;
+  valuationMethod?: string | undefined;
+  membershipStatus?: string | undefined;
+  joinedAt?: string | undefined;
+  memberCount?: number | undefined;
+  branchCount?: number | undefined;
+  warehouseCount?: number | undefined;
+  branches?: BranchDetailSummary[] | undefined;
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
 }
 
 export interface CreateBranchSetupInput {
@@ -81,11 +112,30 @@ export interface CreatedOrganizationResult extends OrganizationItem {
     | undefined;
 }
 
-export function useOrganizations() {
+export interface OrganizationParams {
+  search?: string | undefined;
+  status?: string | undefined;
+}
+
+export function useOrganizations(params?: OrganizationParams | undefined) {
+  const queryParts: string[] = [];
+  if (params?.status) queryParts.push(`status=${encodeURIComponent(params.status)}`);
+  if (params?.search) queryParts.push(`search=${encodeURIComponent(params.search)}`);
+  const queryString = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+
   return useQuery<OrganizationItem[]>({
-    queryKey: ["organizations"],
-    queryFn: () => apiClient<OrganizationItem[]>("/organizations"),
+    queryKey: ["organizations", params?.status, params?.search],
+    queryFn: () => apiClient<OrganizationItem[]>(`/organizations${queryString}`),
+    placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useOrganization(id: string | null | undefined) {
+  return useQuery<OrganizationDetail>({
+    queryKey: ["organization", id],
+    queryFn: () => apiClient<OrganizationDetail>(`/organizations/${id}`),
+    enabled: Boolean(id),
   });
 }
 
