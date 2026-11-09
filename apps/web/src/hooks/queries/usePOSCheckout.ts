@@ -78,11 +78,70 @@ export function usePOSCheckout() {
   });
 }
 
-export function usePOSSales(sessionId?: string) {
-  return useQuery<POSSaleResult["sale"][]>({
-    queryKey: ["pos-sales", sessionId],
-    queryFn: () =>
-      apiClient<POSSaleResult["sale"][]>(`/pos/sales${sessionId ? `?sessionId=${sessionId}` : ""}`),
+export interface PosSalesFilters {
+  sessionId?: string;
+  branchId?: string;
+  status?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface POSSaleRecord {
+  id: string;
+  organizationId: string;
+  branchId: string;
+  warehouseId: string;
+  sessionId: string;
+  cartId?: string | null;
+  salesOrderId?: string | null;
+  salesInvoiceId?: string | null;
+  receiptNumber: string;
+  customerId?: string | null;
+  cashierId: string;
+  subtotalAmount: number | string;
+  discountAmount: number | string;
+  taxAmount: number | string;
+  totalAmount: number | string;
+  paidAmount: number | string;
+  changeAmount: number | string;
+  status: "COMPLETED" | "CANCELLED" | "REFUNDED" | string;
+  createdAt: string;
+  updatedAt?: string;
+  payments: {
+    id: string;
+    paymentMethod: CustomerPaymentMethod;
+    amount: number | string;
+    receivedAmount: number | string | null;
+    changeAmount: number | string | null;
+    referenceNumber: string | null;
+    createdAt?: string;
+  }[];
+  customer?: { id: string; name: string; customerCode: string; email?: string | null; phone?: string | null } | null;
+  cashier?: { id: string; firstName: string; lastName: string; email?: string | null } | null;
+  branch?: { id: string; name: string; code?: string | null } | null;
+  warehouse?: { id: string; name: string; code?: string | null } | null;
+}
+
+export function usePOSSales(filtersOrSessionId?: string | PosSalesFilters) {
+  const queryStr = (() => {
+    if (typeof filtersOrSessionId === "string") {
+      return filtersOrSessionId ? `?sessionId=${encodeURIComponent(filtersOrSessionId)}` : "";
+    }
+    if (!filtersOrSessionId) return "";
+    const params = new URLSearchParams();
+    Object.entries(filtersOrSessionId).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "" && v !== "ALL") {
+        params.set(k, String(v));
+      }
+    });
+    const s = params.toString();
+    return s ? `?${s}` : "";
+  })();
+
+  return useQuery<POSSaleRecord[]>({
+    queryKey: ["pos-sales", filtersOrSessionId],
+    queryFn: () => apiClient<POSSaleRecord[]>(`/pos/sales${queryStr}`),
   });
 }
 

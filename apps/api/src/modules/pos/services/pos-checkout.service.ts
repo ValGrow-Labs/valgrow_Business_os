@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { JournalEntriesService } from "../../journal-entries/journal-entries.service";
-import { PosCheckoutDto } from "../dto/checkout.dto";
+import { PosCheckoutDto, PosSalesQueryDto } from "../dto/checkout.dto";
 import { Prisma } from "@prisma/client";
 
 @Injectable()
@@ -707,9 +707,43 @@ export class PosCheckoutService {
     });
   }
 
-  async getSales(organizationId: string, sessionId?: string) {
+  async getSales(
+    organizationId: string,
+    filterOrSessionId?: string | PosSalesQueryDto,
+  ) {
+    const filter =
+      typeof filterOrSessionId === "string"
+        ? { sessionId: filterOrSessionId }
+        : filterOrSessionId || {};
+
     const where: Prisma.POSSaleWhereInput = { organizationId };
-    if (sessionId) where.sessionId = sessionId;
+    if (filter.sessionId) where.sessionId = filter.sessionId;
+    if (filter.branchId && filter.branchId !== "ALL") {
+      where.branchId = filter.branchId;
+    }
+    if (filter.status && filter.status !== "ALL") {
+      where.status = filter.status as any;
+    }
+    if (filter.dateFrom || filter.dateTo) {
+      where.createdAt = {};
+      if (filter.dateFrom) {
+        where.createdAt.gte = new Date(filter.dateFrom);
+      }
+      if (filter.dateTo) {
+        const to = new Date(filter.dateTo);
+        to.setHours(23, 59, 59, 999);
+        where.createdAt.lte = to;
+      }
+    }
+    if (filter.search) {
+      const term = filter.search.trim();
+      where.OR = [
+        { receiptNumber: { contains: term, mode: "insensitive" } },
+        { customer: { name: { contains: term, mode: "insensitive" } } },
+        { cashier: { firstName: { contains: term, mode: "insensitive" } } },
+        { cashier: { lastName: { contains: term, mode: "insensitive" } } },
+      ];
+    }
 
     return this.prisma.pOSSale.findMany({
       where,

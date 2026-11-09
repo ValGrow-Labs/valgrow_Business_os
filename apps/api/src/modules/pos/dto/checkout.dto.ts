@@ -71,3 +71,30 @@ export class PosRefundDto {
     quantity: number;
   }>;
 }
+
+export class PosSalesQueryDto {
+  @IsString()
+  @IsOptional()
+  sessionId?: string;
+
+  @IsString()
+  @IsOptional()
+  branchId?: string;
+
+  @IsString()
+  @IsOptional()
+  status?: string;
+
+  @IsString()
+  @IsOptional()
+  search?: string;
+
+  @IsString()
+  @IsOptional()
+  dateFrom?: string;
+
+  @IsString()
+  @IsOptional()
+  dateTo?: string;
+}
+

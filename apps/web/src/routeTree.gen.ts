@@ -74,6 +74,7 @@ import { Route as SalesCreditNotesRouteImport } from './routes/sales-credit-note
 import { Route as SalesInvoicesRouteImport } from './routes/sales-invoices'
 import { Route as SalesOrdersRouteImport } from './routes/sales-orders'
 import { Route as SalesReturnsRouteImport } from './routes/sales-returns'
+import { Route as SalesTransactionsRouteImport } from './routes/sales-transactions'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SerialNumbersRouteImport } from './routes/serial-numbers'
 import { Route as SupplierInvoicesRouteImport } from './routes/supplier-invoices'
@@ -420,6 +421,11 @@ const SalesReturnsRoute = SalesReturnsRouteImport.update({
   path: '/sales-returns',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SalesTransactionsRoute = SalesTransactionsRouteImport.update({
+  id: '/sales-transactions',
+  path: '/sales-transactions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
@@ -587,6 +593,7 @@ export interface FileRoutesByFullPath {
   '/sales-invoices': typeof SalesInvoicesRoute
   '/sales-orders': typeof SalesOrdersRoute
   '/sales-returns': typeof SalesReturnsRoute
+  '/sales-transactions': typeof SalesTransactionsRoute
   '/search': typeof SearchRoute
   '/serial-numbers': typeof SerialNumbersRoute
   '/supplier-invoices': typeof SupplierInvoicesRoute
@@ -674,6 +681,7 @@ export interface FileRoutesByTo {
   '/sales-invoices': typeof SalesInvoicesRoute
   '/sales-orders': typeof SalesOrdersRoute
   '/sales-returns': typeof SalesReturnsRoute
+  '/sales-transactions': typeof SalesTransactionsRoute
   '/search': typeof SearchRoute
   '/serial-numbers': typeof SerialNumbersRoute
   '/supplier-invoices': typeof SupplierInvoicesRoute
@@ -762,6 +770,7 @@ export interface FileRoutesById {
   '/sales-invoices': typeof SalesInvoicesRoute
   '/sales-orders': typeof SalesOrdersRoute
   '/sales-returns': typeof SalesReturnsRoute
+  '/sales-transactions': typeof SalesTransactionsRoute
   '/search': typeof SearchRoute
   '/serial-numbers': typeof SerialNumbersRoute
   '/supplier-invoices': typeof SupplierInvoicesRoute
@@ -851,6 +860,7 @@ export interface FileRouteTypes {
     | '/sales-invoices'
     | '/sales-orders'
     | '/sales-returns'
+    | '/sales-transactions'
     | '/search'
     | '/serial-numbers'
     | '/supplier-invoices'
@@ -938,6 +948,7 @@ export interface FileRouteTypes {
     | '/sales-invoices'
     | '/sales-orders'
     | '/sales-returns'
+    | '/sales-transactions'
     | '/search'
     | '/serial-numbers'
     | '/supplier-invoices'
@@ -1025,6 +1036,7 @@ export interface FileRouteTypes {
     | '/sales-invoices'
     | '/sales-orders'
     | '/sales-returns'
+    | '/sales-transactions'
     | '/search'
     | '/serial-numbers'
     | '/supplier-invoices'
@@ -1113,6 +1125,7 @@ export interface RootRouteChildren {
   SalesInvoicesRoute: typeof SalesInvoicesRoute
   SalesOrdersRoute: typeof SalesOrdersRoute
   SalesReturnsRoute: typeof SalesReturnsRoute
+  SalesTransactionsRoute: typeof SalesTransactionsRoute
   SearchRoute: typeof SearchRoute
   SerialNumbersRoute: typeof SerialNumbersRoute
   SupplierInvoicesRoute: typeof SupplierInvoicesRoute
@@ -1592,6 +1605,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SalesReturnsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sales-transactions': {
+      id: '/sales-transactions'
+      path: '/sales-transactions'
+      fullPath: '/sales-transactions'
+      preLoaderRoute: typeof SalesTransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/search': {
       id: '/search'
       path: '/search'
@@ -1801,6 +1821,7 @@ const rootRouteChildren: RootRouteChildren = {
   SalesInvoicesRoute: SalesInvoicesRoute,
   SalesOrdersRoute: SalesOrdersRoute,
   SalesReturnsRoute: SalesReturnsRoute,
+  SalesTransactionsRoute: SalesTransactionsRoute,
   SearchRoute: SearchRoute,
   SerialNumbersRoute: SerialNumbersRoute,
   SupplierInvoicesRoute: SupplierInvoicesRoute,

@@ -73,6 +73,7 @@ export const navGroups: NavGroup[] = [
       { title: "POS", url: "/pos", icon: ShoppingBag, permission: "pos.create" },
       { title: "Billing Desk", url: "/pos-billing", icon: Receipt, permission: "pos.billing" },
       { title: "Cashier Counter", url: "/pos-cashier", icon: CreditCard, permission: ["pos.cashier", "pos.checkout"] },
+      { title: "Sales Transactions", url: "/sales-transactions", icon: ScrollText, permission: "pos.read" },
       { title: "Products", url: "/products", icon: Package },
       { title: "Inventory", url: "/inventory", icon: Boxes },
       { title: "Purchasing", url: "/purchasing", icon: ShoppingCart },

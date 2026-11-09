@@ -403,7 +403,7 @@ export function RecentSalesCard() {
           <p className="text-[13px] text-muted-foreground">Latest transactions across branches</p>
         </div>
         <Button asChild variant="ghost" size="sm" className="text-foreground">
-          <Link to="/reports">
+          <Link to="/sales-transactions">
             View all
             <ArrowRight />
           </Link>

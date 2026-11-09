@@ -30,7 +30,7 @@ import {
   AddPosCartItemDto,
   UpdatePosCartItemDto,
 } from "./dto/cart.dto";
-import { PosCheckoutDto, PosRefundDto } from "./dto/checkout.dto";
+import { PosCheckoutDto, PosRefundDto, PosSalesQueryDto } from "./dto/checkout.dto";
 import {
   SendToBillingDto,
   SendToPaymentDto,
@@ -336,9 +336,9 @@ export class PosController {
   @RequirePermissions("pos.read")
   getSales(
     @CurrentOrg("id") orgId: string,
-    @Query("sessionId") sessionId?: string,
+    @Query() query: PosSalesQueryDto,
   ) {
-    return this.checkoutService.getSales(orgId, sessionId);
+    return this.checkoutService.getSales(orgId, query);
   }
 
   @Get("sales/:id")
