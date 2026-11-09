@@ -45,3 +45,33 @@ export function useCreateUser() {
     },
   });
 }
+
+export interface ResetPasswordResponse {
+  success: boolean;
+  action: "generate-link" | "set-temporary";
+  message: string;
+  resetUrl?: string;
+  resetToken?: string;
+  expiresAt?: string;
+}
+
+export function useResetUserPassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      userId: string;
+      action: "generate-link" | "set-temporary";
+      temporaryPassword?: string;
+    }) =>
+      apiClient<ResetPasswordResponse>(`/users/${data.userId}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify({
+          action: data.action,
+          ...(data.temporaryPassword ? { temporaryPassword: data.temporaryPassword } : {}),
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}

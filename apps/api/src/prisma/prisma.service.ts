@@ -14,6 +14,15 @@ export class PrismaService
       await this.$executeRawUnsafe(
         `ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "metadata" JSONB;`
       );
+      await this.$executeRawUnsafe(
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "mustChangePassword" BOOLEAN NOT NULL DEFAULT false;`
+      );
+      await this.$executeRawUnsafe(
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "resetToken" TEXT;`
+      );
+      await this.$executeRawUnsafe(
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "resetTokenExpiresAt" TIMESTAMP(3);`
+      );
     } catch (e: any) {
       this.logger.warn(`Schema verification notice: ${e?.message}`);
     }

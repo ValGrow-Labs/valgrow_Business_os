@@ -1,8 +1,11 @@
-import { Controller, Get, Post, Patch, Param, Body } from "@nestjs/common";
+import { Controller, Get, Post, Patch, Param, Body, Req } from "@nestjs/common";
+import { Request } from "express";
 import { UsersService } from "./users.service";
 import { CurrentOrg } from "../../common/decorators/current-org.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { CurrentMember } from "../../common/decorators/current-member.decorator";
 import { RequirePermissions } from "../../common/decorators/require-permissions.decorator";
+import { ResetUserPasswordDto } from "./dto/reset-user-password.dto";
 
 @Controller("users")
 export class UsersController {
@@ -31,5 +34,25 @@ export class UsersController {
     @Body() body: any,
   ) {
     return this.usersService.updateUser(id, organizationId, body);
+  }
+
+  @RequirePermissions("users.write")
+  @Post(":id/reset-password")
+  async resetUserPassword(
+    @Param("id") id: string,
+    @CurrentOrg("id") organizationId: string,
+    @CurrentUser() actor: any,
+    @CurrentMember() actorMember: any,
+    @Body() dto: ResetUserPasswordDto,
+    @Req() req: Request,
+  ) {
+    return this.usersService.resetUserPassword(
+      id,
+      organizationId,
+      actor,
+      actorMember,
+      dto,
+      req,
+    );
   }
 }

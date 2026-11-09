@@ -286,6 +286,10 @@ model User {
   bio          String?
   status       UserStatus @default(ACTIVE)
 
+  mustChangePassword  Boolean   @default(false)
+  resetToken          String?
+  resetTokenExpiresAt DateTime?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?

@@ -2,16 +2,27 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
+import * as crypto from "node:crypto";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import {
+  ResetUserPasswordDto,
+  ResetPasswordAction,
+} from "./dto/reset-user-password.dto";
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   async getOrganizationUsers(organizationId: string) {
@@ -180,5 +191,147 @@ export class UsersService {
     });
 
     return updatedUser;
+  }
+
+  async resetUserPassword(
+    targetUserId: string,
+    organizationId: string,
+    actor: any,
+    actorMember: any,
+    dto: ResetUserPasswordDto,
+    req?: any,
+  ) {
+    if (!actorMember || !actorMember.role) {
+      throw new ForbiddenException("Unauthorized to perform password reset");
+    }
+
+    const actorRole = actorMember.role.name;
+    const isOwner = actorRole === "Owner";
+    const isAdmin = actorRole === "Administrator";
+
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenException(
+        "Only workspace Owners and Administrators can initiate password resets",
+      );
+    }
+
+    // Tenant check: target must belong to this organization
+    const targetMember = await this.prisma.organizationMember.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId,
+          userId: targetUserId,
+        },
+      },
+      include: {
+        user: true,
+        role: true,
+      },
+    });
+
+    if (!targetMember || !targetMember.user || targetMember.user.deletedAt) {
+      throw new NotFoundException(
+        "User is not an active member of this organization",
+      );
+    }
+
+    const targetUser = targetMember.user;
+    const targetRole = targetMember.role.name;
+
+    // Role hierarchy safeguard: non-owners cannot reset an Owner
+    if (targetRole === "Owner" && !isOwner) {
+      throw new ForbiddenException(
+        "Only an Owner can reset an Owner's password",
+      );
+    }
+
+    if (dto.action === ResetPasswordAction.GENERATE_LINK) {
+      const jti = crypto.randomUUID();
+      const resetToken = this.jwtService.sign(
+        {
+          sub: targetUser.id,
+          email: targetUser.email,
+          type: "reset",
+          jti,
+        },
+        { expiresIn: "1h" },
+      );
+
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      await this.prisma.user.update({
+        where: { id: targetUser.id },
+        data: {
+          resetToken,
+          resetTokenExpiresAt: expiresAt,
+        },
+      });
+
+      let baseUrl =
+        req?.headers?.origin ||
+        req?.headers?.referer ||
+        this.configService.get<string>("FRONTEND_URL") ||
+        "https://valgrow-business-os-eosin.vercel.app";
+
+      try {
+        const parsed = new URL(baseUrl);
+        baseUrl = parsed.origin;
+      } catch {
+        baseUrl = "https://valgrow-business-os-eosin.vercel.app";
+      }
+
+      const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
+
+      return {
+        success: true,
+        action: "generate-link",
+        resetUrl,
+        resetToken,
+        expiresAt: expiresAt.toISOString(),
+        message: "Password reset link generated successfully",
+      };
+    }
+
+    if (dto.action === ResetPasswordAction.SET_TEMPORARY) {
+      if (!dto.temporaryPassword || dto.temporaryPassword.trim().length < 8) {
+        throw new BadRequestException(
+          "Temporary password must be at least 8 characters long",
+        );
+      }
+
+      const bcryptRounds = parseInt(
+        this.configService.get<string>("BCRYPT_ROUNDS", "12"),
+        10,
+      );
+      const passwordHash = await bcrypt.hash(
+        dto.temporaryPassword,
+        bcryptRounds,
+      );
+
+      await this.prisma.user.update({
+        where: { id: targetUser.id },
+        data: {
+          passwordHash,
+          mustChangePassword: true,
+          resetToken: null,
+          resetTokenExpiresAt: null,
+        },
+      });
+
+      // Revoke all active sessions belonging to the target user
+      await this.prisma.session.updateMany({
+        where: { userId: targetUser.id, isRevoked: false },
+        data: { isRevoked: true },
+      });
+
+      return {
+        success: true,
+        action: "set-temporary",
+        message:
+          "Temporary password set successfully. All active sessions have been revoked.",
+      };
+    }
+
+    throw new BadRequestException("Invalid reset password action");
   }
 }

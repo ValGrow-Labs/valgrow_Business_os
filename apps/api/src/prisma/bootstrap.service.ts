@@ -15,7 +15,7 @@ export class BootstrapService implements OnModuleInit {
   async bootstrap() {
     try {
       this.logger.log("Running idempotent database bootstrap...");
-      await this.ensureNotificationMetadataColumn();
+      await this.ensureSchemaPatches();
       await this.ensureCatalogPermissions();
       await this.ensureDefaultRolesAndAccounts();
       this.logger.log("Database bootstrap completed successfully.");
@@ -25,17 +25,26 @@ export class BootstrapService implements OnModuleInit {
   }
 
   /**
-   * Ensures the Notification table has the metadata JSONB column.
+   * Ensures necessary schema patches exist (Notification metadata, User password reset columns).
    * Safe and idempotent across all PostgreSQL instances (local, Render, Neon, Supabase).
    */
-  async ensureNotificationMetadataColumn() {
+  async ensureSchemaPatches() {
     try {
       await this.prisma.$executeRawUnsafe(
         `ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "metadata" JSONB;`
       );
-      this.logger.log("✓ Verified Notification.metadata column exists.");
+      await this.prisma.$executeRawUnsafe(
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "mustChangePassword" BOOLEAN NOT NULL DEFAULT false;`
+      );
+      await this.prisma.$executeRawUnsafe(
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "resetToken" TEXT;`
+      );
+      await this.prisma.$executeRawUnsafe(
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "resetTokenExpiresAt" TIMESTAMP(3);`
+      );
+      this.logger.log("✓ Verified schema patches (Notification.metadata, User password reset columns) exist.");
     } catch (err: any) {
-      this.logger.warn(`Could not alter Notification table: ${err.message}`);
+      this.logger.warn(`Could not apply schema patches: ${err.message}`);
     }
   }
 

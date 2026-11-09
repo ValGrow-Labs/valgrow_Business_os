@@ -4,17 +4,18 @@ import { ListPage, StatusBadge, type ListRow } from "@/components/foundation/lis
 import type { Column } from "@/components/foundation/data-table";
 import { useUsers } from "@/hooks/queries/useUsers";
 import { InviteUserDialog } from "@/components/foundation/invite-user-dialog";
-
-const columns: Column<ListRow>[] = [
-  { key: "name", header: "Member" },
-  { key: "email", header: "Email" },
-  { key: "role", header: "Role" },
-  {
-    key: "status",
-    header: "Status",
-    render: (r) => <StatusBadge value={String(r["status"] ?? "")} />,
-  },
-];
+import {
+  ResetPasswordDialog,
+  type TargetMemberInfo,
+} from "@/components/foundation/reset-password-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { MoreHorizontal, KeyRound } from "lucide-react";
 
 const title = "User Management";
 const description = "Invite members, assign roles and manage workspace access.";
@@ -33,7 +34,60 @@ export const Route = createFileRoute("/users")({
 
 function UserManagementPage() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [resetMember, setResetMember] = useState<TargetMemberInfo | null>(null);
+  const [isResetOpen, setIsResetOpen] = useState(false);
   const { data: usersData, isLoading } = useUsers();
+
+  const handleOpenReset = (member: TargetMemberInfo) => {
+    setResetMember(member);
+    setIsResetOpen(true);
+  };
+
+  const columns: Column<ListRow>[] = [
+    { key: "name", header: "Member" },
+    { key: "email", header: "Email" },
+    { key: "role", header: "Role" },
+    {
+      key: "status",
+      header: "Status",
+      render: (r) => <StatusBadge value={String(r["status"] ?? "")} />,
+    },
+    {
+      key: "actions",
+      header: "",
+      className: "w-10 text-right",
+      render: (r) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              aria-label={`Actions for ${r["name"]}`}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem
+              onClick={() =>
+                handleOpenReset({
+                  id: String(r["id"]),
+                  name: String(r["name"]),
+                  email: String(r["email"]),
+                  role: String(r["role"]),
+                })
+              }
+              className="gap-2 cursor-pointer text-xs"
+            >
+              <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
+              Reset password
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ];
 
   const rows: ListRow[] = usersData
     ? usersData.map((u) => ({
@@ -77,6 +131,11 @@ function UserManagementPage() {
         open={isInviteOpen}
         onOpenChange={setIsInviteOpen}
         existingEmails={usersData?.map((u) => u.email) ?? []}
+      />
+      <ResetPasswordDialog
+        open={isResetOpen}
+        onOpenChange={setIsResetOpen}
+        member={resetMember}
       />
     </>
   );

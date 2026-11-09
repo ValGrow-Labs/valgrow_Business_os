@@ -379,6 +379,14 @@ export class AuthService {
       { expiresIn: "1h" },
     );
 
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetToken,
+        resetTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+
     // In a full implementation, email service sends resetToken link
     return {
       message: "Password reset link generated successfully",
@@ -387,33 +395,57 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto) {
+    let payload: any;
     try {
-      const payload = this.jwtService.verify(dto.token);
-      if (payload.type !== "reset") {
-        throw new BadRequestException("Invalid reset token type");
-      }
-
-      const passwordHash = await bcrypt.hash(
-        dto.newPassword,
-        this.bcryptRounds,
-      );
-      await this.prisma.user.update({
-        where: { id: payload.sub },
-        data: { passwordHash },
-      });
-
-      await this.prisma.session.updateMany({
-        where: { userId: payload.sub },
-        data: { isRevoked: true },
-      });
-
-      return {
-        message:
-          "Password reset successfully. Please log in with your new password.",
-      };
+      payload = this.jwtService.verify(dto.token);
     } catch {
       throw new BadRequestException("Invalid or expired reset token");
     }
+
+    if (!payload || payload.type !== "reset" || !payload.sub) {
+      throw new BadRequestException("Invalid reset token type");
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    });
+
+    if (!user || user.status !== "ACTIVE" || user.deletedAt) {
+      throw new BadRequestException("Invalid or expired reset token");
+    }
+
+    if (!user.resetToken || user.resetToken !== dto.token) {
+      throw new BadRequestException("This reset token has already been used or invalidated");
+    }
+
+    if (user.resetTokenExpiresAt && user.resetTokenExpiresAt < new Date()) {
+      throw new BadRequestException("Reset token has expired");
+    }
+
+    const passwordHash = await bcrypt.hash(
+      dto.newPassword,
+      this.bcryptRounds,
+    );
+
+    await this.prisma.user.update({
+      where: { id: payload.sub },
+      data: {
+        passwordHash,
+        resetToken: null,
+        resetTokenExpiresAt: null,
+        mustChangePassword: false,
+      },
+    });
+
+    await this.prisma.session.updateMany({
+      where: { userId: payload.sub },
+      data: { isRevoked: true },
+    });
+
+    return {
+      message:
+        "Password reset successfully. Please log in with your new password.",
+    };
   }
 
   private async createSessionAndTokens(
