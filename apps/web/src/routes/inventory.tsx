@@ -297,7 +297,6 @@ function InventoryStockPage() {
                 variant: s.variant?.name || "Base Product",
                 facility: `${s.warehouse?.name || "N/A"} → ${s.location?.name || "N/A"}`,
                 batch: s.batch?.batchNumber || "Non-Batched",
-                onHand: `${s.onHand} Units`,
                 reserved: `${s.reserved} Units`,
                 available: `${s.available} Units`,
               },
@@ -314,7 +313,6 @@ function InventoryStockPage() {
               variant: "Base Product",
               facility: warehouses[0]?.name ? `${warehouses[0].name} (Unstocked)` : "No Location Assigned",
               batch: "Non-Batched",
-              onHand: "0 Units",
               reserved: "0 Units",
               available: "0 Units",
             },
@@ -338,7 +336,6 @@ function InventoryStockPage() {
             variant: s.variant?.name || "Base Product",
             facility: `${s.warehouse?.name || "N/A"} → ${s.location?.name || "N/A"}`,
             batch: s.batch?.batchNumber || "Non-Batched",
-            onHand: `${s.onHand} Units`,
             reserved: `${s.reserved} Units`,
             available: `${s.available} Units`,
           },
@@ -382,34 +379,31 @@ function InventoryStockPage() {
     {
       key: "product",
       header: "Product",
+      className: "min-w-[200px]",
       render: (r) => <NameCell value={String(r["product"] ?? "")} sub={String(r["variant"] ?? "")} />,
     },
     {
       key: "facility",
       header: "Warehouse & Location",
+      className: "min-w-[180px]",
       render: (r) => <span className="text-muted-foreground">{String(r["facility"] ?? "")}</span>,
     },
     {
       key: "batch",
       header: "Batch No.",
+      className: "w-32",
       render: (r) => <span className="font-mono text-xs text-muted-foreground">{String(r["batch"] ?? "")}</span>,
-    },
-    {
-      key: "onHand",
-      header: "On hand",
-      className: "text-right",
-      render: (r) => <NumberCell value={String(r["onHand"] ?? "")} />,
     },
     {
       key: "reserved",
       header: "Reserved",
-      className: "text-right",
+      className: "text-right w-28",
       render: (r) => <NumberCell value={String(r["reserved"] ?? "")} />,
     },
     {
       key: "available",
       header: "Available",
-      className: "text-right",
+      className: "text-right w-32",
       render: (r) => {
         const value = String(r["available"] ?? "");
         const qty = Number(value.replace(/[^\d.-]/g, ""));
@@ -424,7 +418,7 @@ function InventoryStockPage() {
     {
       key: "actions",
       header: "Actions",
-      className: "text-right",
+      className: "text-right w-28",
       render: (r) => (
         <div className="flex items-center justify-end">
           <Button
