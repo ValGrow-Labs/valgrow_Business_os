@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { toast } from "sonner";
+
+export const round2 = (val: number): number =>
+  Math.round((Number(val || 0) + Number.EPSILON) * 100) / 100;
 
 export interface POSCartItemData {
   id: string;
@@ -226,10 +230,10 @@ export function useAddPOSCartItem() {
       if (existingItem) {
         const newQty = Number(existingItem.quantity) + qtyToAdd;
         const effUnitPrice = dto.unitPrice !== undefined ? unitPrice : Number(existingItem.unitPrice);
-        const lineSubtotal = Math.max(0, newQty * effUnitPrice - Number(existingItem.discountAmount || 0));
+        const lineSubtotal = round2(Math.max(0, newQty * effUnitPrice - Number(existingItem.discountAmount || 0)));
         const effTaxRate = dto.taxRate !== undefined ? taxRate : Number(existingItem.taxRate || 0);
-        const taxAmount = (lineSubtotal * effTaxRate) / 100;
-        const totalAmount = lineSubtotal + taxAmount;
+        const taxAmount = round2((lineSubtotal * effTaxRate) / 100);
+        const totalAmount = round2(lineSubtotal + taxAmount);
 
         const updatedProduct = productInfo
           ? {
@@ -260,9 +264,9 @@ export function useAddPOSCartItem() {
         updatedItems = [...previousCart.items];
         updatedItems[existingItemIndex] = updatedItem;
       } else {
-        const lineSubtotal = Math.max(0, qtyToAdd * unitPrice - discountAmount);
-        const taxAmount = (lineSubtotal * taxRate) / 100;
-        const totalAmount = lineSubtotal + taxAmount;
+        const lineSubtotal = round2(Math.max(0, qtyToAdd * unitPrice - discountAmount));
+        const taxAmount = round2((lineSubtotal * taxRate) / 100);
+        const totalAmount = round2(lineSubtotal + taxAmount);
 
         const productData = productInfo
           ? {
@@ -293,20 +297,26 @@ export function useAddPOSCartItem() {
         updatedItems = [...previousCart.items, optimisticItem];
       }
 
-      const subtotalAmount = updatedItems.reduce(
-        (sum, i) => sum + Number(i.quantity) * Number(i.unitPrice),
-        0,
+      const subtotalAmount = round2(
+        updatedItems.reduce(
+          (sum, i) => sum + Number(i.quantity) * Number(i.unitPrice),
+          0,
+        ),
       );
-      const totalDiscount = updatedItems.reduce(
-        (sum, i) => sum + Number(i.discountAmount || 0),
-        0,
+      const totalDiscount = round2(
+        updatedItems.reduce(
+          (sum, i) => sum + Number(i.discountAmount || 0),
+          0,
+        ),
       );
-      const totalTax = updatedItems.reduce(
-        (sum, i) => sum + Number(i.taxAmount || 0),
-        0,
+      const totalTax = round2(
+        updatedItems.reduce(
+          (sum, i) => sum + Number(i.taxAmount || 0),
+          0,
+        ),
       );
-      const netSubtotal = Math.max(0, subtotalAmount - totalDiscount);
-      const totalAmount = netSubtotal + totalTax;
+      const netSubtotal = round2(Math.max(0, subtotalAmount - totalDiscount));
+      const totalAmount = round2(netSubtotal + totalTax);
 
       const optimisticCart: POSCartData = {
         ...previousCart,
@@ -355,37 +365,79 @@ export function useAddPOSCartItem() {
   });
 }
 
+export interface UpdatePOSCartItemParams {
+  cartId: string;
+  itemId: string;
+  dto: UpdatePOSCartItemDto;
+  productId?: string | undefined;
+  variantId?: string | null | undefined;
+  realCartIdPromise?: Promise<string> | undefined;
+}
+
 export function useUpdatePOSCartItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       cartId,
       itemId,
       dto,
-    }: {
-      cartId: string;
-      itemId: string;
-      dto: UpdatePOSCartItemDto;
-    }) =>
-      apiClient<POSCartData>(`/pos/carts/${cartId}/items/${itemId}`, {
+      productId,
+      variantId,
+      realCartIdPromise,
+    }: UpdatePOSCartItemParams) => {
+      let targetCartId = cartId;
+      if (cartId.startsWith("optimistic-") || realCartIdPromise) {
+        targetCartId = realCartIdPromise ? await realCartIdPromise : cartId;
+      }
+
+      let targetItemId = itemId;
+      // If itemId is temporary (optimistic item still in flight), find real item ID from latest cache
+      if (targetItemId.startsWith("temp-")) {
+        for (let i = 0; i < 15; i++) {
+          const currentCart =
+            queryClient.getQueryData<POSCartData>(["pos-cart", targetCartId]) ||
+            queryClient.getQueryData<POSCartData>(["pos-cart", cartId]);
+          if (currentCart) {
+            const realItem = currentCart.items.find(
+              (it) =>
+                !it.id.startsWith("temp-") &&
+                (it.id === targetItemId ||
+                  (productId && it.productId === productId && (it.variantId || null) === (variantId || null))),
+            );
+            if (realItem) {
+              targetItemId = realItem.id;
+              break;
+            }
+          }
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
+
+      return apiClient<POSCartData>(`/pos/carts/${targetCartId}/items/${targetItemId}`, {
         method: "PATCH",
         body: JSON.stringify(dto),
-      }),
-    onMutate: async ({ cartId, itemId, dto }) => {
+      });
+    },
+    onMutate: async ({ cartId, itemId, dto, productId, variantId }) => {
       await queryClient.cancelQueries({ queryKey: ["pos-cart", cartId] });
       const previousCart = queryClient.getQueryData<POSCartData>(["pos-cart", cartId]);
 
       if (previousCart) {
-        const itemIndex = previousCart.items.findIndex((i) => i.id === itemId);
+        const itemIndex = previousCart.items.findIndex(
+          (i) =>
+            i.id === itemId ||
+            (productId && i.productId === productId && (i.variantId || null) === (variantId || null)),
+        );
         const item = itemIndex >= 0 ? previousCart.items[itemIndex] : undefined;
 
         if (item) {
           const qty = Number(dto.quantity);
           const unitPrice = dto.unitPrice !== undefined ? Number(dto.unitPrice) : Number(item.unitPrice);
-          const discount = dto.discountAmount !== undefined ? Number(dto.discountAmount) : Number(item.discountAmount || 0);
-          const lineSubtotal = Math.max(0, qty * unitPrice - discount);
-          const taxAmount = (lineSubtotal * Number(item.taxRate || 0)) / 100;
-          const totalAmount = lineSubtotal + taxAmount;
+          const discount =
+            dto.discountAmount !== undefined ? Number(dto.discountAmount) : Number(item.discountAmount || 0);
+          const lineSubtotal = round2(Math.max(0, qty * unitPrice - discount));
+          const taxAmount = round2((lineSubtotal * Number(item.taxRate || 0)) / 100);
+          const totalAmount = round2(lineSubtotal + taxAmount);
 
           const updatedItem: POSCartItemData = {
             id: item.id,
@@ -406,19 +458,16 @@ export function useUpdatePOSCartItem() {
           const updatedItems = [...previousCart.items];
           updatedItems[itemIndex] = updatedItem;
 
-          const subtotalAmount = updatedItems.reduce(
-            (sum, i) => sum + Number(i.quantity) * Number(i.unitPrice),
-            0,
+          const subtotalAmount = round2(
+            updatedItems.reduce((sum, i) => sum + Number(i.quantity) * Number(i.unitPrice), 0),
           );
-          const totalDiscount = updatedItems.reduce(
-            (sum, i) => sum + Number(i.discountAmount || 0),
-            0,
+          const totalDiscount = round2(
+            updatedItems.reduce((sum, i) => sum + Number(i.discountAmount || 0), 0),
           );
-          const totalTax = updatedItems.reduce(
-            (sum, i) => sum + Number(i.taxAmount || 0),
-            0,
+          const totalTax = round2(
+            updatedItems.reduce((sum, i) => sum + Number(i.taxAmount || 0), 0),
           );
-          const netSubtotal = Math.max(0, subtotalAmount - totalDiscount);
+          const netSubtotal = round2(Math.max(0, subtotalAmount - totalDiscount));
 
           queryClient.setQueryData(["pos-cart", cartId], {
             ...previousCart,
@@ -426,50 +475,134 @@ export function useUpdatePOSCartItem() {
             subtotalAmount,
             discountAmount: totalDiscount,
             taxAmount: totalTax,
-            totalAmount: netSubtotal + totalTax,
+            totalAmount: round2(netSubtotal + totalTax),
           });
         }
       }
 
       return { previousCart };
     },
-    onError: (_err, { cartId }, context) => {
+    onError: (err: any, { cartId }, context) => {
       if (context?.previousCart) {
         queryClient.setQueryData(["pos-cart", cartId], context.previousCart);
       }
+      toast.error("Failed to update item quantity", {
+        description: err?.message || "Check stock levels and try again.",
+      });
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(["pos-cart", data.id], data);
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData<POSCartData>(["pos-cart", data.id], (currentCache) => {
+        if (!currentCache) return data;
+        // Merge with current cache: if current cache has a newer quantity than the response, keep the newer cached quantity!
+        const cachedItem = currentCache.items.find(
+          (i) =>
+            i.id === variables.itemId ||
+            (variables.productId && i.productId === variables.productId),
+        );
+        if (cachedItem && Number(cachedItem.quantity) !== Number(variables.dto.quantity)) {
+          const updatedItems = data.items.map((serverItem) => {
+            if (
+              serverItem.id === variables.itemId ||
+              (variables.productId && serverItem.productId === variables.productId)
+            ) {
+              const qty = Number(cachedItem.quantity);
+              const unitPrice = Number(serverItem.unitPrice);
+              const discount = Number(serverItem.discountAmount || 0);
+              const lineSubtotal = round2(Math.max(0, qty * unitPrice - discount));
+              const taxAmount = round2((lineSubtotal * Number(serverItem.taxRate || 0)) / 100);
+              return {
+                ...serverItem,
+                quantity: qty,
+                taxAmount,
+                totalAmount: round2(lineSubtotal + taxAmount),
+              };
+            }
+            return serverItem;
+          });
+          const subtotalAmount = round2(
+            updatedItems.reduce((s, i) => s + Number(i.quantity) * Number(i.unitPrice), 0),
+          );
+          const totalDiscount = round2(
+            updatedItems.reduce((s, i) => s + Number(i.discountAmount || 0), 0),
+          );
+          const totalTax = round2(
+            updatedItems.reduce((s, i) => s + Number(i.taxAmount || 0), 0),
+          );
+          const netSubtotal = round2(Math.max(0, subtotalAmount - totalDiscount));
+          return {
+            ...data,
+            items: updatedItems,
+            subtotalAmount,
+            discountAmount: totalDiscount,
+            taxAmount: totalTax,
+            totalAmount: round2(netSubtotal + totalTax),
+          };
+        }
+        return data;
+      });
     },
   });
+}
+
+export interface RemovePOSCartItemParams {
+  cartId: string;
+  itemId: string;
+  productId?: string | undefined;
 }
 
 export function useRemovePOSCartItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ cartId, itemId }: { cartId: string; itemId: string }) =>
-      apiClient<POSCartData>(`/pos/carts/${cartId}/items/${itemId}`, {
+    mutationFn: async ({ cartId, itemId, productId }: RemovePOSCartItemParams) => {
+      let targetCartId = cartId;
+      let targetItemId = itemId;
+
+      if (targetCartId.startsWith("optimistic-") || targetItemId.startsWith("temp-")) {
+        const allQueries = queryClient.getQueryCache().findAll({ queryKey: ["pos-cart"] });
+        for (const q of allQueries) {
+          const cached = q.state.data as POSCartData | undefined;
+          if (cached && !cached.id.startsWith("optimistic-")) {
+            targetCartId = cached.id;
+            const realItem = cached.items.find(
+              (it) =>
+                !it.id.startsWith("temp-") &&
+                (it.id === targetItemId || (productId && it.productId === productId)),
+            );
+            if (realItem) {
+              targetItemId = realItem.id;
+              break;
+            }
+          }
+        }
+      }
+
+      if (targetItemId.startsWith("temp-")) {
+        // Was only an optimistic item not yet on server
+        return { id: targetCartId, items: [] } as any;
+      }
+
+      return apiClient<POSCartData>(`/pos/carts/${targetCartId}/items/${targetItemId}`, {
         method: "DELETE",
-      }),
-    onMutate: async ({ cartId, itemId }) => {
+      });
+    },
+    onMutate: async ({ cartId, itemId, productId }) => {
       await queryClient.cancelQueries({ queryKey: ["pos-cart", cartId] });
       const previousCart = queryClient.getQueryData<POSCartData>(["pos-cart", cartId]);
 
       if (previousCart) {
-        const updatedItems = previousCart.items.filter((i) => i.id !== itemId);
-        const subtotalAmount = updatedItems.reduce(
-          (sum, i) => sum + Number(i.quantity) * Number(i.unitPrice),
-          0,
+        const updatedItems = previousCart.items.filter(
+          (i) => i.id !== itemId && (!productId || i.productId !== productId),
         );
-        const totalDiscount = updatedItems.reduce(
-          (sum, i) => sum + Number(i.discountAmount || 0),
-          0,
+        const subtotalAmount = round2(
+          updatedItems.reduce((sum, i) => sum + Number(i.quantity) * Number(i.unitPrice), 0),
         );
-        const totalTax = updatedItems.reduce(
-          (sum, i) => sum + Number(i.taxAmount || 0),
-          0,
+        const totalDiscount = round2(
+          updatedItems.reduce((sum, i) => sum + Number(i.discountAmount || 0), 0),
         );
-        const netSubtotal = Math.max(0, subtotalAmount - totalDiscount);
+        const totalTax = round2(
+          updatedItems.reduce((sum, i) => sum + Number(i.taxAmount || 0), 0),
+        );
+        const netSubtotal = round2(Math.max(0, subtotalAmount - totalDiscount));
 
         queryClient.setQueryData(["pos-cart", cartId], {
           ...previousCart,
@@ -477,19 +610,24 @@ export function useRemovePOSCartItem() {
           subtotalAmount,
           discountAmount: totalDiscount,
           taxAmount: totalTax,
-          totalAmount: netSubtotal + totalTax,
+          totalAmount: round2(netSubtotal + totalTax),
         });
       }
 
       return { previousCart };
     },
-    onError: (_err, { cartId }, context) => {
+    onError: (err: any, { cartId }, context) => {
       if (context?.previousCart) {
         queryClient.setQueryData(["pos-cart", cartId], context.previousCart);
       }
+      toast.error("Failed to remove item", {
+        description: err?.message || "Please try again.",
+      });
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(["pos-cart", data.id], data);
+      if (data && data.id) {
+        queryClient.setQueryData(["pos-cart", data.id], data);
+      }
     },
   });
 }

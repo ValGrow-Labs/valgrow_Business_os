@@ -35,6 +35,8 @@ import {
   useHoldPOSCart,
   useResumePOSCart,
   useClearPOSCart,
+  type POSCartData,
+  type POSCartItemData,
 } from "@/hooks/queries/usePOSCarts";
 import { usePOSSales } from "@/hooks/queries/usePOSCheckout";
 import { useSendToBilling } from "@/hooks/queries/usePOSWorkflow";
@@ -538,6 +540,124 @@ function POSRegisterPage() {
     await processBarcodeScan(barcodeInput);
   };
 
+  // Pending quantities map for debouncing rapid clicks per item
+  const pendingQtyDebounceRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Cleanup pending debounce timeouts on unmount
+  useEffect(() => {
+    return () => {
+      pendingQtyDebounceRef.current.forEach((timer) => clearTimeout(timer));
+      pendingQtyDebounceRef.current.clear();
+    };
+  }, []);
+
+  // Helper to retrieve live available stock for a product / variant
+  const getItemAvailableStock = (item: { productId: string; product?: any }): number => {
+    const catalogProduct = products.find((p) => p.id === item.productId);
+    if (catalogProduct && catalogProduct.availableStock !== undefined && catalogProduct.availableStock !== null) {
+      return Number(catalogProduct.availableStock);
+    }
+    if (item.product?.availableStock !== undefined && item.product?.availableStock !== null) {
+      return Number(item.product.availableStock);
+    }
+    return Infinity;
+  };
+
+  // Immediate Optimistic + Debounced Synchronized Quantity Handler
+  const handleUpdateItemQuantity = (item: POSCartItemData, delta: number) => {
+    if (isCartLocked || !activeCart) return;
+
+    const currentQty = Number(item.quantity || 1);
+    const newQty = currentQty + delta;
+
+    // Minimum quantity rule: cannot be 0 or negative
+    if (newQty < 1) {
+      return;
+    }
+
+    // Maximum stock rule: cannot exceed available stock
+    const maxStock = getItemAvailableStock(item);
+    if (delta > 0 && newQty > maxStock) {
+      toast.error("Stock limit reached", {
+        description: `Only ${maxStock} units of "${item.product?.name || "this item"}" available in warehouse.`,
+      });
+      return;
+    }
+
+    // 1. Immediate synchronous optimistic update to the cart cache (< 0.1ms)
+    const cartId = activeCart.id;
+    const previousCart = (queryClient.getQueryData<POSCartData>(["pos-cart", cartId]) || activeCart) as POSCartData;
+    const itemIndex = previousCart.items.findIndex(
+      (i: POSCartItemData) => i.id === item.id || (i.productId === item.productId && (i.variantId || null) === (item.variantId || null)),
+    );
+
+    if (itemIndex >= 0 && previousCart.items[itemIndex]) {
+      const targetItem = previousCart.items[itemIndex]!;
+      const unitPrice = Number(targetItem.unitPrice);
+      const discount = Number(targetItem.discountAmount || 0);
+      const lineSubtotal = Math.round((Math.max(0, newQty * unitPrice - discount) + Number.EPSILON) * 100) / 100;
+      const taxAmount = Math.round(((lineSubtotal * Number(targetItem.taxRate || 0)) / 100 + Number.EPSILON) * 100) / 100;
+      const totalAmount = Math.round((lineSubtotal + taxAmount + Number.EPSILON) * 100) / 100;
+
+      const updatedItem: POSCartItemData = {
+        ...targetItem,
+        id: targetItem.id,
+        organizationId: targetItem.organizationId,
+        cartId: targetItem.cartId,
+        productId: targetItem.productId,
+        variantId: targetItem.variantId,
+        unitPrice: targetItem.unitPrice,
+        discountAmount: targetItem.discountAmount,
+        taxRate: targetItem.taxRate,
+        quantity: newQty,
+        taxAmount,
+        totalAmount,
+      };
+
+      const updatedItems = [...previousCart.items];
+      updatedItems[itemIndex] = updatedItem;
+
+      const subtotalAmount = Math.round(
+        (updatedItems.reduce((sum: number, i: POSCartItemData) => sum + Number(i.quantity) * Number(i.unitPrice), 0) + Number.EPSILON) * 100,
+      ) / 100;
+      const totalDiscount = Math.round(
+        (updatedItems.reduce((sum: number, i: POSCartItemData) => sum + Number(i.discountAmount || 0), 0) + Number.EPSILON) * 100,
+      ) / 100;
+      const totalTax = Math.round(
+        (updatedItems.reduce((sum: number, i: POSCartItemData) => sum + Number(i.taxAmount || 0), 0) + Number.EPSILON) * 100,
+      ) / 100;
+      const netSubtotal = Math.round((Math.max(0, subtotalAmount - totalDiscount) + Number.EPSILON) * 100) / 100;
+
+      queryClient.setQueryData(["pos-cart", cartId], {
+        ...previousCart,
+        items: updatedItems,
+        subtotalAmount,
+        discountAmount: totalDiscount,
+        taxAmount: totalTax,
+        totalAmount: Math.round((netSubtotal + totalTax + Number.EPSILON) * 100) / 100,
+      });
+    }
+
+    // 2. Debounce the backend API call per item (150ms)
+    const existingTimer = pendingQtyDebounceRef.current.get(item.id);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    const timer = setTimeout(() => {
+      pendingQtyDebounceRef.current.delete(item.id);
+      updateItemMutation.mutate({
+        cartId: activeCart.id,
+        itemId: item.id,
+        dto: { quantity: newQty },
+        productId: item.productId,
+        variantId: item.variantId,
+      });
+    }, 150);
+
+    pendingQtyDebounceRef.current.set(item.id, timer);
+  };
+
   // Start Next Cart Handler (used after Send to Billing or manually)
   const handleStartNewCart = async () => {
     setTicketConfirmation(null);
@@ -564,6 +684,10 @@ function POSRegisterPage() {
 
   // Confirm Send to Billing Handler
   const handleConfirmSendToBilling = async () => {
+    // Flush any pending quantity debounced updates immediately
+    pendingQtyDebounceRef.current.forEach((timer) => clearTimeout(timer));
+    pendingQtyDebounceRef.current.clear();
+
     let targetId = activeCartId;
     if (cartCreationPromiseRef.current) {
       targetId = await cartCreationPromiseRef.current;
@@ -1674,38 +1798,23 @@ function POSRegisterPage() {
                         <button
                           type="button"
                           aria-label="Decrease quantity"
-                          disabled={isCartLocked}
-                          className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
-                          onClick={() =>
-                            item.quantity > 1
-                              ? updateItemMutation.mutate({
-                                  cartId: activeCart!.id,
-                                  itemId: item.id,
-                                  dto: { quantity: item.quantity - 1 },
-                                })
-                              : removeItemMutation.mutate({
-                                  cartId: activeCart!.id,
-                                  itemId: item.id,
-                                })
-                          }
+                          disabled={isCartLocked || Number(item.quantity) <= 1}
+                          className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-all hover:text-foreground active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                          onClick={() => handleUpdateItemQuantity(item, -1)}
+                          title={Number(item.quantity) <= 1 ? "Minimum quantity is 1 (use remove icon to delete)" : "Decrease quantity by 1"}
                         >
                           <Minus className="h-3.5 w-3.5" />
                         </button>
-                        <span className="tabular w-7 text-center text-[13px] font-semibold">
+                        <span className="tabular w-7 text-center text-[13px] font-semibold select-none">
                           {item.quantity}
                         </span>
                         <button
                           type="button"
                           aria-label="Increase quantity"
-                          disabled={isCartLocked}
-                          className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
-                          onClick={() =>
-                            updateItemMutation.mutate({
-                              cartId: activeCart!.id,
-                              itemId: item.id,
-                              dto: { quantity: item.quantity + 1 },
-                            })
-                          }
+                          disabled={isCartLocked || Number(item.quantity) >= getItemAvailableStock(item)}
+                          className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-all hover:text-foreground active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                          onClick={() => handleUpdateItemQuantity(item, 1)}
+                          title={Number(item.quantity) >= getItemAvailableStock(item) ? `Max available stock (${getItemAvailableStock(item)}) reached` : "Increase quantity by 1"}
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </button>
@@ -1719,10 +1828,19 @@ function POSRegisterPage() {
                         type="button"
                         aria-label={`Remove ${item.product?.name ?? "item"}`}
                         disabled={isCartLocked}
-                        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive-soft hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed"
-                        onClick={() =>
-                          removeItemMutation.mutate({ cartId: activeCart!.id, itemId: item.id })
-                        }
+                        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-destructive-soft hover:text-destructive active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                        onClick={() => {
+                          const timer = pendingQtyDebounceRef.current.get(item.id);
+                          if (timer) {
+                            clearTimeout(timer);
+                            pendingQtyDebounceRef.current.delete(item.id);
+                          }
+                          removeItemMutation.mutate({
+                            cartId: activeCart!.id,
+                            itemId: item.id,
+                            productId: item.productId,
+                          });
+                        }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

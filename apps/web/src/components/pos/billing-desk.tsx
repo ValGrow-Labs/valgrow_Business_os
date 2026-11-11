@@ -296,7 +296,8 @@ export function BillingDesk({ branchId, warehouseId }: BillingDeskProps) {
   // Adjust line item quantity (if claimed by me)
   const handleQuantityChange = async (itemId: string, currentQty: number, delta: number) => {
     if (!activeTicket || !isClaimedByMe) return;
-    const newQty = Math.max(0.001, currentQty + delta);
+    const newQty = Math.max(1, currentQty + delta);
+    if (newQty < 1 || newQty === currentQty) return;
     try {
       await updateItemMutation.mutateAsync({
         cartId: activeTicket.id,
