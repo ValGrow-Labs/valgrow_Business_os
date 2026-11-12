@@ -255,7 +255,7 @@ function ReportsPage() {
 
       <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-2 sm:pb-0">
-          <TabsList className="h-auto justify-start gap-1 overflow-x-auto rounded-none border-0 bg-transparent p-0">
+          <TabsList className="h-auto justify-start gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:overflow-visible rounded-none border-0 bg-transparent p-0">
             <TabsTrigger value="sales" className="relative flex items-center gap-2 rounded-none bg-transparent px-3 pb-2.5 pt-1.5 text-[13px] text-muted-foreground shadow-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
               {activeTab === "sales" && (
                 <motion.span layoutId="report-tab" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" transition={{ type: "spring", stiffness: 500, damping: 38 }} />
